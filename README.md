@@ -1,4 +1,4 @@
-cameliaJS
+Camelia
 =========
 
 Powerfull Angular components library
