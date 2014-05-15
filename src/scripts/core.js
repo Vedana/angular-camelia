@@ -1,3 +1,8 @@
+/**
+ * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @author olivier@oeuillot.net
+ */
+
 (function(window, angular, undefined) {
 	"use strict";
 
@@ -19,7 +24,6 @@
 					var msie = undefined;
 
 					return { 
-
 						Assert: function(arg, name, message) {
 							if (arg) {
 								return;

@@ -1,3 +1,8 @@
+/**
+ * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @author olivier@oeuillot.net
+ */
+
 (function(window, angular, undefined) {
 	"use strict";
 
@@ -10,12 +15,13 @@
 	module.factory("camelia.renderers.FiltersPopup", [ "$log",
 		"$q",
 		"$exceptionHandler",
+		"$timeout",
 		"camelia.core",
 		"camelia.cmTypes",
 		"cm_filtersPopup_className",
 		"camelia.Key",
 		"camelia.renderers.Popup",
-		function($log, $q, $exceptionHandler, cc, cm, cm_filtersPopup_className, Key, PopupRenderer) {
+		function($log, $q, $exceptionHandler, $timeout, cc, cm, cm_filtersPopup_className, Key, PopupRenderer) {
 
 			function SearchElements(target) {
 				return cm.SearchElements({
@@ -101,6 +107,9 @@
 					var elements = SearchElements(target);
 					if (!elements.popup) {
 						renderContext.close();
+
+						event.stopPropagation();
+						event.preventDefault();
 						return;
 					}
 
@@ -111,10 +120,16 @@
 						angular.element(elements.rfilter).data("context").enabled = input.checked;
 
 						renderContext._refreshDatas();
+						$timeout(function() {
+							renderContext.close();
+						});
 					}
 
 					cm.SwitchOnState(renderContext, elements, "mouseDown", function(elements) {
 					});
+
+					event.stopPropagation();
+					event.preventDefault();
 				};
 			}
 
@@ -181,11 +196,12 @@
 						var newContext = {};
 						criteriasContext[criteria.id] = newContext;
 
+						var cnt = 0;
 						angular.forEach(filters, function(filter) {
 
 							var id = filter.id;
 							if (!id) {
-								id = "__crit_" + (anonymousId++);
+								id = criteria.id + "__" + (cnt++);
 								filter.id = id;
 							}
 

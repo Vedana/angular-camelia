@@ -1,3 +1,8 @@
+/**
+ * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @author olivier@oeuillot.net
+ */
+
 (function(window, angular, undefined) {
 	'use strict';
 
@@ -464,46 +469,17 @@
 		} ]);
 
 	/*
-	 * ------------------------ DataCriteria --------------------------
+	 * ------------------------ --------------------------
 	 */
-
-	module.factory("camelia.components.DataCriteria", [ "$log", function($log) {
-
-		function DataCriteria($scope, element) {
-			this.$scope = $scope;
-
-			$scope._component = this;
-
-			var id = $scope.id;
-			if (!id) {
-				id = "cm_data_criteria_" + (anonymousId++);
-			}
-			this.id = id;
-		}
-
-		DataCriteria.prototype = {
-			contributeCheckboxes: function(checkboxContainer) {
-				return null;
-			},
-
-			acceptValue: function(data, dataColumn, dataModel) {
-				return false;
-			}
-		};
-
-		return DataCriteria;
-	} ]);
 
 	module.factory("camelia.components.GridProvider", [ "camelia.components.DataGrid",
 		"camelia.components.DataColumn",
 		"camelia.components.DataGroup",
-		"camelia.components.DataCriteria",
-		function(dataGrid, dataColumn, dataGroup, dataCriteria) {
+		function(dataGrid, dataColumn, dataGroup) {
 			return {
 				DataGrid: dataGrid,
 				DataColumn: dataColumn,
-				DataGroup: dataGroup,
-				DataCriteria: dataCriteria
+				DataGroup: dataGroup
 			};
 		} ]);
 

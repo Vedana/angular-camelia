@@ -1,7 +1,12 @@
+/**
+ * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @author olivier@oeuillot.net
+ */
+
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.criteria", []);
+	var module = angular.module("camelia.criteria", [ "camelia.i18n.criteria" ]);
 
 	var anonymousId = 0;
 

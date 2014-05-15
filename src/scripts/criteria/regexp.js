@@ -1,3 +1,8 @@
+/**
+ * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @author olivier@oeuillot.net
+ */
+
 (function(window, angular, undefined) {
 	'use strict';
 
@@ -25,8 +30,10 @@
 
 		angular.extend(RegExpCriteria.prototype, {
 			contributeFilters: function(container) {
+				var regExp = this._regExp;
 				return [ {
-					name: this.name
+					name: this.name,
+					parameter: regExp
 				} ];
 			},
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
