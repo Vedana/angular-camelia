@@ -2,8 +2,8 @@
 	'use strict';
 
 	var module = angular.module("camelia.components.popup", [ "camelia.core" ]);
-	
-	module.value("cm_popup_rendererProviderName", "camelia.renderers.popup:camelia.renderers.popup");
+
+	module.value("cm_popup_rendererProviderName", "camelia.renderers.popup:camelia.renderers.Popup");
 
 	module.factory("camelia.components.popup", [ "$log",
 		"$q",
@@ -16,10 +16,10 @@
 			var anonymousId = 0;
 
 			/*
-			 * ------------------------ PopupBase --------------------------
+			 * ------------------------ Popup --------------------------
 			 */
 
-			var PopupBase = function($scope, element, defaultRendererProviderName) {
+			var Popup = function($scope, element, defaultRendererProviderName) {
 				this.$scope = $scope;
 				element.data("cm_component", this);
 
@@ -28,11 +28,11 @@
 					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName;
 					rendererProvider = cc.LoadProvider(rendererProviderName);
 				}
+				
 				this.rendererProvider = rendererProvider;
-
 			}
 
-			PopupBase.prototype = {
+			Popup.prototype = {
 
 				/**
 				 * @returns {Promise}
@@ -69,95 +69,12 @@
 						});
 					} ],
 
-				constructFromTarget: function(renderContext) {
-					var doc = angular.element(document.createDocumentFragment());
-
-					var containerPromise = renderContext.rendererProvider.PagerRenderer(doc, renderContext);
-					if (!cc.isPromise(containerPromise)) {
-						containerPromise = $q.when(containerPromise);
-					}
-
-					return containerPromise.then(function(element) {
-						self.constructing = false;
-						self.constructed = true;
-						self.element = element;
-
-						var positions = renderContext.positions;
-						if (!positions && targetComponent.getCurrentPositions) {
-							positions = targetComponent.getCurrentPositions();
-						}
-						if (positions) {
-							renderContext.positions = undefined;
-
-							self.setPositions(targetComponent, renderContext, positions);
-						}
-
-						return doc;
-					});
+				open: function() {
 				},
-
-				_targetDestroyed: function() {
-
-				},
-
-				setPositions: function(component, renderContext, positions) {
-					renderContext.rendererProvider.PagerPositionsUpdate(positions, renderContext);
-				}
 			};
 
-			/*
-			 * ------------------------ Popup --------------------------
-			 */
+			return Popup;
 
-			var Popup = function($scope, element) {
-				var id = $scope.id;
-				if (!id) {
-					id = "cm_popup_" + (anonymousId++);
-				}
-				this.id = id;
-				element.attr("id", id);
-
-				PopupBase.call(this, $scope, element, cm_popup_rendererProviderName);
-			};
-
-			Popup.prototype = Object.create(PopupBase.prototype);
-			angular.extend(Popup.prototype, {
-				constructor: Popup,
-
-				constructFromTarget: function(renderContext) {
-
-					var format = this.$scope.format;
-					if (!angular.isString(format)) {
-						format = cm_pager_format;
-					}
-					renderContext.format = format;
-
-					var self = this;
-					this.$scope.$watch("format", function(format) {
-						var targetComponent = renderContext.target;
-						if (!targetComponent) {
-							return;
-						}
-
-						var positions = targetComponent.getCurrentPositions();
-
-						if (!angular.isString(format)) {
-							format = cm_pager_format;
-						}
-
-						renderContext.format = format;
-
-						self.setPositions(targetComponent, renderContext, positions);
-					});
-
-					return PagerBase.prototype.constructFromTarget.call(this, renderContext);
-				}
-			});
-
-			return {
-				Popup: Popup,
-				PopupBase: PopupBase
-			};
 		} ]);
 
 })(window, window.angular);

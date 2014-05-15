@@ -3,8 +3,7 @@
 
 	var module = angular.module("camelia.components.pager", [ "camelia.core", "camelia.pagerRegistry" ]);
 
-	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.pager");
-	module.value("cm_pager_className", "cm_pager");
+	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.PagerProvider");
 	module.value("xcm_pager_format", "{bprev} {first} {bnext}");
 	module
 			.value(

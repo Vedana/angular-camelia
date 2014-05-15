@@ -303,6 +303,10 @@
 				},
 				containsAll: function(obj) {
 					if (!angular.isArray(obj)) {
+						if (angular.isObject(obj)) {
+							return this.contains(obj);
+						}
+
 						throw new Error("Invalid paramater for containsAll(<array>) method");
 					}
 					var array = this._array;
@@ -353,16 +357,16 @@
 						clearAll: clearAll
 					};
 
-					var event = this.$emit(SELECTION_CHANGING_EVENT, arg);
+					var event = this.$emit(SelectionProvider.SELECTION_CHANGING_EVENT, arg);
 					if (event.defaultPrevented) {
 						return;
 					}
 
 					this._array = newSelection.slice();
 
-					this.$emit(SELECTION_SET_EVENT, arg);
+					this.$emit(SelectionProvider.SELECTION_SET_EVENT, arg);
 
-					this.$emit(SELECTION_CHANGED_EVENT, arg);
+					this.$emit(SelectionProvider.SELECTION_CHANGED_EVENT, arg);
 				}
 			});
 

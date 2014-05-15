@@ -10,8 +10,6 @@
 
 	module.value("cm_grid_rendererProviderName", "camelia.renderers.grid:camelia.renderers.GridProvider");
 	module.value("cm_grid_dataModelProviderName", "");
-	module.value("cm_grid_rowIndentPx", 16);
-	module.value("cm_grid_className", "cm_dataGrid");
 
 	var anonymousId = 0;
 
@@ -173,40 +171,44 @@
 					var doc = angular.element(document.createDocumentFragment());
 
 					var renderContext = {
+						$scope: $scope,
+						$interpolate: this.directiveInterpolate,
+
 						dataGrid: this,
-						rendererProvider: this.rendererProvider,
+						columns: $scope.columns,
+
 						selectionProvider: this.selectionProvider,
 						selectionStrategy: this.selectionStrategy,
 						cursorProvider: this.cursorProvider,
-						columns: $scope.columns,
-						groupProviders: $scope.groupProviders,
-						$scope: $scope,
-						$interpolate: this.directiveInterpolate
+						groupProviders: $scope.groupProviders
 					};
 
 					var self = this;
 
-					renderContext.$scope.$watch("first", function(newValue, oldValue) {
+					var gridRenderer = new this.rendererProvider(renderContext);
+					this.gridRenderer = gridRenderer;
+
+					gridRenderer.$scope.$watch("first", function(newValue, oldValue) {
 						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
 						if (self.readyState == "complete") {
-							self.rendererProvider.UpdateData(renderContext, false);
+							gridRenderer.updateData(false);
 						}
 					});
 
-					renderContext.$scope.$watch("rows", function(newValue, oldValue) {
+					gridRenderer.$scope.$watch("rows", function(newValue, oldValue) {
 						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
 						if (self.readyState == "complete") {
-							self.rendererProvider.UpdateData(renderContext, false);
+							gridRenderer.updateData(false);
 						}
 					});
 
-					var containerPromise = this.rendererProvider.GridRenderer(doc, renderContext);
+					var containerPromise = gridRenderer.render(doc);
 					if (!cc.isPromise(containerPromise)) {
 						containerPromise = $q.when(containerPromise);
 					}
@@ -220,9 +222,9 @@
 
 						pagerRegistry.declareTarget(element);
 
-						self._updateDataModel(renderContext.$scope.value, renderContext);
-						renderContext.$scope.$on("valueChanged", function(event, value) {
-							self._updateDataModel(value, renderContext);
+						self._updateDataModel(gridRenderer.$scope.value);
+						gridRenderer.$scope.$on("valueChanged", function(event, value) {
+							self._updateDataModel(value);
 						});
 
 						return doc;
@@ -234,10 +236,12 @@
 					});
 				} ],
 
-				_updateDataModel: function(value, renderContext) {
-					var oldDataModel = renderContext.dataModel;
+				_updateDataModel: function(value) {
+					var gridRenderer = this.gridRenderer;
+
+					var oldDataModel = gridRenderer.dataModel;
 					if (oldDataModel) {
-						renderContext.dataModel = undefined;
+						gridRenderer.dataModel = undefined;
 						oldDataModel.$destroy();
 					}
 
@@ -249,29 +253,29 @@
 					var self = this;
 
 					dataModelPromise.then(function(dataModel) {
-						renderContext.dataErrored = false;
-						renderContext.dataModel = dataModel;
+						gridRenderer.dataErrored = false;
+						gridRenderer.dataModel = dataModel;
 
 						if (dataModel) {
 							// dataModel.installWatcher(renderContext.$scope, "value");
 
 							dataModel.$on(DataModel.DATA_MODEL_CHANGED_EVENT, function(event, value) {
-								self._updateDataModel(value, renderContext);
+								self._updateDataModel(value);
 							});
 
 							dataModel.$on(DataModel.DATA_MODEL_UPDATED_EVENT, function(event, value) {
-								self.rendererProvider.UpdateData(renderContext);
+								gridRenderer.updateData();
 							});
 						}
 
 						// if (self.state == "complete") {
-						self.rendererProvider.UpdateData(renderContext);
+						gridRenderer.updateData();
 						// }
 
 					}, function(error) {
-						renderContext.dataErrored = true;
-						renderContext.dataModel = null;
-						self.rendererProvider.UpdateData(renderContext);
+						gridRenderer.dataErrored = true;
+						gridRenderer.dataModel = null;
+						gridRenderer.updateData();
 					});
 				},
 
@@ -372,6 +376,7 @@
 			addCriteria: function(criteria) {
 				if (!this._criterias) {
 					this._criterias = [];
+					this._criteriasContext = {};
 				}
 
 				this._criterias.push(criteria);

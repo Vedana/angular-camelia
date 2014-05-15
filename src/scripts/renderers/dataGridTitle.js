@@ -10,41 +10,39 @@
 		"$timeout",
 		"camelia.core",
 		"camelia.cmTypes",
-		"camelia.renderers.grid.utils",
 		"cm_grid_rowIndentPx",
-		function($log, $timeout, cc, cm, cu, cm_dataGrid_rowIndentPx) {
+		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx) {
 
 			var anonymousId = 0;
 
 			return {
 
-				TitleRenderer: function(parent, renderContext) {
+				titleRenderer: function(parent) {
 
 					var viewPort = cc.createElement(parent, "div", {
 						id: "cm_title_" + (anonymousId++),
 						className: "cm_dataGrid_title"
 					});
-					renderContext.titleViewPort = viewPort[0];
+					this.titleViewPort = viewPort[0];
 
 					var ul = cc.createElement(viewPort, "ul", {
 						className: "cm_dataGrid_ttitle"
 					});
-					renderContext.titleBarElement = ul[0];
+					this.titleBarElement = ul[0];
 
-					renderContext.rendererProvider.TitleStyleUpdate(viewPort, renderContext);
+					this.titleStyleUpdate(viewPort);
 
-					var columns = renderContext.columns;
+					var columns = this.columns;
 					var index = 0;
 					var visibleIndex = 0;
 					var scopeColLogicalIndex = -1;
-					var titleCellRenderer = renderContext.rendererProvider.TitleCellRenderer;
-					var titleCellStyleUpdate = renderContext.rendererProvider.TitleCellStyleUpdate;
 					var percentWidthCount = 0;
 
 					var visibleColumns = [];
-					renderContext.visibleColumns = visibleColumns;
-					renderContext.hasResizableColumnVisible = false;
+					this.visibleColumns = visibleColumns;
+					this.hasResizableColumnVisible = false;
 
+					var self = this;
 					angular.forEach(columns, function(column) {
 
 						column.logicalIndex = index;
@@ -69,14 +67,14 @@
 							column.visibleIndex = visibleColumns.length;
 							cellElement.data("cm_column", column);
 
-							titleCellStyleUpdate(cellElement, renderContext);
+							self.titleCellStyleUpdate(cellElement);
 
-							titleCellRenderer(cellElement, renderContext, column, index);
+							self.titleCellRenderer(cellElement, column, index);
 
 							visibleColumns.push(column);
 
 							if (column.$scope.resizeable) {
-								renderContext.hasResizableColumnVisible = true;
+								self.hasResizableColumnVisible = true;
 							}
 						}
 
@@ -92,17 +90,17 @@
 						"aria-hidden": true
 					});
 					cc.createElement(cellElement, "span");
-					titleCellRenderer(cellElement, renderContext);
-					renderContext.lastTitleCellElement = cellElement[0];
+					this.titleCellRenderer(cellElement);
+					this.lastTitleCellElement = cellElement[0];
 
 					return viewPort;
 				},
 
-				TitleStyleUpdate: function(element, renderContext) {
+				titleStyleUpdate: function(element) {
 					return cm.MixElementClasses(element, [ "cm_dataGrid_title" ]);
 				},
 
-				TitleCellRenderer: function(element, renderContext, column) {
+				titleCellRenderer: function(element, column) {
 					if (element[0]) {
 						element = element[0];
 					}
@@ -115,7 +113,7 @@
 
 						var button = cc.createElement(parent, "button", {
 							className: "cm_dataGrid_tbutton",
-							tabIndex: renderContext.tabIndex
+							tabIndex: this.tabIndex
 						});
 						column.buttonElement = button[0];
 						parent = button;
@@ -162,11 +160,11 @@
 
 						var prevIndex = column.visibleIndex - 1;
 						if (prevIndex >= 0) {
-							prevColumn = renderContext.visibleColumns[prevIndex];
+							prevColumn = this.visibleColumns[prevIndex];
 						}
 					} else {
 						// Find the last visible column
-						prevColumn = renderContext.visibleColumns[renderContext.visibleColumns.length - 1];
+						prevColumn = this.visibleColumns[this.visibleColumns.length - 1];
 					}
 
 					var sizer = cc.createElement(titleCell, "div", {
@@ -178,7 +176,7 @@
 					if (column) {
 						column.sizerElement = sizerElement;
 					} else {
-						renderContext.lastSizerElement = sizerElement;
+						this.lastSizerElement = sizerElement;
 					}
 
 					if (!prevColumn || !cc.toBoolean(prevColumn.$scope.resizeable)) {
@@ -186,14 +184,14 @@
 					}
 				},
 
-				TitleCellStyleUpdate: function(element, renderContext) {
+				titleCellStyleUpdate: function(element) {
 					if (element[0]) {
 						element = element[0];
 					}
 					var titleCell = element;
 					var index = titleCell.cm_columnIndex;
 
-					var column = renderContext.columns[index];
+					var column = this.columns[index];
 
 					var constantClasses = null;
 					var align = angular.isString(column.titleAlign) ? column.titleAlign : column.cellAlign;
@@ -208,12 +206,14 @@
 																																			 */], constantClasses);
 				},
 
-				TitleLayout: function(container, renderContext, width) {
-					if (renderContext._hasData && !renderContext._naturalWidths) {
-						var ret = this.ComputeColumnsNaturalWidths(renderContext);
+				titleLayout: function(container, width) {
+					var self = this;
+
+					if (this._hasData && !this._naturalWidths) {
+						var ret = this.computeColumnsNaturalWidths();
 						if (ret === false) {
 							return $timeout(function() {
-								return renderContext.rendererProvider.TitleLayout(container, renderContext, width);
+								return self.titleLayout(container, width);
 							}, 10, false);
 						}
 					}
@@ -222,14 +222,15 @@
 					var totalNatural = 0;
 					var countPercent = 0;
 					var percentColumns = [];
+					var rowIndent=this.rowIndent;
 
-					if (renderContext.hasResizableColumnVisible) {
+					if (this.hasResizableColumnVisible) {
 						leftWidth -= 6;
 					}
+					
+					angular.forEach(this.visibleColumns, function(column) {
 
-					angular.forEach(renderContext.visibleColumns, function(column) {
-
-						var rowIndentPx = !column.visibleIndex && (renderContext.rowIndent * cm_dataGrid_rowIndentPx);
+						var rowIndentPx = !column.visibleIndex && (rowIndent * cm_dataGrid_rowIndentPx);
 
 						var minWidth = column.minWidth || 0;
 						if (!minWidth || minWidth < (MIN_COLUMN_WIDTH + rowIndentPx)) {
@@ -335,27 +336,27 @@
 							});
 						}
 
-					} else if (renderContext.fillWidth) {
+					} else if (this.fillWidth) {
 						// On repartit les naturals
 					}
 				},
 
-				TitleCellLayout: function(container, renderContext) {
+				titleCellLayout: function(container) {
 				},
 
-				MoveColumnTitle: function(column, renderContext, beforeColumn) {
+				moveColumnTitle: function(column, beforeColumn) {
 
 					var title = column.titleElement;
 					var beforeTitle = beforeColumn && beforeColumn.titleElement;
 					if (!beforeTitle) {
-						beforeTitle = renderContext._lastVisibleColumn.titleElement.nextSibling;
+						beforeTitle = this._lastVisibleColumn.titleElement.nextSibling;
 					}
 
 					var parent = title.parentNode;
 					parent.removeChild(title);
 					parent.insertBefore(title, beforeTitle);
 
-					var visibleColumns = renderContext.visibleColumns;
+					var visibleColumns = this.visibleColumns;
 					var i = 0;
 					for (; i < visibleColumns.length; i++) {
 						var sizerElement = visibleColumns[i].sizerElement;
@@ -364,43 +365,43 @@
 						sizerElement.style.display = (resizeable) ? "block" : "none";
 					}
 
-					if (renderContext.lastSizerElement) {
+					if (this.lastSizerElement) {
 						var resizeable = cc.toBoolean(visibleColumns[i - 1].$scope.resizeable);
 
-						renderContext.lastSizerElement.style.display = (resizeable) ? "block" : "none";
+						this.lastSizerElement.style.display = (resizeable) ? "block" : "none";
 					}
 				},
 
-				BeginMovingTitleCell: function(column, renderContext, event, dx, layerX) {
-					var titleBar = renderContext.titleBarElement;
+				beginMovingTitleCell: function(column, event, dx, layerX) {
+					var titleBar = this.titleBarElement;
 					var bcr = titleBar.getBoundingClientRect();
 					var style = titleBar.style;
 					style.height = bcr.height + "px";
 
-					angular.forEach(renderContext.visibleColumns, function(column) {
+					angular.forEach(this.visibleColumns, function(column) {
 						var titleElement = column.titleElement;
 						// bcr = titleElement.getBoundingClientRect();
 
 						column._movingLeft = titleElement.offsetLeft;
 					});
-					var ltcLeft = renderContext.lastTitleCellElement.offsetLeft;
+					var ltcLeft = this.lastTitleCellElement.offsetLeft;
 
 					column.titleElement.style.zIndex = "1000";
 					column.titleElement.style.backgroundColor = "transparent";
 
-					angular.forEach(renderContext.visibleColumns, function(column) {
+					angular.forEach(this.visibleColumns, function(column) {
 						var titleElement = column.titleElement;
 
 						var style = titleElement.style;
 						style.left = column._movingLeft + "px";
 						style.position = "absolute";
 					});
-					style = renderContext.lastTitleCellElement.style;
+					style = this.lastTitleCellElement.style;
 					style.left = ltcLeft + "px";
 					style.height = bcr.height + "px";
 					style.position = "absolute";
 				},
-				MovingTitleCell: function(column, renderContext, event, dx, layerX) {
+				movingTitleCell: function(column, event, dx, layerX) {
 					var npos = column._movingLeft + dx;
 
 					column.titleElement.style.left = npos + "px";
@@ -409,9 +410,10 @@
 
 					// console.log("mx=" + mx + " npos=" + npos + " layerX=" + layerX);
 
-					renderContext._movingOverColumnIndex = undefined;
+					this._movingOverColumnIndex = undefined;
 
-					angular.forEach(renderContext.visibleColumns, function(col) {
+					var self = this;
+					angular.forEach(this.visibleColumns, function(col) {
 						var titleElement = col.titleElement;
 						if (titleElement.id == column.titleElement.id) {
 							return;
@@ -430,7 +432,7 @@
 							}
 
 							if (mx < col._movingLeft + col.width) {
-								renderContext._movingOverColumnIndex = col.visibleIndex;
+								self._movingOverColumnIndex = col.visibleIndex;
 							}
 						}
 						titleElement.style.left = left + "px";
@@ -438,15 +440,15 @@
 					});
 				},
 
-				EndMovingTitleCell: function(column, renderContext, event) {
+				endMovingTitleCell: function(column, event) {
 
-					var overColumnIndex = renderContext._movingOverColumnIndex;
-					renderContext._movingOverColumn = undefined;
+					var overColumnIndex = this._movingOverColumnIndex;
+					this._movingOverColumn = undefined;
 
 					column.titleElement.style.zIndex = "";
 					column.titleElement.style.backgroundColor = "";
 
-					angular.forEach(renderContext.visibleColumns, function(column) {
+					angular.forEach(this.visibleColumns, function(column) {
 						var titleElement = column.titleElement;
 
 						var style = titleElement.style;
@@ -457,18 +459,18 @@
 						column._movingLeft = undefined;
 					});
 
-					var style = renderContext.lastTitleCellElement.style;
+					var style = this.lastTitleCellElement.style;
 					style.left = "";
 					style.height = "";
 					style.position = "";
 
-					var titleBar = renderContext.titleBarElement;
+					var titleBar = this.titleBarElement;
 					style = titleBar.style;
 					style.height = "";
 					style.width = "";
 
 					return overColumnIndex;
-				},
+				}
 			};
 
 		} ]);

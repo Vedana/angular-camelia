@@ -11,24 +11,24 @@
 		"$injector",
 		"camelia.core",
 		"camelia.cmTypes",
-		'camelia.renderers.grid.utils',
 		"cm_grid_rowIndentPx",
 		"cm_grid_group_animation",
-		function($log, $q, $timeout, $injector, cc, cm, cu, cm_dataGrid_rowIndentPx, cm_dataGrid_group_animation) {
+		function($log, $q, $timeout, $injector, cc, cm, cm_dataGrid_rowIndentPx, cm_dataGrid_group_animation) {
 
 			var anonymousId = 0;
 
 			return {
-				TableRenderer: function(parent, renderContext) {
+				tableRenderer: function(parent) {
 
 					var viewPort = cc.createElement(parent, "div", {
 						id: "cm_table_" + (anonymousId++),
 						className: "cm_dataGrid_table"
 					});
-					renderContext.tableViewPort = viewPort[0];
+					this.tableViewPort = viewPort[0];
 
+					var self = this;
 					viewPort.on("scroll", function(event) {
-						renderContext.titleViewPort.scrollLeft = renderContext.tableViewPort.scrollLeft;
+						self.titleViewPort.scrollLeft = self.tableViewPort.scrollLeft;
 					});
 
 					var table = cc.createElement(viewPort, "table", {
@@ -37,10 +37,10 @@
 						cellPadding: 0,
 						cellSpacing: 0
 					});
-					renderContext.tableElement = table[0];
+					this.tableElement = table[0];
 
 					var caption = null;
-					var captionText = renderContext.$scope.caption;
+					var captionText = this.$scope.caption;
 					if (captionText !== undefined) {
 						caption = cc.createElement(table, "caption", {
 							className: "cm_dataGrid_caption",
@@ -49,8 +49,8 @@
 						caption.text(captionText);
 					}
 
-					renderContext.$scope.$watch('caption', function() {
-						var captionText = renderContext.$scope.caption;
+					this.$scope.$watch('caption', function() {
+						var captionText = self.$scope.caption;
 
 						if (!caption) {
 							caption = cc.createElement(thead, "caption", {
@@ -61,7 +61,7 @@
 						caption.text(angular.isString(captionText) ? captionText : "");
 					});
 
-					var rowIndent = renderContext.rowIndent;
+					var rowIndent = this.rowIndent;
 					if (rowIndent) {
 						var colgroupIndent = cc.createElement(table, "colgroup", {
 							className: "cm_dataGrid_colgroupIndent",
@@ -80,7 +80,7 @@
 						className: "cm_dataGrid_colgroup"
 					});
 
-					var visibleColumns = renderContext.visibleColumns;
+					var visibleColumns = this.visibleColumns;
 					angular.forEach(visibleColumns, function(column) {
 						var col = cc.createElement(colgroup, "col", {
 							className: "cm_dataGrid_col"
@@ -89,8 +89,8 @@
 						column.bodyColElement = col[0];
 					});
 
-					if (renderContext.hasResizableColumnVisible) {
-						renderContext.rightColElement = cc.createElement(colgroup, "col", {
+					if (this.hasResizableColumnVisible) {
+						this.rightColElement = cc.createElement(colgroup, "col", {
 							"aria-hidden": true,
 							className: "cm_dataGrid_colSizer"
 						})[0];
@@ -99,7 +99,7 @@
 					var thead = cc.createElement(table, "thead", {
 						className: "cm_dataGrid_thead"
 					});
-					renderContext.tableTHead = thead[0];
+					this.tableTHead = thead[0];
 
 					var titleRow = cc.createElement(thead, "tr");
 
@@ -134,33 +134,56 @@
 						className: "cm_dataGrid_tbody",
 						id: "cm_tbody_" + (anonymousId++)
 					});
-					renderContext.tableTBody = tbody[0];
+					this.tableTBody = tbody[0];
 
-					renderContext.rendererProvider.TableStyleUpdate(viewPort, renderContext);
+					this.tableStyleUpdate(viewPort);
 
 					return viewPort;
 				},
 
-				NewCriteriaExpression: function(column, criteria) {
+				newCriteriasExpression: function(column, enabledCriterias) {
+					return function(rowScope, dataModel) {
+						var interpolatedExpression = column.interpolatedExpression;
+						if (!interpolatedExpression) {
+							return false;
+						}
 
+						var value = rowScope.$eval(interpolatedExpression);
+
+						var criterias = column._criterias;
+						for (var k = 0; k < criterias.length; k++) {
+							var criteria = criterias[k];
+
+							var filterContexts = enabledCriterias[criteria.id];
+							if (!filterContexts) {
+								continue;
+							}
+
+							if (criteria.filterData(filterContexts, value, rowScope, dataModel, column) !== false) {
+								return true;
+							}
+						}
+
+						return false;
+					};
 				},
 
-				TableRowsRenderer: function(tbody, renderContext) {
-					renderContext._hasData = undefined;
+				tableRowsRenderer: function(tbody) {
+					this._hasData = undefined;
 
-					var dataModel = renderContext.dataModel;
+					var dataModel = this.dataModel;
 					if (!dataModel) {
 						return;
 					}
-					var dataGrid = renderContext.dataGrid;
+					var dataGrid = this.dataGrid;
 
-					var varName = renderContext.$scope.varName;
+					var varName = this.$scope.varName;
 
 					var self = this;
 
 					// Prepare columns
 
-					var visibleColumns = renderContext.visibleColumns;
+					var visibleColumns = this.visibleColumns;
 					angular.forEach(visibleColumns, function(column) {
 						var interpolatedExpression = column.interpolatedExpression;
 						if (interpolatedExpression) {
@@ -171,53 +194,76 @@
 						if (!expression && column.$scope.fieldName) {
 							expression = $interpolate.startSymbol() + "$row." + column.$scope.fieldName + $interpolate.endSymbol();
 						}
-						if (expression) {
-							interpolatedExpression = renderContext.$interpolate(expression);
-							column.interpolatedExpression = interpolatedExpression;
+						if (!expression) {
+							return;
 						}
+
+						interpolatedExpression = self.$interpolate(expression);
+						column.interpolatedExpression = interpolatedExpression;
 					});
 
 					// Prepare filters
 
-					var filtredColumns = renderContext.filtredColumns;
-					if (filtredColumns && filtredColumns.length) {
-						var filters = [];
+					var filters = [];
 
-						angular.forEach(filtredColumns, function(column) {
-							var criterias = column._criterias;
-							if (!criterias || !criterias.length) {
-								return;
-							}
+					angular.forEach(visibleColumns, function(column) {
+						var criterias = column._criterias;
+						if (!criterias || !criterias.length) {
+							return;
+						}
 
-							angular.forEach(criterias, function(criteria) {
-								if (criteria.$scope.enabled !== true) {
+						var criteriasContext = column._criteriasContext;
+
+						var enabledCriterias = {};
+						var count = 0;
+						angular.forEach(criterias, function(criteria) {
+
+							var criteriaContext = criteriasContext[criteria.id];
+							angular.forEach(criteriaContext, function(filterContext, filterId) {
+								if (!filterContext.enabled) {
 									return;
 								}
 
-								filters.push(self.NewCriteriaExpression(column, criteria));
+								var c = enabledCriterias[criteria.id];
+								if (!c) {
+									c = [];
+									enabledCriterias[criteria.id] = c;
+								}
+
+								c.push(filterContext);
+								count++;
 							});
 						});
 
-						if (filters.length) {
-							dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
-								return new FiltredDataModel(dataModel);
-							} ]);
-
-							dataModel.setFilters(filters);
+						if (!count) {
+							return;
 						}
+
+						filters.push(self.newCriteriasExpression(column, enabledCriterias));
+					});
+					if (filters.length) {
+						if (!dataModel.isFilterSupport()) {
+							dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
+								return new FiltredDataModel(dataModel, varName);
+							} ]);
+						}
+
+						dataModel.setFilters(filters);
 					}
 
 					// Prepare sorters
 
-					var sorters = renderContext.sorters;
+					var sorters = this.sorters;
 					if (sorters && sorters.length) {
 						var sorter0 = sorters[0];
 
 						var columnSorters = sorter0.column.$scope.sorter;
 						if (columnSorters && columnSorters != "server") {
-							dataModel = $injector.invoke([ "camelia.SortedDataModel", function(SortedDataModel) {
-								return new SortedDataModel(dataModel);
-							} ]);
+							if (!dataModel.isSortSupport()) {
+								dataModel = $injector.invoke([ "camelia.SortedDataModel", function(SortedDataModel) {
+									return new SortedDataModel(dataModel);
+								} ]);
+							}
 							dataModel.setSorters([ {
 								expression: columnSorters,
 								column: sorter0.column,
@@ -227,30 +273,29 @@
 					}
 
 					var groupDataModel = null;
-					var groupProvider = renderContext.selectedGroupProvider;
+					var groupProvider = this.selectedGroupProvider;
 					if (groupProvider) {
-						dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
-							return new GroupedDataModel(dataModel, groupProvider, renderContext.$interpolate, varName);
-						} ]);
+						if (!dataModel.isGroupSupport()) {
+							dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
+								return new GroupedDataModel(dataModel, groupProvider, varName);
+							} ]);
+						}
+						dataModel.setGrouped(true);
 						groupDataModel = dataModel;
 					}
 
 					var rowIndent = (groupDataModel) ? 1 : 0;
 
-					dataModel.setScope(renderContext.$scope.$parent);
+					dataModel.setScope(this.$scope.$parent);
 
-					var groupRenderer = renderContext.rendererProvider.GroupRenderer;
-					var rowRenderer = renderContext.rendererProvider.RowRenderer;
-					var cellRenderer = renderContext.rendererProvider.CellRenderer;
-
-					var first = renderContext.$scope.first;
+					var first = this.$scope.first;
 					if (!angular.isNumber(first) || first < 0) {
 						first = 0;
 					}
 					dataGrid.first = first;
 					var rowIndex = first;
 
-					var rows = renderContext.$scope.rows;
+					var rows = this.$scope.rows;
 					if (!angular.isNumber(rows)) {
 						rows = -1;
 					}
@@ -269,7 +314,7 @@
 					var visibleIndex = 0;
 					var tbodyElement = tbody[0] || tbody;
 
-					var rowScope = renderContext.$scope.$parent.$new();
+					var rowScope = this.$scope.$parent.$new();
 					var currentGroup = null;
 					var groupIndex = -1;
 
@@ -301,8 +346,7 @@
 										rowScope.$group = group;
 										rowScope.$count = groupDataModel.getGroupCount(group);
 
-										var tr = groupRenderer(tbodyElement, renderContext, groupProvider, rowScope, groupIndex,
-												groupCollapsed);
+										var tr = self.groupRenderer(tbodyElement, groupProvider, rowScope, groupIndex, groupCollapsed);
 										tr.data("cm_rowValues", groupDataModel.getGroupValues(group));
 										tr.data("cm_value", group);
 
@@ -327,7 +371,7 @@
 										rowScope[varName] = rowData;
 									}
 
-									var tr = rowRenderer(tbodyElement, renderContext, rowScope, rowIndex, cellRenderer, rowIndent);
+									var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent);
 
 									tr.data("cm_value", rowData);
 								}
@@ -339,7 +383,7 @@
 
 								nextAvailable = dataModel.isRowAvailable();
 
-								renderContext._hasData = true;
+								self._hasData = true;
 
 							} catch (x) {
 								dataModel.setRowIndex(-1);
@@ -385,21 +429,22 @@
 					return nextAvailable.then(availablePromise);
 				},
 
-				TableStyleUpdate: function(body, renderContext) {
+				tableStyleUpdate: function(body) {
 					return cm.MixElementClasses(body, [ "cm_dataGrid_table" ], [ "cm_dataGrid_table_scroll" ]);
 				},
 
-				TableLayout: function(container, renderContext) {
+				tableLayout: function(container) {
 
 				},
 
-				MoveColumnTable: function(column, renderContext, beforeColumn) {
+				moveColumnTable: function(column, beforeColumn) {
 
+					var self = this;
 					function move(name) {
 						var title = column[name];
 						var beforeTitle = beforeColumn && beforeColumn[name];
 						if (!beforeTitle) {
-							beforeTitle = renderContext._lastVisibleColumn[name].nextSibling;
+							beforeTitle = self._lastVisibleColumn[name].nextSibling;
 						}
 
 						var parent = title.parentNode;
@@ -410,13 +455,11 @@
 					move("bodyColElement");
 					move("bodyTitleElement");
 
-					var moveColumnRow = renderContext.rendererProvider.MoveColumnRow;
-					var self = this;
-					cu.ForEachBodyElement(renderContext, "row", function(row) {
-						moveColumnRow.call(self, row, renderContext, column, beforeColumn);
+					this.forEachBodyElement("row", function(row) {
+						self.moveColumnRow(row, column, beforeColumn);
 					});
 				},
-				RemoveRowsOfGroup: function(group, renderContext, groupElement) {
+				removeRowsOfGroup: function(group, groupElement) {
 					var lst = [];
 					for (var e = groupElement.nextSibling; e;) {
 						var next = e.nextSibling;
@@ -452,7 +495,7 @@
 					$timeout(timer, cm_dataGrid_group_animation, false);
 
 				},
-				AddRowsOfGroup: function(group, renderContext, groupElement) {
+				addRowsOfGroup: function(group, groupElement) {
 
 					var visibleIndex = groupElement._visibleIndex;
 					var rowIndex = groupElement._rowIndex;
@@ -462,19 +505,17 @@
 						return;
 					}
 
-					var rowRenderer = renderContext.rendererProvider.RowRenderer;
-					var cellRenderer = renderContext.rendererProvider.CellRenderer;
-
 					var fragment = document.createDocumentFragment();
-					var varName = renderContext.$scope.varName;
+					var varName = this.$scope.varName;
 
-					var rowIndent = renderContext.rowIndent;
+					var rowIndent = this.rowIndent;
 
 					var nextSibling = groupElement.nextSibling;
 
+					var self = this;
 					function timer() {
 
-						var rowScope = renderContext.$scope.$parent.$new();
+						var rowScope = self.$scope.$parent.$new();
 						try {
 							var rowData = rowValues.shift();
 
@@ -490,7 +531,7 @@
 								rowScope[varName] = rowData;
 							}
 
-							var tr = rowRenderer(fragment, renderContext, rowScope, rowIndex, cellRenderer, rowIndent);
+							var tr = self.rowRenderer(fragment, rowScope, rowIndex, rowIndent);
 
 							tr.data("cm_value", rowData);
 

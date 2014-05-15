@@ -5,7 +5,9 @@
 		"camelia.key",
 		"camelia.i18n.pager" ]);
 
-	module.factory("camelia.renderers.pager", [ "$log",
+	module.value("cm_pager_className", "cm_pager");
+
+	module.factory("camelia.renderers.PagerProvider", [ "$log",
 		"$q",
 		"$exceptionHandler",
 		"camelia.core",
@@ -103,7 +105,7 @@
 				}
 			}
 
-			function OnPagerStyleUpdate(renderContext) {
+			function OnStyleUpdate(renderContext) {
 
 				var _styleUpdateMapper = {
 					pager: "PagerStyleUpdate",
@@ -177,7 +179,7 @@
 					}
 				});
 
-				container.on("cm_update", OnPagerStyleUpdate(renderContext));
+				container.on("cm_update", OnStyleUpdate(renderContext));
 
 				return container;
 			}
@@ -415,9 +417,6 @@
 			}
 
 			function LabelStyleUpdate(element, renderContext) {
-				if (element[0]) {
-					element = element[0];
-				}
 				return cm.MixElementClasses(element, [ "cm_pager_label" ]);
 			}
 

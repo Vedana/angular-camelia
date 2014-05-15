@@ -6,13 +6,12 @@
 	module.factory("camelia.renderers.grid.group", [ "$log",
 		"camelia.core",
 		"camelia.cmTypes",
-		"camelia.renderers.grid.utils",
-		function($log, cc, cm, cu) {
+		function($log, cc, cm) {
 
 			var anonymousId = 0;
 
 			return {
-				GroupRenderer: function(parentElement, renderContext, groupProvider, groupScope, index, collapsed) {
+				groupRenderer: function(parentElement, groupProvider, groupScope, index, collapsed) {
 					var doc = parentElement.ownerDocument || document;
 
 					var tr = cc.createElement(parentElement, "tr", {
@@ -32,13 +31,13 @@
 
 						var expression = groupProvider.$scope.titleClassRawExpression;
 						if (expression && expression.length) {
-							var $interpolate = renderContext.$interpolate;
+							var $interpolate = this.$interpolate;
 							var groupClassExpression = expression;
 							groupClassMode = 3;
 
 							if (expression.indexOf($interpolate.startSymbol()) >= 0) {
 								groupClassMode = 1;
-								groupClassExpression = renderContext.$interpolate(expression);
+								groupClassExpression = this.$interpolate(expression);
 
 							} else if (expression.charAt(0) == '{' && expression.charAt(expression.length - 1) == '}') {
 								// ng-class expression !
@@ -77,7 +76,7 @@
 						}
 					}
 
-					renderContext.rendererProvider.GroupStyleUpdate(tr, renderContext);
+					this.groupStyleUpdate(tr);
 
 					var td = cc.createElement(tr, "td", {
 						id: "cm_groupTitle_" + (anonymousId++),
@@ -85,16 +84,15 @@
 						nowrap: "nowrap",
 						role: "gridcell",
 						className: "cm_dataGrid_gcell",
-						colspan: (renderContext.visibleColumns.length + 1 + renderContext.rowIndent)
+						colspan: (this.visibleColumns.length + 1 + this.rowIndent)
 					});
 
-					var cellRenderer = renderContext.rendererProvider.GroupTitleRenderer(td, renderContext, groupProvider,
-							groupScope, index);
+					var cellRenderer = this.groupTitleRenderer(td, groupProvider, groupScope, index);
 
 					return tr;
 				},
 
-				GroupTitleRenderer: function(td, renderContext, groupProvider, groupScope, index) {
+				groupTitleRenderer: function(td, groupProvider, groupScope, index) {
 					var container = cc.createElement(td, "div", {
 						className: "cm_dataGrid_gcontainer"
 					});
@@ -113,7 +111,7 @@
 					if (!interpolatedExpression) {
 						var expression = groupProvider.$scope.titleRawExpression;
 						if (expression) {
-							interpolatedExpression = renderContext.$interpolate(expression);
+							interpolatedExpression = this.$interpolate(expression);
 							groupProvider.interpolatedTitleExpression = interpolatedExpression;
 						}
 					}
@@ -131,7 +129,7 @@
 
 				},
 
-				GroupStyleUpdate: function(element, renderContext) {
+				groupStyleUpdate: function(element) {
 					var tr = element;
 					if (tr[0]) {
 						tr = tr[0];

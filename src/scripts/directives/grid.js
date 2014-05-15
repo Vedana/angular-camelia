@@ -1,7 +1,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.criteriaRegistry' ]);
+	var module = angular.module('camelia.directives.grid', [ 'camelia.core' ]);
 
 	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
 
@@ -132,7 +132,7 @@
 						var column = new datagridController.componentProvider.DataColumn($scope);
 
 						angular.forEach(controller.criterias, function(criteria) {
-							column.appendCriteria(criteria);
+							column.addCriteria(criteria);
 						});
 
 						datagridController.appendColumn(column);
@@ -172,36 +172,44 @@
 		};
 	} ]);
 
-	module.directive("cmCriteria", [ "camelia.core",
-		"camelia.criteriaRegistry",
-		"$log",
-		function(cc, criteriaRegistry, $log) {
-			return {
-				require: "^cmDatacolumn",
-				restrict: "E",
-				scope: {
-					name: '@',
-					type: '@',
-					value: '@',
-					enabled: '=?'
-				},
-				compile: function() {
-					return {
-						post: function($scope, element, attrs, dataColumnController) {
-							var type = $scope.type;
-
-							var criteria = criteriaRegistry.get(type);
-							if (criteria) {
-								var criteria = new criteria($scope, element, attrs);
-								dataColumnController.criterias.push(criteria);
-
-							} else {
-								$log.warn("Unknown criteria type '" + type + "'");
-							}
+	module.directive("cmCriteria", [ "camelia.core", "$log", "$injector", function(cc, $log, $injector) {
+		return {
+			require: "^cmDatacolumn",
+			restrict: "E",
+			scope: {
+				type: '@'
+			},
+			compile: function() {
+				return {
+					post: function($scope, element, attrs, dataColumnController) {
+						var type = $scope.type;
+						if (!angular.isString(type) || !type.length) {
+							throw new Error("Invalid criteria type (" + type + ")");
 						}
-					};
-				}
-			};
-		} ]);
+
+						var criteriaName;
+						var idx = type.indexOf('.');
+						if (idx >= 0) {
+							criteriaName = type;
+
+						} else {
+							criteriaName = "camelia.criteria." + type;
+						}
+
+						try {
+							$injector.invoke([ criteriaName, function(criteriaClass) {
+								var criteria = new criteriaClass($scope, element, attrs);
+
+								dataColumnController.criterias.push(criteria);
+							} ]);
+
+						} catch (x) {
+							$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
+						}
+					}
+				};
+			}
+		};
+	} ]);
 
 })(window, window.angular);

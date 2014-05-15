@@ -11,8 +11,8 @@
 
 			return {
 
-				GetFirstRow: function(renderContext) {
-					var tbody = renderContext.tableTBody;
+				getFirstRow: function() {
+					var tbody = this.tableTBody;
 					if (!tbody) {
 						return null;
 					}
@@ -20,9 +20,9 @@
 					return cm.GetNextType(tbody.firstChild, "row");
 				},
 
-				ForEachBodyElement: function(renderContext, type, func) {
+				forEachBodyElement: function(type, func) {
 
-					var tbody = renderContext.tableTBody;
+					var tbody = this.tableTBody;
 					if (!tbody) {
 						return;
 					}
@@ -32,37 +32,38 @@
 					return cm.ForEachElement(rows, type, func);
 				},
 
-				RegisterElement: function(renderContext, element, value) {
-					if (!renderContext._cacheValues) {
-						renderContext._cacheValues = [];
-						renderContext._cacheElements = [];
-						renderContext._cacheFilled = false;
+				registerElement: function(element, value) {
+					if (!this._cacheValues) {
+						this._cacheValues = [];
+						this._cacheElements = [];
+						this._cacheFilled = false;
 
+						var self = this;
 						$timeout(function() {
-							renderContext._cacheValues = undefined;
-							renderContext._cacheElements = undefined;
-							renderContext._cacheFilled = undefined;
+							delete self._cacheValues;
+							delete self._cacheElements;
+							delete self._cacheFilled;
 						}, 50, false);
 					}
 
 					if (value === undefined) {
 						value = angular.element(element).data("cm_value");
 
-						if (value === undefined || renderContext._cacheValues.indexOf(value) >= 0) {
+						if (value === undefined || this._cacheValues.indexOf(value) >= 0) {
 							return;
 						}
 					}
 
-					renderContext._cacheElements.push(element);
-					renderContext._cacheValues.push(value);
+					this._cacheElements.push(element);
+					this._cacheValues.push(value);
 				},
 
-				GetElementFromValue: function(renderContext, rowValue, type, cache) {
-					var cacheValues = renderContext._cacheValues;
+				getElementFromValue: function(rowValue, type, cache) {
+					var cacheValues = this._cacheValues;
 					if (cacheValues) {
 						var idx = cacheValues.indexOf(rowValue);
 						if (idx >= 0) {
-							var elt = renderContext._cacheElements[idx];
+							var elt = this._cacheElements[idx];
 							if (type) {
 								var etype = cm.GetCMType(elt);
 
@@ -79,17 +80,17 @@
 							return elt;
 						}
 
-						if (renderContext._cacheFilled) {
+						if (this._cacheFilled) {
 							return null;
 						}
 					}
 
 					var self = this;
 					var ret = null;
-					this.ForEachBodyElement(renderContext, type, function(tr) {
+					this.forEachBodyElement(type, function(tr) {
 
 						var rowData = angular.element(tr).data("cm_value");
-						self.RegisterElement(renderContext, tr, rowData);
+						self.registerElement(tr, rowData);
 
 						if (rowData === rowValue) {
 							ret = tr;
@@ -102,10 +103,10 @@
 					}, type);
 
 					if (cache) {
-						renderContext._cacheFilled = true;
+						this._cacheFilled = true;
 					}
 					return ret;
-				},
+				}
 			};
 		} ]);
 })(window, window.angular);

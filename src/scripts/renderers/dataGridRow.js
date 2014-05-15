@@ -8,13 +8,12 @@
 		"$interpolate",
 		"camelia.core",
 		"camelia.cmTypes",
-		"camelia.renderers.grid.utils",
-		function($log, $timeout, $interpolate, cc, cm, cu) {
+		function($log, $timeout, $interpolate, cc, cm) {
 
 			var anonymousId = 0;
 
 			return {
-				RowRenderer: function(parentElement, renderContext, rowScope, index, cellRenderer, rowIdent) {
+				rowRenderer: function(parentElement, rowScope, index, rowIdent) {
 					var doc = parentElement.ownerDocument || document;
 
 					var tr = cc.createElement(parentElement, "tr", {
@@ -27,33 +26,33 @@
 					var rowElement = tr[0];
 					rowElement._rowIdent = rowIdent;
 
-					var rowClassMode = renderContext.rowClassMode;
+					var rowClassMode = this.rowClassMode;
 					if (rowClassMode === undefined) {
 						rowClassMode = 0;
 
-						var expression = renderContext.$scope.rowClassRawExpression;
+						var expression = this.$scope.rowClassRawExpression;
 						if (expression && expression.length) {
-							var $interpolate = renderContext.$interpolate;
+							var $interpolate = this.$interpolate;
 							var rowClassExpression = expression;
 							rowClassMode = 3;
 
 							if (expression.indexOf($interpolate.startSymbol()) >= 0) {
 								rowClassMode = 1;
-								rowClassExpression = renderContext.$interpolate(expression);
+								rowClassExpression = this.$interpolate(expression);
 
 							} else if (expression.charAt(0) == '{' && expression.charAt(expression.length - 1) == '}') {
 								// ng-class expression !
 								rowClassMode = 2;
 							}
 
-							renderContext.rowClassExpression = rowClassExpression;
+							this.rowClassExpression = rowClassExpression;
 						}
 
-						renderContext.rowClassMode = rowClassMode;
+						this.rowClassMode = rowClassMode;
 					}
 
 					if (rowClassMode) {
-						var obj = renderContext.rowClassExpression;
+						var obj = this.rowClassExpression;
 						if (rowClassMode != 3) {
 							obj = rowScope.$eval(obj);
 						}
@@ -78,14 +77,12 @@
 						}
 					}
 
-					var selectionProvider = renderContext.selectionProvider;
+					var selectionProvider = this.selectionProvider;
 					if (selectionProvider && selectionProvider.contains(rowScope.$row)) {
 						rowElement._selected = true;
 					}
 
-					renderContext.rendererProvider.RowStyleUpdate(tr, renderContext);
-
-					var cellStyleUpdate = renderContext.rendererProvider.CellStyleUpdate;
+					this.rowStyleUpdate(tr);
 
 					for (var i = 0; i < rowIdent; i++) {
 						var td = cc.createElement(tr, "td", {
@@ -94,8 +91,9 @@
 						});
 					}
 
+					var self = this;
 					var columnIndex = 0;
-					angular.forEach(renderContext.visibleColumns, function(column) {
+					angular.forEach(this.visibleColumns, function(column) {
 						var tdTag = (column.scope) ? "th" : "td";
 
 						var td = cc.createElement(tr, tdTag, {
@@ -111,9 +109,9 @@
 							td.attr("scope", "row");
 						}
 
-						cellStyleUpdate(td, renderContext);
+						self.cellStyleUpdate(td);
 
-						cellRenderer(td, renderContext, rowScope, index, column, columnIndex);
+						self.cellRenderer(td, rowScope, index, column, columnIndex);
 
 						columnIndex++;
 					});
@@ -125,7 +123,7 @@
 					return tr;
 				},
 
-				RowStyleUpdate: function(element, renderContext) {
+				rowStyleUpdate: function(element) {
 					var tr = element;
 					if (tr[0]) {
 						tr = tr[0];
@@ -141,23 +139,21 @@
 					return cm.MixElementClasses(tr, classes);
 				},
 
-				CellRenderer: function(td, renderContext, rowScope, index, column, columnIndex) {
+				cellRenderer: function(td, rowScope, index, column, columnIndex) {
 					var label = cc.createElement(td, "label", {
 						className: "cm_dataGrid_clabel"
 					});
 
-					var value = null;
 					var interpolatedExpression = column.interpolatedExpression;
-					if (!interpolatedExpression) {
-						var expression = column.$scope.valueRawExpression;
-						if (!expression && column.$scope.fieldName) {
-							expression = $interpolate.startSymbol() + "$row." + column.$scope.fieldName + $interpolate.endSymbol();
-						}
-						if (expression) {
-							interpolatedExpression = renderContext.$interpolate(expression);
-							column.interpolatedExpression = interpolatedExpression;
-						}
-					}
+					/*
+					 * Already prepared by TableRowsRenderer if (!interpolatedExpression) {
+					 * var expression = column.$scope.valueRawExpression; if (!expression &&
+					 * column.$scope.fieldName) { expression = $interpolate.startSymbol() +
+					 * "$row." + column.$scope.fieldName + $interpolate.endSymbol(); } if
+					 * (expression) { interpolatedExpression =
+					 * renderContext.$interpolate(expression);
+					 * column.interpolatedExpression = interpolatedExpression; } }
+					 */
 
 					if (interpolatedExpression) {
 						var value = rowScope.$eval(interpolatedExpression);
@@ -167,14 +163,14 @@
 					}
 				},
 
-				CellStyleUpdate: function(element, renderContext) {
+				cellStyleUpdate: function(element) {
 					var cell = element;
 					if (cell[0]) {
 						cell = cell[0];
 					}
 					var index = cell.cm_lindex;
 
-					var column = renderContext.columns[index];
+					var column = this.columns[index];
 					var cts = [];
 
 					var classes = [ "cm_dataGrid_cell" ];
@@ -182,7 +178,7 @@
 						classes.push("cm_dataGrid_cfirst");
 
 					}
-					if (column.visibleIndex == renderContext.visibleColumns.length - 1) {
+					if (column.visibleIndex == this.visibleColumns.length - 1) {
 						classes.push("cm_dataGrid_clast");
 					}
 
@@ -201,8 +197,8 @@
 					return cm.MixElementClasses(cell, classes, cts);
 				},
 
-				ComputeColumnsNaturalWidths: function(renderContext) {
-					var row = cu.GetFirstRow(renderContext);
+				computeColumnsNaturalWidths: function() {
+					var row = this.getFirstRow();
 					if (!row) {
 						return;
 					}
@@ -212,8 +208,9 @@
 					}
 
 					var cells = row.cells;
-					angular.forEach(renderContext.visibleColumns, function(column) {
-						var cell = cells[column.visibleIndex + renderContext.rowIndent];
+					var rowIndent = this.rowIndent;
+					angular.forEach(this.visibleColumns, function(column) {
+						var cell = cells[column.visibleIndex + rowIndent];
 						if (!cell) {
 							return;
 						}
@@ -223,35 +220,35 @@
 					});
 				},
 
-				MoveColumnRow: function(row, renderContext, column, beforeColumn) {
+				moveColumnRow: function(row, column, beforeColumn) {
 					var cells = row.cells;
 					var rowIdent = row._rowIdent;
-					var visibleColumns = renderContext.visibleColumns;
+					var visibleColumns = this.visibleColumns;
 					var visibleIndex = column.beforeMovingVisibleIndex;
 
 					var cell = cells[visibleIndex + rowIdent];
 					var beforeCell = beforeColumn && cells[beforeColumn.beforeMovingVisibleIndex + rowIdent];
 					if (!beforeCell) {
-						beforeCell = cells[renderContext._lastVisibleColumn.beforeMovingVisibleIndex + rowIdent].nextSibling;
+						beforeCell = cells[this._lastVisibleColumn.beforeMovingVisibleIndex + rowIdent].nextSibling;
 					}
 
 					row.removeChild(cell);
 					row.insertBefore(cell, beforeCell);
 
 					if (!column.visibleIndex) {
-						this.CellStyleUpdate(cell, renderContext);
+						this.cellStyleUpdate(cell);
 
 						var firstCell = cells[rowIdent];
 						if (!beforeColumn || firstCell.id != beforeColumn.id) {
-							this.CellStyleUpdate(firstCell, renderContext);
+							this.cellStyleUpdate(firstCell);
 						}
 
 					} else if (column.visibleIndex == visibleColumns.length - 1) {
-						this.CellStyleUpdate(cell, renderContext);
+						this.cellStyleUpdate(cell);
 
 						var lastCell = cells[rowIdent + visibleColumns.length - 1];
 						if (!beforeColumn || lastCell.id != beforeColumn.id) {
-							this.CellStyleUpdate(lastCell, renderContext);
+							this.cellStyleUpdate(lastCell);
 						}
 					}
 				}

@@ -6,7 +6,11 @@
 		"camelia.cursorProvider",
 		"camelia.selectionStrategy",
 		"camelia.key",
+		"camelia.renderers.popup",
 		"camelia.components.grid" ]);
+
+	module.value("cm_grid_rowIndentPx", 16);
+	module.value("cm_grid_className", "cm_dataGrid");
 
 	module.factory("camelia.renderers.GridProvider", [ "$log",
 		"camelia.renderers.grid.core",
@@ -14,16 +18,14 @@
 		"camelia.renderers.grid.row",
 		"camelia.renderers.grid.table",
 		"camelia.renderers.grid.title",
-		function($log, CoreRenderers, GroupRenderers, RowRenderers, TableRenderers, TitleRenderers) {
+		"camelia.renderers.grid.utils",
+		function($log, CoreRenderers, GroupRenderers, RowRenderers, TableRenderers, TitleRenderers, GridUtils) {
 
-			var renderers = {};
-
-			angular.forEach([ CoreRenderers, GroupRenderers, RowRenderers, TableRenderers, TitleRenderers ], function(
-					renderer) {
-				angular.extend(renderers, renderer);
+			angular.forEach([ GroupRenderers, RowRenderers, TableRenderers, TitleRenderers, GridUtils ], function(renderer) {
+				angular.extend(CoreRenderers.prototype, renderer);
 			});
 
-			return renderers;
+			return CoreRenderers;
 		} ]);
 
 })(window, window.angular);
