@@ -1,0 +1,28 @@
+{
+	"author": "Olivier Oeuillot",
+  "name": "Camelia",
+  "version": "0.0.1",
+  "main": "dist/camelia.js",
+  "dependencies": {
+    "angular": "1.2.14",
+    "angular-resource": "1.2.14",
+    "angular-sanitize": "1.2.14",
+    "angular-route": "1.2.14"
+  },
+  "devDependencies": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Vedana/camelia.git"
+  },
+  "ignore": [
+    ".*",
+    "Gruntfile.js",
+    "index.js",
+    "kerma*.js",
+    "package.json",
+    "test",
+    "src",
+    "node_modules",
+    "examples"
+  ]}
