@@ -1,8 +1,17 @@
 {
 	"author": "Olivier Oeuillot",
   "name": "Camelia",
-  "version": "0.0.4",
-  "main": "./camelia.js",
+  "version": "0.0.5",
+  "homepage": "http://github.com/Vedana/camelia",
+  "keywords": [
+               "css",
+               "js",
+               "angular",
+               "table",
+               "datagrid",
+               "grid"
+             ],
+  "main": ["./camelia.js", "./camelia.css" ],
   "dependencies": {
     "angular": "1.2.15",
     "angular-resource": "1.2.15",
