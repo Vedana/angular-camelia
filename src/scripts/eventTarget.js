@@ -43,7 +43,7 @@
 					},
 					defaultPrevented: false
 				};
-				var listenerArgs = concat([ event ], arguments, 1),
+				var listenerArgs = concat([ event ], arguments, 1);
 
 				var source = this;
 				for (; source;) {
