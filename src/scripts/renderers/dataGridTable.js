@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -9,6 +10,8 @@
 	var module = angular.module('camelia.renderers.grid');
 
 	module.value("cm_grid_group_animation", 0);
+
+	var PROGRESS_DELAY_MS = 200;
 
 	module.factory('camelia.renderers.grid.table', [ "$log",
 		"$q",
@@ -147,13 +150,17 @@
 				},
 
 				newCriteriasExpression: function(column, enabledCriterias) {
-					return function(rowScope, dataModel) {
-						var interpolatedExpression = column.interpolatedExpression;
-						if (!interpolatedExpression) {
-							return false;
+					var fct = function(rowScope, dataModel) {
+						var criteriaValue = column.$scope.criteriaValue;
+
+						if (!criteriaValue) {
+							var criteriaValue = column.interpolatedExpression;
+							if (!criteriaValue) {
+								return false;
+							}
 						}
 
-						var value = rowScope.$eval(interpolatedExpression);
+						var value = rowScope.$eval(criteriaValue);
 
 						var criterias = column._criterias;
 						for (var k = 0; k < criterias.length; k++) {
@@ -171,11 +178,47 @@
 
 						return false;
 					};
+
+					fct.getParameters = function() {
+						var parameters = [];
+
+						var criterias = column._criterias;
+						angular.forEach(enabledCriterias, function(filters) {
+
+							angular.forEach(filters, function(filter) {
+								var value = filter.parameter;
+
+								var s = "CRIT:id=" + column.id;
+								if (value instanceof RegExp) {
+									s += ",t=regExp,v=/" + value.source.replace(/\//g, '\\/') + "/" + ((value.ignoreCase) ? "i" : "");
+
+								} else if (value instanceof Date) {
+									s += ",t=date,v=" + value.toISOString();
+
+								} else {
+									switch (typeof (value)) {
+									case "string":
+										s += "t=s,v='" + value.replace(/\'/g, '\'\'') + "'";
+										break;
+									case "number":
+										s += "t=n,v=" + value;
+										break;
+									case "boolean":
+										s += "t=b,v=" + value;
+										break;
+									}
+								}
+								parameters.push(s);
+							});
+						});
+
+						return parameters;
+					};
+
+					return fct;
 				},
 
 				tableRowsRenderer: function(tbody) {
-					this._hasData = undefined;
-
 					var dataModel = this.dataModel;
 					if (!dataModel) {
 						return;
@@ -199,12 +242,10 @@
 						if (!expression && column.$scope.fieldName) {
 							expression = $interpolate.startSymbol() + "$row." + column.$scope.fieldName + $interpolate.endSymbol();
 						}
-						if (!expression) {
-							return;
+						if (expression) {
+							interpolatedExpression = self.$interpolate(expression);
+							column.interpolatedExpression = interpolatedExpression;
 						}
-
-						interpolatedExpression = self.$interpolate(expression);
-						column.interpolatedExpression = interpolatedExpression;
 					});
 
 					// Prepare filters
@@ -240,12 +281,21 @@
 							});
 						});
 
+						var filtredState = !!count;
+						var titleElement = column.titleElement;
+						if (titleElement._filtred != filtredState) {
+							titleElement._filtred = filtredState;
+
+							cc.BubbleEvent(titleElement, "cm_update");
+						}
+
 						if (!count) {
 							return;
 						}
 
 						filters.push(self.newCriteriasExpression(column, enabledCriterias));
 					});
+					var dataModelFilters = undefined;
 					if (filters.length) {
 						if (!dataModel.isFilterSupport()) {
 							dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
@@ -253,12 +303,14 @@
 							} ]);
 						}
 
-						dataModel.setFilters(filters);
+						dataModelFilters = filters;
 					}
+					dataModel.setFilters(dataModelFilters);
 
 					// Prepare sorters
 
 					var sorters = this.sorters;
+					var dataModelSorters = undefined;
 					if (sorters && sorters.length) {
 						var sorter0 = sorters[0];
 
@@ -269,14 +321,16 @@
 									return new SortedDataModel(dataModel);
 								} ]);
 							}
-							dataModel.setSorters([ {
+							dataModelSorters = [ {
 								expression: columnSorters,
 								column: sorter0.column,
 								ascending: sorter0.ascending
-							} ]);
+							} ];
 						}
 					}
+					dataModel.setSorters(dataModelSorters);
 
+					var dataModelGrouped = false;
 					var groupDataModel = null;
 					var groupProvider = this.selectedGroupProvider;
 					if (groupProvider) {
@@ -285,9 +339,10 @@
 								return new GroupedDataModel(dataModel, groupProvider, varName);
 							} ]);
 						}
-						dataModel.setGrouped(true);
+						dataModelGrouped = true;
 						groupDataModel = dataModel;
 					}
+					dataModel.setGrouped(dataModelGrouped);
 
 					var rowIndent = (groupDataModel) ? 1 : 0;
 
@@ -303,7 +358,12 @@
 					var rows = this.$scope.rows;
 					if (!angular.isNumber(rows)) {
 						rows = -1;
+					} else {
+						dataModel.setFetchProperties({
+							rows: rows
+						});
 					}
+
 					dataGrid.rows = rows;
 
 					if (!angular.isNumber(dataGrid.maxRows)) {
@@ -323,6 +383,9 @@
 					var currentGroup = null;
 					var groupIndex = -1;
 
+					var progressDefer = null;
+					var progressDate = 0;
+
 					function availablePromise(available) {
 						if (!available) {
 							dataModel.setRowIndex(-1);
@@ -337,6 +400,18 @@
 
 						for (; rows < 0 || visibleIndex < rows;) {
 							var nextAvailable;
+
+							if (progressDefer) {
+								var now = Date.now();
+								if (now > progressDate) {
+									progressDate = now + PROGRESS_DELAY_MS;
+
+									progressDefer.notify({
+										count: visibleIndex,
+										rows: rows
+									});
+								}
+							}
 
 							try {
 								var rowData = dataModel.getRowData();
@@ -384,11 +459,13 @@
 								rowIndex++;
 								visibleIndex++;
 
+								if (rows > 0 && visibleIndex >= rows) {
+									break;
+								}
+
 								dataModel.setRowIndex(rowIndex);
 
 								nextAvailable = dataModel.isRowAvailable();
-
-								self._hasData = true;
 
 							} catch (x) {
 								dataModel.setRowIndex(-1);
@@ -430,6 +507,8 @@
 					if (!cc.isPromise(nextAvailable)) {
 						return availablePromise(nextAvailable);
 					}
+
+					progressDefer = null
 
 					return nextAvailable.then(availablePromise);
 				},

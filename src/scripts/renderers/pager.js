@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -12,7 +13,7 @@
 
 	module.value("cm_pager_className", "cm_pager");
 
-	module.factory("camelia.renderers.PagerProvider", [ "$log",
+	module.factory("camelia.renderers.Pager", [ "$log",
 		"$q",
 		"$exceptionHandler",
 		"camelia.core",
@@ -33,427 +34,430 @@
 				}, "pager", target);
 			}
 
-			function OnMouseOver(renderContext) {
-				return function(event) {
-					var target = event.target;
-
-					var elements = SearchElements(target);
-					cm.SwitchOnState(renderContext, elements, "over");
-				};
+			var PagerRenderer = function(renderContext) {
+				angular.extend(this, renderContext);
 			}
 
-			function OnMouseOut(renderContext) {
-				return function(event) {
-					var target = event.relatedTarget;
-
-					var elements = SearchElements(target);
-					cm.SwitchOffState(renderContext, elements, "over");
-				};
-			}
-
-			function OnFocus(renderContext) {
-				return function(event) {
-					var target = event.target;
-
-					var elements = SearchElements(target);
-					cm.SwitchOnState(renderContext, elements, "focus", function(elements) {
+			PagerRenderer.prototype = {
+				render: function(parent) {
+					var container = cc.createElement(parent, "div", {
+						id: this.pager.id,
+						$cm_type: "pager"
 					});
-				};
-			}
 
-			function OnBlur(renderContext) {
-				return function(event) {
-					var target = event.relatedTarget;
+					this.containerElement = container[0];
 
-					var elements = SearchElements(target);
-					cm.SwitchOffState(renderContext, elements, "focus");
-				};
-			}
+					container.on("mouseover", this._onMouseOver());
 
-			function OnMouseDown(renderContext) {
-				return function(event) {
-					var target = event.target;
+					container.on("mouseout", this._onMouseOut());
 
-					var elements = SearchElements(target);
-					cm.SwitchOnState(renderContext, elements, "mouseDown", function(elements) {
-					});
-				};
-			}
+					container.on("mousedown", this._onMouseDown());
 
-			function OnMouseUp(renderContext) {
-				return function(event) {
-					var elements = SearchElements();
-					cm.ClearState(renderContext, "mouseDown", elements, function(elements) {
-					});
-				};
-			}
+					// container.on("dblclick", OnDoubleClick(renderContext));
 
-			function OnKeyPress(renderContext) {
-				return function(event) {
-					var target = event.target;
-					var elements = SearchElements(target);
-				};
-			}
+					container.on("click", this._onSimpleClick());
 
-			function OnSimpleClick(renderContext) {
-				return function(event) {
-					var target = event.target;
+					container.on("mouseup", this._onMouseUp());
 
-					var elements = SearchElements(target);
+					container.on("keydown", this._onKeyPress());
+					// container.on("keypress", OnKeyPress(renderContext));
 
-					cc.log("Simple click on ", target, " elements=", elements);
+					this._focusListener = this._onFocus();
+					container[0].addEventListener("focus", this._focusListener, true);
 
-					var button = elements.bpager;
-					if (button && button.value) {
-						renderContext.target.setFirst(parseInt(button.value, 10));
-					}
-				}
-			}
+					this._blurListener = this._onBlur();
+					container[0].addEventListener("blur", this._blurListener, true);
 
-			function OnStyleUpdate(renderContext) {
-
-				var _styleUpdateMapper = {
-					pager: "PagerStyleUpdate",
-					vpager: "ValueStyleUpdate",
-					bpager: "ButtonStyleUpdate",
-					lpager: "LabelStyleUpdate"
-				};
-
-				return function(event) {
-					var target = event.relatedTarget;
-
-					var type = cm.GetCMType(target);
-					if (!type) {
-						return;
-					}
-
-					var elt = angular.element(target);
-
-					// cc.log("Update relatedTarget=", target, " type=" + type + " over="
-					// + target._over + " mouseDown="+ target._mouseDown);
-
-					var rp = renderContext.rendererProvider[_styleUpdateMapper[type]];
-					if (rp) {
-						rp(elt, renderContext);
-						event.stopPropagation();
-						return;
-					}
-				};
-			}
-
-			function PagerRenderer(parent, renderContext) {
-				var container = cc.createElement(parent, "div", {
-					id: renderContext.pager.id,
-					$cm_type: "pager"
-				});
-
-				renderContext.containerElement = container[0];
-
-				container.on("mouseover", OnMouseOver(renderContext));
-
-				container.on("mouseout", OnMouseOut(renderContext));
-
-				container.on("mousedown", OnMouseDown(renderContext));
-
-				// container.on("dblclick", OnDoubleClick(renderContext));
-
-				container.on("click", OnSimpleClick(renderContext));
-
-				container.on("mouseup", OnMouseUp(renderContext));
-
-				container.on("keydown", OnKeyPress(renderContext));
-				// container.on("keypress", OnKeyPress(renderContext));
-
-				renderContext._focusListener = OnFocus(renderContext);
-				container[0].addEventListener("focus", renderContext._focusListener, true);
-
-				renderContext._blurListener = OnBlur(renderContext);
-				container[0].addEventListener("blur", renderContext._blurListener, true);
-
-				renderContext.$scope.$on("$destroy", function() {
-					var listener = renderContext._focusListener;
-					if (listener) {
-						renderContext._focusListener = undefined;
-						container[0].removeEventListener("focus", listener, true);
-					}
-
-					listener = renderContext._blurListener;
-					if (listener) {
-						renderContext._blurListener = undefined;
-						container[0].removeEventListener("blur", listener, true);
-					}
-				});
-
-				container.on("cm_update", OnStyleUpdate(renderContext));
-
-				return container;
-			}
-
-			function PagerPositionsUpdate(positions, renderContext) {
-
-				var container = angular.element(renderContext.containerElement);
-
-				container.empty();
-
-				var fragment = document.createDocumentFragment();
-
-				renderContext.rendererProvider.RenderExpression(fragment, renderContext, renderContext.format, positions);
-
-				container.append(fragment);
-			}
-
-			function RenderExpression(fragment, renderContext, message, positions) {
-
-				var renderType = renderContext.rendererProvider.RenderType;
-
-				var span = null;
-				for (var i = 0; i < message.length;) {
-					var c = message.charAt(i++);
-					if (c == "{") {
-						var end = message.indexOf("}", i);
-						var varName = message.substring(i, end).toLowerCase();
-						i = end + 1;
-
-						if (span && span.length) {
-							RenderSpan(fragment, renderContext, span.join(""));
-							span = null;
+					this.$scope.$on("$destroy", function() {
+						var listener = this._focusListener;
+						if (listener) {
+							this._focusListener = undefined;
+							container[0].removeEventListener("focus", listener, true);
 						}
 
-						var parameters = undefined;
-						var pvar = varName.indexOf(':');
-						if (pvar >= 0) {
-							var parameter = varName.substring(pvar + 1);
-							varName = varName.substring(0, pvar);
+						listener = this._blurListener;
+						if (listener) {
+							this._blurListener = undefined;
+							container[0].removeEventListener("blur", listener, true);
+						}
+					});
 
-							parameters = new Object();
+					container.on("cm_update", this._onStyleUpdate());
 
-							var ss = parameter.split(';');
-							for (var j = 0; j < ss.length; j++) {
-								var s = ss[j];
-								var p = "";
-								var ep = s.indexOf('=');
-								if (ep >= 0) {
-									p = s.substring(ep + 1);
-									s = s.substring(0, ep);
+					return container;
+				},
+
+				_onMouseOver: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+						cm.SwitchOnState(self, elements, "over");
+					};
+				},
+
+				_onMouseOut: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.relatedTarget;
+
+						var elements = SearchElements(target);
+						cm.SwitchOffState(self, elements, "over");
+					};
+				},
+
+				_onFocus: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+						cm.SwitchOnState(self, elements, "focus");
+					};
+				},
+
+				_onBlur: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.relatedTarget;
+
+						var elements = SearchElements(target);
+						cm.SwitchOffState(self, elements, "focus");
+					};
+				},
+
+				_onMouseDown: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+						cm.SwitchOnState(self, elements, "mouseDown");
+					};
+				},
+
+				_onMouseUp: function() {
+					var self = this;
+
+					return function(event) {
+						var elements = SearchElements();
+						cm.ClearState(self, elements, "mouseDown");
+					};
+				},
+
+				_onKeyPress: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+						var elements = SearchElements(target);
+					};
+				},
+
+				_onSimpleClick: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+
+						// cc.log("Simple click on ", target, " elements=", elements);
+
+						var button = elements.bpager;
+						if (button && button.value) {
+							self.target.setFirst(parseInt(button.value, 10));
+						}
+					}
+				},
+
+				_onStyleUpdate: function() {
+
+					var _styleUpdateMapper = {
+						pager: "pagerStyleUpdate",
+						vpager: "valueStyleUpdate",
+						bpager: "buttonStyleUpdate",
+						lpager: "labelStyleUpdate"
+					};
+
+					var self = this;
+
+					return function(event) {
+						var target = event.relatedTarget;
+
+						var type = cm.GetCMType(target);
+						if (!type) {
+							return;
+						}
+
+						var elt = angular.element(target);
+
+						// cc.log("Update relatedTarget=", target, " type=" + type + "
+						// over="
+						// + target._over + " mouseDown="+ target._mouseDown);
+
+						var rp = self[_styleUpdateMapper[type]];
+						if (rp) {
+							rp.call(self, elt);
+							event.stopPropagation();
+							return;
+						}
+					};
+				},
+
+				pagerPositionsUpdate: function(positions) {
+
+					var container = angular.element(this.containerElement);
+
+					container.empty();
+
+					var fragment = document.createDocumentFragment();
+
+					this.renderExpression(fragment, this.format, positions);
+
+					container.append(fragment);
+				},
+
+				renderExpression: function(fragment, message, positions) {
+
+					var span = null;
+					for (var i = 0; i < message.length;) {
+						var c = message.charAt(i++);
+						if (c == "{") {
+							var end = message.indexOf("}", i);
+							var varName = message.substring(i, end).toLowerCase();
+							i = end + 1;
+
+							if (span && span.length) {
+								this.renderSpan(fragment, span.join(""));
+								span = null;
+							}
+
+							var parameters = undefined;
+							var pvar = varName.indexOf(':');
+							if (pvar >= 0) {
+								var parameter = varName.substring(pvar + 1);
+								varName = varName.substring(0, pvar);
+
+								parameters = new Object();
+
+								var ss = parameter.split(';');
+								for (var j = 0; j < ss.length; j++) {
+									var s = ss[j];
+									var p = "";
+									var ep = s.indexOf('=');
+									if (ep >= 0) {
+										p = s.substring(ep + 1);
+										s = s.substring(0, ep);
+									}
+
+									parameters[s] = p;
+								}
+							}
+
+							this.renderType(fragment, varName, parameters, positions);
+
+							continue;
+						}
+
+						if (c == "\'") {
+							if (!span) {
+								span = new Array;
+							}
+							for (var j = i;;) {
+								var end = message.indexOf("'", j);
+								if (end < 0) {
+									span.push(message.substring(j));
+									i = message.length;
+									break;
 								}
 
-								parameters[s] = p;
+								if (message.charAt(end + 1) == "\'") {
+									span.push(message.substring(j, end), "'");
+									j = end + 2;
+									continue;
+								}
+
+								span.push(message.substring(j, end));
+								i = end + 1;
+								break;
 							}
+							continue;
 						}
 
-						renderType(fragment, renderContext, varName, parameters, positions);
-
-						continue;
-					}
-
-					if (c == "\'") {
 						if (!span) {
 							span = new Array;
 						}
-						for (var j = i;;) {
-							var end = message.indexOf("'", j);
-							if (end < 0) {
-								span.push(message.substring(j));
-								i = message.length;
-								break;
-							}
-
-							if (message.charAt(end + 1) == "\'") {
-								span.push(message.substring(j, end), "'");
-								j = end + 2;
-								continue;
-							}
-
-							span.push(message.substring(j, end));
-							i = end + 1;
-							break;
-						}
-						continue;
+						span.push(c);
 					}
 
-					if (!span) {
-						span = new Array;
+					if (span && span.length) {
+						this.renderSpan(fragment, span.join(""));
 					}
-					span.push(c);
-				}
+				},
 
-				if (span && span.length) {
-					RenderSpan(fragment, renderContext, span.join(""));
-				}
-			}
+				renderSpan: function(parent, text) {
+					var element = cc.createElement(parent, "span", {
+						textNode: text,
+						id: "cm_lpager_" + (anonymousId++)
+					});
 
-			function RenderSpan(parent, renderContext, text) {
-				var element = cc.createElement(parent, "span", {
-					textNode: text,
-					id: "cm_lpager_" + (anonymousId++)
-				});
+					this.labelStyleUpdate(element);
 
-				renderContext.rendererProvider.LabelStyleUpdate(element, renderContext);
+					return element;
+				},
 
-				return element;
-			}
-
-			function RenderButton(parent, renderContext, value, type) {
-				var element = cc.createElement(parent, "button", {
-					textNode: i18n[type + "_label"],
-					id: "cm_bpager_" + (anonymousId++),
-					$value: value,
-					$pagerType: type
-				});
-				var toolTip = i18n[type + "_tooltip"];
-				if (toolTip) {
-					element.title = toolTip;
-				}
-				if (value < 0) {
-					element.attr("disabled", true);
-				}
-
-				renderContext.rendererProvider.ButtonStyleUpdate(element, renderContext);
-
-				return element;
-			}
-
-			function RenderValue(parent, renderContext, value, type) {
-				var element = cc.createElement(parent, "span", {
-					textNode: value,
-					id: "cm_vpager_" + (anonymousId++),
-					$pagerType: type
-				});
-
-				renderContext.rendererProvider.ValueStyleUpdate(element, renderContext);
-
-				return element;
-			}
-
-			function RenderType(fragment, renderContext, type, parameters, positions) {
-				var first = positions.first;
-				var rowCount = positions.rowCount;
-				var maxRows = positions.maxRows;
-				var rows = positions.rows;
-
-				var renderValue = renderContext.rendererProvider.RenderValue;
-				var renderButton = renderContext.rendererProvider.RenderButton;
-
-				switch (type) {
-				case "first":
-				case "position":
-					renderValue(fragment, renderContext, first + 1, "first");
-					break;
-
-				case "last":
-					var last = first + rows;
-					if (rowCount >= 0 && last >= rowCount) {
-						last = rowCount;
-					} else if (maxRows > 0 && last >= maxRows) {
-						last = maxRows;
+				renderButton: function(parent, value, type) {
+					var element = cc.createElement(parent, "button", {
+						textNode: i18n[type + "_label"],
+						id: "cm_bpager_" + (anonymousId++),
+						$value: value,
+						$pagerType: type
+					});
+					var toolTip = i18n[type + "_tooltip"];
+					if (toolTip) {
+						element.title = toolTip;
+					}
+					if (value < 0) {
+						element.attr("disabled", true);
 					}
 
-					renderValue(fragment, renderContext, last, "last");
-					break;
+					this.buttonStyleUpdate(element);
 
-				case "rowcount":
-					if (rowCount < 0) {
-						return;
-					}
-					renderValue(fragment, renderContext, rowCount, "rowCount");
-					break;
+					return element;
+				},
 
-				case "pagecount":
-					if (rowCount < 0 || rows <= 0) {
-						return;
-					}
+				renderValue: function(parent, value, type) {
+					var element = cc.createElement(parent, "span", {
+						textNode: value,
+						id: "cm_vpager_" + (anonymousId++),
+						$pagerType: type
+					});
 
-					var pageCount = Math.floor(((rowCount - 1) / rows) + 1);
-					renderValue(fragment, renderContext, pageCount, "pageCount");
-					break;
+					this.valueStyleUpdate(element);
 
-				case "pageposition":
-					if (rows <= 0) {
-						return;
-					}
+					return element;
+				},
 
-					var pagePosition = Math.floor(first / rows) + 1;
-					renderValue(fragment, renderContext, pagePosition, "pagePosition");
-					break;
+				renderType: function(fragment, type, parameters, positions) {
+					var first = positions.first;
+					var rowCount = positions.rowCount;
+					var maxRows = positions.maxRows;
+					var rows = positions.rows;
 
-				case "bprev":
-					var idx = first - rows;
-					if (idx < 0) {
-						idx = 0;
-					}
+					switch (type) {
+					case "first":
+					case "position":
+						this.renderValue(fragment, first + 1, "first");
+						break;
 
-					renderButton(fragment, renderContext, (first > 0) ? idx : -1, "bprev");
-					break;
-
-				case "bnext":
-					var idx = first + rows;
-					var nextIndex = -1;
-
-					if (rowCount >= 0) {
-						if (idx + rows > rowCount) {
-							idx = (rowCount - ((rowCount + rows - 1) % rows)) - 1;
-							if (idx < 0) {
-								idx = 0;
-							}
+					case "last":
+						var last = first + rows;
+						if (rowCount >= 0 && last >= rowCount) {
+							last = rowCount;
+						} else if (maxRows > 0 && last >= maxRows) {
+							last = maxRows;
 						}
 
-						if (idx > first) {
+						this.renderValue(fragment, last, "last");
+						break;
+
+					case "rowcount":
+						if (rowCount < 0) {
+							return;
+						}
+						this.renderValue(fragment, rowCount, "rowCount");
+						break;
+
+					case "pagecount":
+						if (rowCount < 0 || rows <= 0) {
+							return;
+						}
+
+						var pageCount = Math.floor(((rowCount - 1) / rows) + 1);
+						this.renderValue(fragment, pageCount, "pageCount");
+						break;
+
+					case "pageposition":
+						if (rows <= 0) {
+							return;
+						}
+
+						var pagePosition = Math.floor(first / rows) + 1;
+						this.renderValue(fragment, pagePosition, "pagePosition");
+						break;
+
+					case "bprev":
+						var idx = first - rows;
+						if (idx < 0) {
+							idx = 0;
+						}
+
+						this.renderButton(fragment, (first > 0) ? idx : -1, "bprev");
+						break;
+
+					case "bnext":
+						var idx = first + rows;
+						var nextIndex = -1;
+
+						if (rowCount >= 0) {
+							if (idx + rows > rowCount) {
+								idx = (rowCount - ((rowCount + rows - 1) % rows)) - 1;
+								if (idx < 0) {
+									idx = 0;
+								}
+							}
+
+							if (idx > first) {
+								nextIndex = idx;
+							}
+						} else {
 							nextIndex = idx;
 						}
-					} else {
-						nextIndex = idx;
+
+						this.renderButton(fragment, nextIndex, "bnext");
+						break;
 					}
 
-					renderButton(fragment, renderContext, nextIndex, "bnext");
-					break;
+				},
+
+				pagerStyleUpdate: function(element) {
+					var classes = cm_pager_className.split(" ");
+
+					var className = this.$scope.className;
+					if (className) {
+						classes.push(className);
+					}
+
+					return cm.MixElementClasses(element, classes);
+				},
+
+				labelStyleUpdate: function(element) {
+					return cm.MixElementClasses(element, [ "cm_pager_label" ]);
+				},
+
+				valueStyleUpdate: function(element) {
+					if (element[0]) {
+						element = element[0];
+					}
+					return cm.MixElementClasses(element, [ "cm_pager_value", "cm_pager_value_" + element.pagerType ]);
+				},
+
+				buttonStyleUpdate: function(element) {
+					if (element[0]) {
+						element = element[0];
+					}
+					return cm.MixElementClasses(element, [ "cm_pager_button", "cm_pager_button_" + element.pagerType ]);
 				}
-
-			}
-
-			function PagerStyleUpdate(element, renderContext) {
-				var classes = cm_pager_className.split(" ");
-
-				var className = renderContext.$scope.className;
-				if (className) {
-					classes.push(className);
-				}
-
-				return cm.MixElementClasses(element, classes);
-			}
-
-			function LabelStyleUpdate(element, renderContext) {
-				return cm.MixElementClasses(element, [ "cm_pager_label" ]);
-			}
-
-			function ValueStyleUpdate(element, renderContext) {
-				if (element[0]) {
-					element = element[0];
-				}
-				return cm.MixElementClasses(element, [ "cm_pager_value", "cm_pager_value_" + element.pagerType ]);
-			}
-
-			function ButtonStyleUpdate(element, renderContext) {
-				if (element[0]) {
-					element = element[0];
-				}
-				return cm.MixElementClasses(element, [ "cm_pager_button", "cm_pager_button_" + element.pagerType ]);
-			}
-
-			return {
-				PagerRenderer: PagerRenderer,
-				PagerPositionsUpdate: PagerPositionsUpdate,
-
-				RenderType: RenderType,
-				RenderValue: RenderValue,
-				RenderButton: RenderButton,
-				RenderExpression: RenderExpression,
-
-				PagerStyleUpdate: PagerStyleUpdate,
-				ValueStyleUpdate: ValueStyleUpdate,
-				ButtonStyleUpdate: ButtonStyleUpdate,
-				LabelStyleUpdate: LabelStyleUpdate
 			};
 
+			return PagerRenderer;
 		} ]);
 
 })(window, window.angular);

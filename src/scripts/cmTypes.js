@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -75,12 +76,20 @@
 					extensions.push("_filtreable");
 				}
 
+				if (element._filtred) {
+					extensions.push("_filtred");
+				}
+
 				if (element._focus) {
 					extensions.push("_focus");
 				}
 
 				if (element._mouseDown) {
 					extensions.push("_mouseDown");
+				}
+
+				if (element._openedPopup) {
+					extensions.push("_openedPopup");
 				}
 
 				if (element._over) {
@@ -323,7 +332,7 @@
 				}
 			},
 
-			ClearState: function(renderContext, stateName, elements, callback) {
+			ClearState: function(renderContext, elements, stateName, callback) {
 				// cc.log("ClearState[" + stateName + "]");
 
 				var prefixedStateName = "_" + stateName;

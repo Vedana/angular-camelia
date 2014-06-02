@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -25,11 +26,16 @@
 
 			var anonymousId = 0;
 
-			function PopupRenderer(configuration) {
+			function PopupRenderer($parentScope, configuration) {
 
 				if (configuration) {
 					this.configuration = configuration;
 				}
+
+				var $scope = ($parentScope || $rootScope).$new();
+				this._releaseScope = true;
+
+				this.$scope = $scope;
 			}
 
 			PopupRenderer.INITIALIZING = 0x01;
@@ -73,6 +79,10 @@
 				 * @returns Promise|undefined
 				 */
 				initialize: function() {
+					if (this.containsState(PopupRenderer.DESTROYED)) {
+						throw new Error("Already destroyed");
+					}
+
 					if (this.containsState(PopupRenderer.INITIALIZING)) {
 						return;
 					}
@@ -101,6 +111,10 @@
 				},
 
 				render: function() {
+					if (this.containsState(PopupRenderer.DESTROYED)) {
+						throw new Error("Already destroyed");
+					}
+
 					if (this.containsState(PopupRenderer.RENDERING)) {
 						return;
 					}
@@ -121,9 +135,7 @@
 					});
 					this.container = container[0];
 
-					var $scope = $rootScope.$new();
-
-					container.data("$isolateScope", $scope);
+					container.data("$isolateScope", this.$scope);
 
 					var promise = this._render(angular.element(this.container));
 					if (!cc.isPromise(promise)) {
@@ -149,6 +161,10 @@
 				 */
 				open: function(position) {
 					var self = this;
+
+					if (this.containsState(PopupRenderer.DESTROYED)) {
+						throw new Error("Already destroyed");
+					}
 
 					if (!this.containsState(PopupRenderer.RENDERED)) {
 						if (!this.containsState(PopupRenderer.INITIALIZING)) {
@@ -252,6 +268,9 @@
 				},
 
 				close: function() {
+					if (this.containsState(PopupRenderer.DESTROYED)) {
+						throw new Error("Already destroyed");
+					}
 					if (this.containsState(PopupRenderer.CLOSED) || !this.containsState(PopupRenderer.OPENED)) {
 						return false;
 					}
@@ -265,6 +284,8 @@
 					container.style.display = "none";
 
 					this._close(angular.element(container));
+
+					this.$emit("cm_popup_closed");
 
 					if (this._closeDestroy) {
 						this.destroy();
@@ -291,6 +312,13 @@
 
 					angular.element(container).remove();
 
+					this.$emit("cm_popup_destroyed");
+
+					if (this.$scope && this._releaseScope) {
+						this.$scope.$destroy();
+						this.$scope = undefined;
+					}
+
 					return true;
 				},
 
@@ -301,7 +329,10 @@
 				},
 
 				$emit: function() {
-
+					if (!this.$scope) {
+						return;
+					}
+					this.$scope.$emit.apply(this.$scope, arguments);
 				}
 			};
 

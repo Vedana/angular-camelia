@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -11,6 +12,8 @@
 	module.value("cm_filtersPopup_className", "cm_popup cm_filtersPopup");
 
 	var anonymousId = 0;
+
+	var ROW_TYPE = "rfilter";
 
 	module.factory("camelia.renderers.FiltersPopup", [ "$log",
 		"$q",
@@ -32,141 +35,11 @@
 				}, "popup", target);
 			}
 
-			function OnMouseOver(renderContext) {
-				return function(event) {
-					var target = event.target;
+			var FiltersPopupRenderer = function($scope, configuration, column, dataModel, refreshFunc) {
+				configuration = configuration || {};
+				configuration.className = "cm_filtersPopup";
 
-					var elements = SearchElements(target);
-
-					console.log("OverElements=", elements);
-					cm.SwitchOnState(renderContext, elements, "over");
-				};
-			}
-
-			function OnMouseOut(renderContext) {
-				return function(event) {
-					var target = event.relatedTarget;
-
-					var elements = SearchElements(target);
-					console.log("OutElements=", target, " elements=", elements);
-					cm.SwitchOffState(renderContext, elements, "over");
-				};
-			}
-
-			function OnMouseLeave(renderContext) {
-				return function(event) {
-					var target = event.target;
-
-					var elements = SearchElements(target);
-					console.log("LeaveElements=", target, " elements=", elements);
-					cm.SwitchOffState(renderContext, elements, "over");
-				};
-			}
-
-			function OnFocus(renderContext) {
-				return function(event) {
-					var target = event.target;
-
-					var elements = SearchElements(target);
-					if (!elements.popup) {
-						renderContext.close();
-						return;
-					}
-
-					cm.SwitchOnState(renderContext, elements, "focus", function(elements) {
-					});
-				};
-			}
-
-			function OnBlur(renderContext) {
-				return function(event) {
-					var target = event.relatedTarget;
-
-					var elements = SearchElements(target);
-					cm.SwitchOffState(renderContext, elements, "focus");
-				};
-			}
-
-			function OnClick(renderContext) {
-				return function(event) {
-					var target = event.target;
-
-					var elements = SearchElements(target);
-					if (elements.ifilter) {
-						angular.element(elements.rfilter).data("context").enabled = !!elements.ifilter.checked;
-
-						renderContext._refreshDatas();
-					}
-				};
-			}
-
-			function OnMouseDown(renderContext) {
-				return function(event) {
-					var target = event.target;
-
-					var elements = SearchElements(target);
-					if (!elements.popup) {
-						renderContext.close();
-
-						event.stopPropagation();
-						event.preventDefault();
-						return;
-					}
-
-					if (elements.lfilter) {
-						var input = document.getElementById(elements.lfilter.inputTarget);
-
-						input.checked = !input.checked;
-						angular.element(elements.rfilter).data("context").enabled = input.checked;
-
-						renderContext._refreshDatas();
-						$timeout(function() {
-							renderContext.close();
-						});
-					}
-
-					cm.SwitchOnState(renderContext, elements, "mouseDown", function(elements) {
-					});
-
-					event.stopPropagation();
-					event.preventDefault();
-				};
-			}
-
-			function OnStyleUpdate(renderContext) {
-
-				var _styleUpdateMapper = {
-					popup: "_popupStyleUpdate",
-					rfilter: "_rowStyleUpdate",
-					lfilter: "_labelStyleUpdate",
-				};
-
-				return function(event) {
-					var target = event.relatedTarget;
-
-					var type = cm.GetCMType(target);
-					if (!type) {
-						return;
-					}
-
-					var elt = angular.element(target);
-
-					// cc.log("Update relatedTarget=", target, " type=" + type + " over="
-					// + target._over + " mouseDown="+ target._mouseDown);
-
-					var rp = renderContext[_styleUpdateMapper[type]];
-					if (rp) {
-						rp(elt);
-						event.stopPropagation();
-						return;
-					}
-				};
-			}
-
-			var FiltersPopupRenderer = function(column, dataModel, refreshFunc) {
-				PopupRenderer.call(this, {
-					className: "cm_filtersPopup"
-				});
+				PopupRenderer.call(this, $scope, configuration);
 
 				this._refreshFunc = refreshFunc;
 				this._column = column;
@@ -212,7 +85,7 @@
 							newContext[id] = fContext;
 
 							var li = cc.createElement(ul, "li", {
-								id: "cm_rfilter_" + (anonymousId++)
+								id: "cm_" + ROW_TYPE + "_" + (anonymousId++)
 							});
 
 							li.data("context", fContext);
@@ -252,24 +125,26 @@
 
 				_open: function(container) {
 
-					container.on("mouseover", OnMouseOver(this));
+					container.on("keydown", this._onKeyPress());
 
-					container.on("mouseout", OnMouseOut(this));
+					container.on("mouseover", this._onMouseOver());
 
-					container.on("mouseleave", OnMouseLeave(this));
+					container.on("mouseout", this._onMouseOut());
 
-					container.on("click", OnClick(this));
+					container.on("mouseleave", this._onMouseLeave());
 
-					this._mouseDownListener = OnMouseDown(this);
+					container.on("click", this._onClick());
+
+					this._mouseDownListener = this._onMouseDown();
 					document.body.addEventListener("mousedown", this._mouseDownListener, true);
 
-					this._focusListener = OnFocus(this);
+					this._focusListener = this._onFocus();
 					document.body.addEventListener("focus", this._focusListener, true);
 
-					this._blurListener = OnBlur(this);
+					this._blurListener = this._onBlur();
 					document.body.addEventListener("blur", this._blurListener, true);
 
-					container.on("cm_update", OnStyleUpdate(this));
+					container.on("cm_update", this._onStyleUpdate());
 
 					var scope = container.isolateScope();
 					var self = this;
@@ -277,6 +152,11 @@
 					scope.$on("$destroy", function() {
 						self._close();
 					});
+
+					var input = container[0].querySelector(".cm_filtersPopup_input");
+					if (input) {
+						cc.setFocus(input);
+					}
 				},
 
 				_close: function(container) {
@@ -315,6 +195,241 @@
 					var column = this._column;
 
 					this._refreshFunc();
+				},
+
+				_onMouseOver: function() {
+					var self = this;
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+
+						cm.SwitchOnState(self, elements, "over");
+					};
+				},
+
+				_onMouseOut: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.relatedTarget;
+
+						var elements = SearchElements(target);
+						cm.SwitchOffState(self, elements, "over");
+					};
+				},
+
+				_onMouseLeave: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+						cm.SwitchOffState(self, elements, "over");
+					};
+				},
+
+				_onFocus: function() {
+					var self = this;
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+
+						cc.log("FiltersPopup.OnFocus ", target, elements, event.relatedTarget);
+
+						if (!elements.popup) {
+							self.close();
+							return;
+						}
+
+						cm.SwitchOnState(self, elements, "focus", function(elements) {
+						});
+					};
+				},
+
+				_onBlur: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.relatedTarget;
+
+						var elements = SearchElements(target);
+
+						cc.log("FiltersPopup.OnBlur relatedTarget=", target, "target=", event.target, elements);
+
+						if (!target && !event.target) {
+							self.close();
+							return;
+						}
+
+						cm.SwitchOffState(self, elements, "focus");
+					};
+				},
+
+				_onClick: function() {
+					var self = this;
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+						if (elements.ifilter) {
+							angular.element(elements.rfilter).data("context").enabled = !!elements.ifilter.checked;
+
+							self._refreshDatas();
+						}
+					};
+				},
+
+				_onMouseDown: function() {
+					var self = this;
+
+					return function(event) {
+						var target = event.target;
+
+						var elements = SearchElements(target);
+
+						cc.log("FiltersPopup.OnMouseDown ", target, elements);
+
+						if (!elements.popup) {
+							self.close();
+
+							event.stopPropagation();
+							event.preventDefault();
+							return;
+						}
+
+						if (elements.lfilter) {
+							var input = document.getElementById(elements.lfilter.inputTarget);
+
+							input.checked = !input.checked;
+							angular.element(elements.rfilter).data("context").enabled = input.checked;
+
+							self._refreshDatas();
+							$timeout(function() {
+								self.close();
+							});
+						}
+
+						cm.SwitchOnState(self, elements, "mouseDown", function(elements) {
+						});
+
+						event.stopPropagation();
+						event.preventDefault();
+					};
+				},
+
+				_onStyleUpdate: function(renderContext) {
+
+					var _styleUpdateMapper = {
+						popup: "_popupStyleUpdate",
+						rfilter: "_rowStyleUpdate",
+						lfilter: "_labelStyleUpdate",
+					};
+
+					var self = this;
+
+					return function(event) {
+						var target = event.relatedTarget;
+
+						var type = cm.GetCMType(target);
+						if (!type) {
+							return;
+						}
+
+						var elt = angular.element(target);
+
+						var rp = self[_styleUpdateMapper[type]];
+						if (rp) {
+							rp(elt);
+							event.stopPropagation();
+							return;
+						}
+					};
+				},
+
+				_onKeyPress: function() {
+					var self = this;
+					return function(event) {
+						var target = event.target;
+						var elements = SearchElements(target);
+
+						if (elements.ifilter) {
+							return self.performKeyPress_input(elements.ifilter, event, elements);
+						}
+					};
+				},
+
+				performKeyPress_input: function(input, event, elements) {
+
+					var row = elements.rfilter;
+					var parentNode = row.parentNode;
+					var next = null;
+					var viewPort = this.container;
+					var cancel;
+
+					switch (event.keyCode) {
+					case Key.VK_DOWN:
+						cancel = true;
+
+						var next = cm.GetNextType(row.nextSibling, ROW_TYPE);
+						if (!next) {
+							next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+						}
+						break;
+
+					case Key.VK_PAGE_DOWN:
+						cancel = true;
+						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
+						if (next && next.id == row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
+							viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
+
+							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
+						}
+						break;
+
+					case Key.VK_END:
+						cancel = true;
+						next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
+						break;
+
+					case Key.VK_UP:
+						cancel = true;
+
+						var next = cm.GetPreviousType(row.previousSibling, ROW_TYPE);
+						if (!next) {
+							next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
+						}
+						break;
+
+					case Key.VK_PAGE_UP:
+						cancel = true;
+						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
+						if (next && next.id == row.id) {
+							viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
+
+							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
+						}
+						break;
+
+					case Key.VK_HOME:
+						cancel = true;
+						next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+						break;
+					}
+
+					if (next) {
+						var input = next.querySelector(".cm_filtersPopup_input");
+						if (input) {
+							cc.setFocus(input);
+						}
+					}
+
+					if (cancel) {
+						event.stopPropagation();
+						event.preventDefault();
+					}
 				}
 			});
 

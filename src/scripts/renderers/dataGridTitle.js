@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -16,7 +17,8 @@
 		"camelia.core",
 		"camelia.cmTypes",
 		"cm_grid_rowIndentPx",
-		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx) {
+		"cm_grid_sizerPx",
+		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx) {
 
 			var anonymousId = 0;
 
@@ -146,7 +148,7 @@
 						});
 
 						var hasParams = false;
-						if (column.$scope.filters || true) {
+						if (column._criterias && column._criterias.length) {
 							var parameters = cc.createElement(titleCell, "button", {
 								className: "cm_dataGrid_tparams",
 								tabIndex: -1,
@@ -156,6 +158,10 @@
 
 							cc.createElement(parameters, "div", {
 								className: "cm_dataGrid_tpArrow"
+							});
+
+							cc.createElement(parameters, "div", {
+								className: "cm_dataGrid_tpFiltred"
 							});
 
 							hasParams = true;
@@ -214,7 +220,7 @@
 				titleLayout: function(container, width) {
 					var self = this;
 
-					if (this._hasData && !this._naturalWidths) {
+					if (this._hasData() && !this._naturalWidths) {
 						var ret = this.computeColumnsNaturalWidths();
 						if (ret === false) {
 							return $timeout(function() {
@@ -227,12 +233,12 @@
 					var totalNatural = 0;
 					var countPercent = 0;
 					var percentColumns = [];
-					var rowIndent=this.rowIndent;
+					var rowIndent = this.rowIndent;
 
 					if (this.hasResizableColumnVisible) {
-						leftWidth -= 6;
+						leftWidth -= cm_grid_sizerPx;
 					}
-					
+
 					angular.forEach(this.visibleColumns, function(column) {
 
 						var rowIndentPx = !column.visibleIndex && (rowIndent * cm_dataGrid_rowIndentPx);

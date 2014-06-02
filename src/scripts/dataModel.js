@@ -1,20 +1,25 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.dataModel', [ 'camelia.core' ]);
+	var module = angular.module('camelia.dataModel', [ 'camelia.core', 'ngResource' ]);
 
 	module.factory('camelia.DataModel', [ "$q",
 		"$rootScope",
 		"camelia.core",
 		"$injector",
-		function($q, $rootScope, cc, $injector) {
+		"$resource",
+		function($q, $rootScope, cc, $injector, $resource) {
 
 			var scopeProto = $rootScope.__proto__ || Object.getPrototypeOf($rootScope);
+
+			var resource = $resource();
+			var resourceProto = resource.__proto__ || Object.getPrototypeOf(resource);
 
 			function DataModel() {
 				scopeProto.constructor.call(this);
@@ -26,6 +31,18 @@
 			DataModel.DATA_MODEL_UPDATED_EVENT = "dataModelUpdated";
 
 			DataModel.From = function(parameter) {
+
+				if (parameter instanceof DataModel) {
+					return parameter;
+				}
+
+				var parameterProto = parameter && (parameter.__proto__ || Object.getPrototypeOf(parameter));
+
+				if (parameterProto === resourceProto) {
+					return $injector.invoke([ "camelia.ResourceDataModel", function(ResourceDataModel) {
+						return new ResourceDataModel(parameter);
+					} ]);
+				}
 				if (angular.isArray(parameter)) {
 					return $injector.invoke([ "camelia.ArrayDataModel", function(ArrayDataModel) {
 						return new ArrayDataModel(parameter);
@@ -38,6 +55,7 @@
 			DataModel.prototype = Object.create(scopeProto);
 			angular.extend(DataModel.prototype, {
 				constructor: DataModel,
+				$super: scopeProto,
 
 				_rowIndex: -1,
 
@@ -112,6 +130,12 @@
 				},
 				setWrappedData: function(data) {
 					this._wrappedData = data;
+				},
+				setFetchProperties: function(fetchProperties) {
+					this._fetchProperties = fetchProperties;
+				},
+				getFetchProperties: function() {
+					return this._fetchProperties;
 				},
 				setSorters: function(sorters) {
 					this._sorters = sorters;
@@ -199,6 +223,7 @@
 
 		angular.extend(ArrayDataModel.prototype, {
 			constructor: ArrayDataModel,
+			$super: DataModel.prototype,
 
 			installWatcher: function($scope, varName) {
 				var self = this;
@@ -272,101 +297,169 @@
 			function WrappedArrayDataModel(dataModel) {
 				this._dataModel = dataModel;
 
-				ArrayDataModel.call(this, null);
+				ArrayDataModel.call(this, undefined);
 			}
 			WrappedArrayDataModel.prototype = Object.create(ArrayDataModel.prototype);
 
-			angular.extend(WrappedArrayDataModel.prototype, {
-				constructor: WrappedArrayDataModel,
+			angular
+					.extend(WrappedArrayDataModel.prototype,
+							{
+								constructor: WrappedArrayDataModel,
+								$super: ArrayDataModel.prototype,
 
-				$destroy: function() {
-					ArrayDataModel.prototype.$destroy.call(this);
+								$destroy: function() {
+									WrappedArrayDataModel.prototype.$super.$destroy.call(this);
 
-					this._dataModel.$destroy();
+									this._dataModel.$destroy();
 
-					this._dataModel = undefined;
-				},
+									this._dataModel = undefined;
+								},
 
-				setSorters: function(sorters) {
-					if (ArrayDataModel.prototype.isSortSupport.call(this)) {
-						ArrayDataModel.prototype.setSorters.call(this, sorters);
-						return;
-					}
-					this._dataModel.setSorters(sorters);
-				},
-				setFilters: function(filters) {
-					if (ArrayDataModel.prototype.isFilterSupport.call(this)) {
-						ArrayDataModel.prototype.setFilters.call(this, filters);
-					}
-					this._dataModel.setFilters(filters);
-				},
-				setGrouped: function(grouped) {
-					if (ArrayDataModel.prototype.isGroupSupport.call(this)) {
-						ArrayDataModel.prototype.setGrouped.call(this, grouped);
-					}
-					this._dataModel.setGrouped(grouped);
-				},
-				setScope: function(scope) {
-					ArrayDataModel.prototype.setScope.call(this, scope);
-					this._dataModel.setScope(scope);
-				},
-				/*
-				 * getRowCount: function(force) { return
-				 * this._dataModel.getRowCount(force); },
-				 */
-				isFilterSupport: function() {
-					return ArrayDataModel.prototype.isFilterSupport.call(this) || this._dataModel.isFilterSupport();
-				},
-				isSortSupport: function() {
-					return ArrayDataModel.prototype.isSortSupport.call(this) || this._dataModel.isSortSupport();
-				},
-				isGroupSupport: function() {
-					return ArrayDataModel.prototype.isGroupSupport.call(this) || this._dataModel.isGroupSupport();
-				},
+								setSorters: function(sorters) {
+									var dataModel = this._dataModel;
+									dataModel.setSorters(sorters);
+									WrappedArrayDataModel.prototype.$super.setSorters.call(this, sorters);
+								},
+								setFilters: function(filters) {
+									var dataModel = this._dataModel;
+									dataModel.setFilters(filters);
+									WrappedArrayDataModel.prototype.$super.setFilters.call(this, filters);
+								},
+								setGrouped: function(grouped) {
+									var dataModel = this._dataModel;
+									dataModel.setGrouped(grouped);
+									WrappedArrayDataModel.prototype.$super.setGrouped.call(this, grouped);
+								},
+								setScope: function(scope) {
+									WrappedArrayDataModel.prototype.$super.setScope.call(this, scope);
+									this._dataModel.setScope(scope);
+								},
+								isFilterSupport: function() {
+									return WrappedArrayDataModel.prototype.$super.isFilterSupport.call(this)
+											|| this._dataModel.isFilterSupport();
+								},
+								isSortSupport: function() {
+									return WrappedArrayDataModel.prototype.$super.isSortSupport.call(this)
+											|| this._dataModel.isSortSupport();
+								},
+								isGroupSupport: function() {
+									return WrappedArrayDataModel.prototype.$super.isGroupSupport.call(this)
+											|| this._dataModel.isGroupSupport();
+								},
 
-				isRowAvailable: function() {
-					var localArray = this.getWrappedData();
-					if (localArray) {
-						return ArrayDataModel.prototype.isRowAvailable.call(this);
-					}
+								setFetchProperties: function(fetchProperties) {
+									this._dataModel.setFetchProperties(fetchProperties);
+								},
 
-					if (localArray === false) {
-						return false;
-					}
+								getFetchProperties: function() {
+									return this._dataModel.getFetchProperties();
+								},
 
-					var self = this;
-					function _arrayReady(parentArray) {
+								setRowIndex: function(index) {
+									this._dataModel.setRowIndex(index);
+									WrappedArrayDataModel.prototype.$super.setRowIndex.call(this, index);
+								},
 
-						localArray = self.processParentArray(parentArray);
+								getRowCount: function() {
+									// TODO Fix must call isRowAvailable before !!!!
+									var localArray = this.getWrappedData();
+									if (localArray === null) {
+										return this._dataModel.getRowCount();
+									}
 
-						self.setWrappedData(localArray);
+									return WrappedArrayDataModel.prototype.$super.getRowCount.call(this);
+								},
 
-						return ArrayDataModel.prototype.isRowAvailable.call(self);
-					}
+								getRowData: function() {
+									var localArray = this.getWrappedData();
+									if (localArray === null) {
+										return this._dataModel.getRowData();
+									}
 
-					var parentArray = this._dataModel.toArray();
+									return WrappedArrayDataModel.prototype.$super.getRowData.call(this);
+								},
 
-					if (cc.isPromise(parentArray)) {
-						return parentArray.then(function(array) {
-							return _arrayReady(array);
-						});
-					}
+								isRowAvailable: function() {
+									var localArray = this.getWrappedData();
+									if (localArray) {
+										return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(this);
+									}
 
-					if (!parentArray) {
-						parentArray = [];
-					}
+									if (localArray === null) {
+										return this._dataModel.isRowAvailable();
+									}
 
-					if (angular.isArray(parentArray)) {
-						return _arrayReady(parentArray);
-					}
+									if (localArray === false) {
+										return false;
+									}
 
-					throw new Error("Invalid toArray return !");
-				},
+									var self = this;
 
-				processParentArray: function(array) {
-					return array;
-				}
-			});
+									function _arrayReady(parentArray) {
+
+										localArray = self.processParentArray(parentArray);
+
+										self.setWrappedData(localArray);
+
+										return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(self);
+									}
+
+									function _processArray() {
+										var parentArray = self._dataModel.toArray();
+
+										if (cc.isPromise(parentArray)) {
+											return parentArray.then(function(array) {
+												return _arrayReady(array);
+											});
+										}
+
+										if (!parentArray) {
+											parentArray = [];
+										}
+
+										if (angular.isArray(parentArray)) {
+											return _arrayReady(parentArray);
+										}
+
+										throw new Error("Invalid toArray return !");
+									}
+
+									var avail = this._dataModel.isRowAvailable();
+									if (avail === false) {
+										return false;
+									}
+
+									if (!cc.isPromise(avail)) {
+										if (!this.wrappingEnabled()) {
+											this.setWrappedData(null);
+											return true;
+										}
+
+										return _processArray();
+									}
+
+									return avail.then(function(av) {
+										if (av === false) {
+											return false;
+										}
+
+										if (!self.wrappingEnabled()) {
+											self.setWrappedData(null);
+											return true;
+										}
+
+										return _processArray();
+									});
+								},
+
+								wrappingEnabled: function() {
+									return false;
+								},
+
+								processParentArray: function(array) {
+									return array;
+								}
+							});
 
 			return WrappedArrayDataModel;
 		} ]);
@@ -386,6 +479,7 @@
 
 		angular.extend(SortedDataModel.prototype, {
 			constructor: SortedDataModel,
+			$super: WrappedArrayDataModel.prototype,
 
 			processParentArray: function(array) {
 
@@ -418,7 +512,12 @@
 				}
 
 				return array;
+			},
+
+			wrappingEnabled: function() {
+				return !this._dataModel.isSortSupport() && this._sorters;
 			}
+
 		});
 
 		return SortedDataModel;
@@ -440,6 +539,7 @@
 
 		angular.extend(FiltredDataModel.prototype, {
 			constructor: FiltredDataModel,
+			$super: WrappedArrayDataModel.prototype,
 
 			processParentArray: function(array) {
 
@@ -478,6 +578,10 @@
 				}
 
 				return newArray;
+			},
+
+			wrappingEnabled: function() {
+				return !this._dataModel.isFilterSupport() && this._filters;
 			}
 		});
 
@@ -506,6 +610,7 @@
 
 			angular.extend(GroupedDataModel.prototype, {
 				constructor: GroupedDataModel,
+				$super: WrappedArrayDataModel.prototype,
 
 				getGroup: function(rowScope, rowData) {
 					var expression = this._groupProvider.$scope.valueRawExpression;
@@ -593,7 +698,7 @@
 				},
 
 				$destroy: function() {
-					WrappedArrayDataModel.prototype.$destroy.call(this);
+					GroupedDataModel.prototype.$super.$destroy.call(this);
 
 					this._groupProvider = undefined;
 					this._groups = undefined;
@@ -601,6 +706,10 @@
 					this._rowVarName = undefined;
 					this._groupValues = undefined;
 				},
+
+				wrappingEnabled: function() {
+					return !this._dataModel.isGroupSupport() && this._grouped;
+				}
 			});
 
 			return GroupedDataModel;
@@ -608,136 +717,175 @@
 	/*
 	 * ------------------------ ProgressDataModel ----------------------------
 	 */
-	module.factory('camelia.UserDataModel', [ 'camelia.ArrayDataModel', function(ArrayDataModel) {
+	module.factory('camelia.ResourceDataModel', [ '$q', 'camelia.DataModel', function($q, DataModel) {
 
-		function UserDataModel(startFunc) {
-			this._startFunc = startFunc;
+		var DEFAULT_VALUES = {
+			pageSize: 20,
+			offsetMod: 10,
+			offsetParameter: "offset",
+			countParameter: "count",
+			sorterParameter: "sorter",
+			filterParameter: "filter",
+			actionName: "query",
+			keepCache: false
+		};
 
-			ArrayDataModel.call(this, null); // ?
+		var sessionId = 0;
+
+		function ResourceDataModel($resource, configuration) {
+			DataModel.call(this);
+
+			angular.extend(this, angular.extend(DEFAULT_VALUES, configuration || {}));
+			this.$resource = $resource;
+
+			this._sessionId = 0;
+			this._rowCount = -1;
+
+			this._cache = {};
 
 			var self = this;
 			this.$on("begin", function() {
-				self._datas = null;
-				self._deferred = null;
-				self._filled = false;
-				self._rowCount = -1;
+				self._sessionId = (sessionId++);
 			});
 
 			this.$on("end", function() {
-				var deferred = self._deferred;
-				if (deferred) {
-					self._deferred = undefined;
-					deferred.reject("DataModel iteration is closed !");
-				}
-
-				var deferredCount = this._deferredCount;
-				if (deferredCount) {
-					this._deferredCount = undefined;
-					deferredCount.reject("DataModel iteration is closed !");
-				}
-
-				self._datas = undefined;
-				self._deferred = undefined;
-				self._filled = undefined;
-				self._rowCount = -1;
+				self._sessionId = -1;
 			});
 		}
-		UserDataModel.prototype = Object.create(ArrayDataModel.prototype);
+		ResourceDataModel.prototype = Object.create(DataModel.prototype);
 
-		angular.extend(UserDataModel.prototype, {
-			constructor: UserDataModel,
+		angular.extend(ResourceDataModel.prototype, {
+			constructor: ResourceDataModel,
+			$super: DataModel.prototype,
 
 			isRowAvailable: function() {
-				var deferred = this._deferred;
-				if (deferred) {
-					throw new Error("Already deferred !");
-				}
 
 				var rowIndex = this.getRowIndex();
 
-				if (this._datas === null) {
-					this._datas = [];
-
-					var fetchSize = -1;
-					this._firstRowIndex = rowIndex;
-					this._startFunc(rowIndex, fetchSize, {
-						setCount: function(count) {
-							self.setRowCount(count);
-						},
-						add: function(data) {
-							self._appendRowData(data)
-						},
-						end: function() {
-							self._endData()
-						}
-					});
-				}
-
-				var datas = this._datas;
-				if (rowIndex < datas.length) {
+				var cache = this._cache;
+				if (cache[rowIndex] !== undefined) {
 					return true;
 				}
-				if (this._filled) {
+
+				if (this._rowCount >= 0 && rowIndex >= this._rowCount) {
 					return false;
 				}
 
-				deferred = $q.defer();
+				var deferred = $q.defer();
+
+				var fetchProperties = this.getFetchProperties();
+
+				var offset = rowIndex;
+				var rows = this.pageSize;
+
+				var useFetchRows = false;
+				var fetchRows = (fetchProperties && fetchProperties.rows);
+				if (fetchRows > 0) {
+					if ((offset % fetchRows) == 0) {
+						rows = fetchRows;
+						useFetchRows = true;
+					}
+				}
+
+				if (!useFetchRows && this.offsetMod) {
+					offset %= this.offsetMod;
+				}
+
+				if (!this._keepCache) {
+					cache = [];
+					this._cache = cache;
+
+				} else {
+					for (var i = offset + rows - 1; i > offset; i--) {
+						if (cache[i] === undefined) {
+							break;
+						}
+						rows--;
+					}
+				}
+
+				var currentSessionId = this._sessionId;
+
+				var params = {};
+				params[this.offsetParameter] = offset;
+				params[this.countParameter] = rows;
+
+				if (this._sorters && this.sorterParameter) {
+					var sorter = this._sorters[0];
+
+					var expression = sorter.expression || sorter.column.$scope.fieldName;
+
+					if (!sorter.ascending) {
+						expression += ":desc";
+					}
+
+					params[this.sorterParameter] = expression;
+
+					this.sortSupport = true;
+				}
+
+				var filters = this._filters;
+				if (filters && this.filterParameter) {
+
+					var ps = [];
+					params[this.filterParameter] = ps;
+
+					angular.forEach(filters, function(filter) {
+						if (!filter.getParameters) {
+							return;
+						}
+
+						var parameters = filter.getParameters();
+						if (parameters) {
+							ps.push.apply(ps, parameters);
+						}
+
+					});
+
+					this.filterSupport = true;
+				}
+
+				var self = this;
+				this.$resource[this.actionName].call(this.$resource, params, function(response, responseHeaders) {
+					if (self._sessionId != currentSessionId) {
+						return deferred.reject("Session canceled");
+					}
+
+					for (var i = 0; i < response.length; i++) {
+						cache[i + offset] = response[i];
+					}
+					if (response.length < rows) {
+						self._rowCount = offset + response.length;
+					}
+
+					deferred.resolve(typeof (cache[rowIndex]) !== undefined);
+
+				}, function(error) {
+					return deferred.reject("Query error: " + error);
+				});
 
 				return deferred.promise;
 			},
 			getRowData: function() {
-				var datas = this._datas;
-				if (!datas.length) {
-					return null;
-				}
+				var rowIndex = this.getRowIndex();
 
-				return datas[this.getRowIndex() - this._firstRowIndex];
-			},
-			_appendRowData: function(data) {
-				this._datas.push(data);
-
-				var deferred = this._deferred;
-				if (!deferred) {
-					return;
-				}
-				this._deferred = undefined;
-
-				deferred.resolve(true);
-			},
-			_endData: function() {
-				this._filled = true;
-				// No ! this._rowCount = this._datas.length + this._firstRowIndex;
-
-				var deferredCount = this._deferredCount;
-				if (deferredCount) {
-					this._deferredCount = undefined;
-
-					deferredCount.resolve(this._datas.length);
-				}
-
-				var deferred = this._deferred;
-				if (deferred) {
-					this._deferred = undefined;
-
-					deferred.resolve(false);
-				}
+				return this._cache[rowIndex];
 			},
 			getRowCount: function(force) {
-				if (this._rowCount >= 0 || !force) {
-					return this._rowCount;
-				}
+				return this._rowCount;
+			},
+			setSorters: function(sorters) {
+				this._cache = [];
+				ResourceDataModel.prototype.$super.setSorters.call(this, sorters);
+			},
+			setFilters: function(filters) {
+				this._cache = [];
+				ResourceDataModel.prototype.$super.setFilters.call(this, filters);
+			},
 
-				if (this._deferredCount) {
-					throw new Error("Already deferred !");
-				}
-				var deferredCount = $q.defer();
-				this._deferredCount = deferredCount;
-
-				return deferredCount.promise;
-			}
 		});
 
-		return UserDataModel;
+		return ResourceDataModel;
 	} ]);
 
 })(window, window.angular);

@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -24,6 +25,8 @@
 			}
 
 			this._regExp = new RegExp("^[" + value + "]", modifiers);
+
+			this._false = (attrs.reverse == "true");
 		};
 
 		StartsWithCriteria.prototype = Object.create(Criteria.prototype);
@@ -33,16 +36,19 @@
 				var regExp = this._regExp;
 				return [ {
 					name: this.name,
-					parameter: regExp
+					parameter: regExp,
+					reverse: this._false
 				} ];
 			},
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				var f=this._false;
+				
 				var regExp = this._regExp;
-				if (!rexExp.test(value)) {
-					return false;
+				if (rexExp.test(value)) {
+					return !f;
 				}
 
-				return true;
+				return f;
 			}
 		});
 

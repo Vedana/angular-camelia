@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -22,6 +23,11 @@
 			if (attrs.ignoreCase == "true") {
 				modifiers += "i";
 			}
+			if (attrs.global == "true") {
+				modifiers += "g";
+			}
+
+			this._false = (attrs.reverse == "true");
 
 			this._regexp = new RegExp(value, modifiers);
 		};
@@ -37,12 +43,18 @@
 				} ];
 			},
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
-				var regexp = this._regexp;
-				if (!regexp.test(value)) {
-					return false;
+				var f = this._false;
+
+				if (typeof (value) != "string") {
+					return f;
 				}
 
-				return true;
+				var regexp = this._regexp;
+				if (regexp.test(value)) {
+					return !f;
+				}
+
+				return f;
 			}
 		});
 

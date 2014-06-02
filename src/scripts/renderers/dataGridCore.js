@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -33,8 +34,9 @@
 		"camelia.SelectionProvider",
 		"camelia.CursorProvider",
 		"camelia.renderers.FiltersPopup",
+		"cm_grid_sizerPx",
 		function($log, $q, $window, $timeout, $exceptionHandler, cc, cm, cm_dataGrid_className, cm_dataGrid_rowIndentPx,
-				Key, SelectionProvider, CursorProvider, FiltersPopupRenderer) {
+				Key, SelectionProvider, CursorProvider, FiltersPopupRenderer, cm_grid_sizerPx) {
 
 			function SearchElements(node) {
 				var ret = cm.SearchElements({
@@ -191,6 +193,8 @@
 							bodyPromise.then(function(body) {
 								self._body = body;
 
+								self._hideBody();
+
 								container.append(fragment);
 
 								self.$scope.$emit("cm_dataGrid_body_rendered");
@@ -295,13 +299,12 @@
 
 					// Sometime, it is not yet drawn !
 					if (cell.getBoundingClientRect().width) {
-						this._setFocus(cell);
+						cc.setFocus(cell);
 						return true;
 					}
 
-					var self = this;
 					$timeout(function() {
-						self._setFocus(cell);
+						cc.setFocus(cell);
 					}, 50, false);
 
 					return true;
@@ -337,18 +340,6 @@
 
 							this.cursorProvider.setCursor(cursorValue, column);
 						}
-					}
-				},
-
-				_setFocus: function(element) {
-
-					// cc.log("SetFocus ", element, " focus=" + focus)
-
-					try {
-						element.focus();
-
-					} catch (x) {
-						$log.error(x);
 					}
 				},
 
@@ -390,24 +381,28 @@
 
 					var cr = this.tableViewPort.getBoundingClientRect();
 					if (!cr || (cr.width < 1 && cr.height < 1)) {
-						$log.debug("No bounding client rect ", cr, "  => timeout");
+						$log.debug("No bounding client rect ", cr, "  => timeout 10ms");
+						this._hideBody();
 
 						return $timeout(function() {
 							self.gridLayout();
 						}, 10, false);
 					}
 
-					$log.debug("Begin layout " + this.gridWidth + "," + cr.width + " " + this.gridHeight + "," + cr.height);
-
 					if (this.gridWidth == cr.width && this.gridHeight == cr.height) {
+						$log.debug("Begin layout : Already done");
+
+						self._alignColumns(true);
+
+						self._showBody();
+
 						this.layoutState = "complete";
 						return true;
 					}
+					$log.debug("Begin layout to " + cr.width + "," + cr.height);
+
 					this.gridWidth = cr.width;
 					this.gridHeight = cr.height;
-
-					var ts = this.tableViewPort.style;
-					ts.visibility = "";
 
 					this.$scope.$emit("cm_dataGrid_layout_begin");
 
@@ -430,7 +425,9 @@
 						promise2.then(function() {
 							self.layoutState = "bodyDone";
 
-							self._alignColumns();
+							self._alignColumns(true);
+
+							self._showBody();
 
 							var cursor = self._cursor;
 							if (cursor) {
@@ -450,9 +447,14 @@
 					});
 				},
 
-				_alignColumns: function() {
+				_hasData: function() {
+					var tbody = this.tableTBody;
+
+					return tbody && tbody.firstChild;
+				},
+
+				_alignColumns: function(columnConstraints) {
 					var total = 0;
-					var hasData = this._hasData;
 
 					var rowIndent = this.rowIndent;
 
@@ -469,18 +471,22 @@
 						titleStyle.width = width + "px";
 						// titleStyle.position = "static";
 
-						column.bodyColElement.style.width = (hasData) ? (bodyWidth + "px") : "auto";
+						column.bodyColElement.style.width = (columnConstraints) ? (bodyWidth + "px") : "auto";
 						total += width;
 					});
 
-					var sizer = 0;
-					if (total < this.gridWidth) {
+					// $log.debug("GridWidth=" + this.gridWidth + " total=" + total);
 
-						sizer = this.gridWidth - total;
+					var gridWidth = this.gridWidth;
+
+					var sizer = 0;
+					if (false && total < gridWidth) {
+
+						sizer = gridWidth - total;
 						total -= sizer;
 
 					} else if (this.hasResizableColumnVisible) {
-						sizer = 6;
+						sizer = cm_grid_sizerPx;
 					}
 
 					if (this.rightColElement) {
@@ -489,10 +495,10 @@
 						total += sizer;
 					}
 
-					this.tableElement.style.width = (hasData) ? (total + "px") : "auto";
+					this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
 					this.tableElement.style.tableLayout = "fixed";
 
-					$log.debug("AlignColumns ... total=" + total);
+					$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer);
 				},
 
 				_computeRowRangeFromCursor: function(rowValue, cursorRowValue) {
@@ -562,6 +568,7 @@
 
 				onKeyPress_Cell: function(cell, event, groupElement) {
 					var row = cell.parentNode;
+					var parentNode = row.parentNode;
 					var columnLogicalIndex = cell.cm_lindex;
 					var next = row;
 					var cancel = false;
@@ -611,41 +618,41 @@
 
 					case Key.VK_PAGE_DOWN:
 						cancel = true;
-						next = cm.GetPreviousVisibleType(viewPort, row.parentNode.lastChild, ROW_OR_GROUP);
+						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
 						if (next && next.id == row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
 							viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
 
-							next = cm.GetPreviousVisibleType(viewPort, row.parentNode.lastChild, ROW_OR_GROUP);
+							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
 						}
 						nextPage();
 						break;
 
 					case Key.VK_END:
 						cancel = true;
-						next = cm.GetPreviousType(row.parentNode.lastChild, ROW_OR_GROUP);
+						next = cm.GetPreviousType(parentNode.lastChild, ROW_OR_GROUP);
 						nextPage();
 						break;
 
 					case Key.VK_UP:
 						cancel = true;
-						next = cm.GetPreviousType(row.previousSibling, ROW_OR_GROUP);
+						next = cm.GetPreviousType(previousSibling, ROW_OR_GROUP);
 						prevPage();
 						break;
 
 					case Key.VK_PAGE_UP:
 						cancel = true;
-						next = cm.GetNextVisibleType(viewPort, row.parentNode.firstChild, ROW_OR_GROUP);
+						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
 						if (next && next.id == row.id) {
 							viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
 
-							next = cm.GetNextVisibleType(viewPort, row.parentNode.firstChild, ROW_OR_GROUP);
+							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
 						}
 						prevPage();
 						break;
 
 					case Key.VK_HOME:
 						cancel = true;
-						next = cm.GetNextType(row.parentNode.firstChild, ROW_OR_GROUP);
+						next = cm.GetNextType(parentNode.firstChild, ROW_OR_GROUP);
 						prevPage();
 						break;
 
@@ -732,7 +739,7 @@
 						if (cell) {
 							this._registerSelectionEvent(event);
 
-							this._setFocus(cell, true);
+							cc.setFocus(cell);
 						}
 					}
 
@@ -832,7 +839,7 @@
 					if (newWidth != column.width) {
 						column.width = newWidth;
 						column.specifiedWidthPx = newWidth + "px";
-						this._alignColumns();
+						this._alignColumns(true);
 					}
 
 					event.preventDefault();
@@ -1032,48 +1039,61 @@
 					});
 				},
 
-				updateData: function(resetPositions) {
+				updateData: function(resetPositions, updateColumnWidths) {
 					if (resetPositions) {
 						this.first = 0;
 						this.rowCount = -1;
 						this.maxRows = -1;
 					}
 
+					if (updateColumnWidths === undefined) {
+						updateColumnWidths = true;
+					}
+
 					var self = this;
 					this._monitorPositions(function() {
-						return this._refreshRows(true);
+						return this._refreshRows(updateColumnWidths);
 
 					}).then(function() {
-						self.gridLayout();
+						// self.gridLayout();
 					});
 				},
 
+				_hideBody: function() {
+					var ts = this.tableViewPort.style;
+					ts.width = "auto";
+					// ts.height = "auto";
+					ts.visibility = "hidden";
+
+					$log.debug("Hide body");
+				},
+				_showBody: function() {
+					var ts = this.tableViewPort.style;
+
+					ts.visibility = "";
+					$log.debug("Show body");
+				},
 				/**
 				 * @returns {Promise}
 				 */
 				_refreshRows: function(updateColumnWidths, focus) {
+					$log.debug("Refresh rows");
+
 					var tbody = this.tableTBody;
 					var table = tbody.parentNode;
 					if (!table) {
 						// Big Problem !
-						throw new Error("Tbody already dettached");
+						// throw new Error("Tbody already dettached");
 					}
 
-					var ts;
+					this._hideBody();
+
 					if (updateColumnWidths) {
 						this._naturalWidths = undefined;
 						this._containerSizeSetted = undefined;
 						this.gridWidth = -1;
-						this._hasData = false;
 
-						if (this.layoutState == "complete") {
-							ts = this.tableViewPort.style;
-							ts.width = "auto";
-							ts.height = "auto";
-							ts.visibility = "hidden";
-
-							this._alignColumns();
-						}
+						this._alignColumns(false);
 					}
 
 					var forceHeight = false;
@@ -1084,8 +1104,10 @@
 						table.style.height = cr.height + "px";
 					}
 
-					table.removeChild(tbody);
-					angular.element(tbody).empty(); // clear Data informations
+					if (tbody.parentNode) {
+						table.removeChild(tbody);
+						angular.element(tbody).empty(); // clear Data informations
+					}
 
 					var promise = this.tableRowsRenderer(tbody);
 					if (!cc.isPromise(promise)) {
@@ -1099,11 +1121,31 @@
 						}
 						table.appendChild(tbody);
 
+						self._showBody();
+
 						var container = self.container;
 
 						self._gridReady(container, focus !== false);
 
 						self.$scope.$emit("cm_dataGrid_refreshed");
+					}, function(msg) {
+						// Failed
+
+						if (forceHeight) {
+							table.style.height = "auto";
+						}
+						table.appendChild(tbody);
+
+						self._showBody();
+
+						var container = self.container;
+
+						self._gridReady(container, focus !== false);
+
+						self.$scope.$emit("cm_dataGrid_errored");
+
+					}, function(update) {
+						// $log.debug("Update", update);
 					});
 				},
 
@@ -1141,7 +1183,7 @@
 							self._lastVisibleColumn = undefined;
 
 							if (!column.beforeMovingVisibleIndex || !column.visibleIndex) {
-								self._alignColumns();
+								self._alignColumns(true);
 							}
 
 							if (giveFocus !== false) {
@@ -1220,17 +1262,18 @@
 
 				_onTitleCellMouseUp: function(tcell, event, column) {
 
-					if (!this.titleCellColumnMoving) {
-						var elements = SearchElements(event.target);
+					var elements = SearchElements(event.target);
 
+					if (!this.titleCellColumnMoving) {
 						if (elements.tcell && elements.tcell.id == tcell.id) {
 							if (elements.tparams) {
-								this._showFilterPopup(column, elements.tparams, event);
+								this._showFilterPopup(column, elements.tparams, event, elements);
 
 							} else if (tcell._sortable) {
 								this._toggleColumnSort(column, event);
 							}
 						}
+
 					} else {
 						// Redraw the table body
 
@@ -1244,23 +1287,32 @@
 
 					this._onTitleCellClear();
 
-					cm.ClearState(this, "mouseDown");
+					cm.ClearState(this, elements, "mouseDown");
 					event.stopPropagation();
 					return false;
 				},
 
-				_showFilterPopup: function(column, filterButton, event) {
+				_showFilterPopup: function(column, filterButton, event, elements) {
 					var dataModel = this.dataModel;
 
 					var self = this;
-					var popup = new FiltersPopupRenderer(column, dataModel, function() {
+					var popup = new FiltersPopupRenderer(this.$scope, {}, column, dataModel, function() {
 
-						var promise = self._refreshRows(true, false);
+						var promise = self._refreshRows(false, false);
 
 						return promise.then(function() {
 							self.gridLayout();
 							self.$scope.$emit("cm_dataGrid_filtred");
 						});
+					});
+
+					var self = this;
+					popup.$scope.$on("cm_popup_opened", function() {
+						cm.SwitchOnState(self, elements, "openedPopup");
+					});
+
+					popup.$scope.$on("cm_popup_closed", function() {
+						cm.ClearState(self, elements, "openedPopup");
 					});
 
 					popup.open({
@@ -1307,6 +1359,7 @@
 							if (column.visibleIndex) {
 								this._moveColumn(column, column.visibleIndex - 1);
 							}
+
 						} else {
 							next = cm.GetPreviousType(tcell.previousSibling, "tcell");
 							if (!next) {
@@ -1401,9 +1454,10 @@
 					return function(event) {
 						var target = event.target;
 
-						cc.log("OnFocus ", target);
-
 						var elements = SearchElements(target);
+
+						cc.log("Grid.OnFocus ", target, elements);
+
 						cm.SwitchOnState(self, elements, "focus", function(elements) {
 							var cell = elements.cell || elements.groupTitle;
 							if (cell) {
@@ -1550,7 +1604,7 @@
 
 					return function(event) {
 						var elements = SearchElements();
-						cm.ClearState(self, "mouseDown", elements, function(elements) {
+						cm.ClearState(self, elements, "mouseDown", function(elements) {
 						});
 					};
 				},

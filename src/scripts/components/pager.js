@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -8,7 +9,7 @@
 
 	var module = angular.module("camelia.components.pager", [ "camelia.core", "camelia.pagerRegistry" ]);
 
-	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.PagerProvider");
+	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.Pager");
 	module.value("xcm_pager_format", "{bprev} {first} {bnext}");
 	module
 			.value(
@@ -87,8 +88,6 @@
 							var renderContext = {
 								pager: self,
 								target: targetComponent,
-
-								rendererProvider: self.rendererProvider,
 								$scope: self.$scope
 							};
 
@@ -108,6 +107,8 @@
 
 					var doc = angular.element(document.createDocumentFragment());
 
+					var nextPositions;
+
 					var self = this;
 					var targetDestroyedCallback = targetScope.$on("destroy", function() {
 						self.targetDestroyed(targetComponent);
@@ -117,12 +118,12 @@
 
 					var positionsChangedCallback = targetScope.$on("positionsChanged", function(event, positions) {
 						if (!self.element) {
-							renderContext.positions = positions;
+							nextPositions = positions;
 							return;
 						}
-						renderContext.positions = undefined;
+						nextPositions = undefined;
 
-						self.setPositions(targetComponent, renderContext, positions);
+						self.updatePositions(positions);
 					});
 
 					this.$scope.$on("destroy", function() {
@@ -130,7 +131,10 @@
 						targetDestroyedCallback();
 					});
 
-					var containerPromise = renderContext.rendererProvider.PagerRenderer(doc, renderContext);
+					var pagerRenderer = new this.rendererProvider(renderContext);
+					this.pagerRenderer = pagerRenderer;
+
+					var containerPromise = pagerRenderer.render(doc);
 					if (!cc.isPromise(containerPromise)) {
 						containerPromise = $q.when(containerPromise);
 					}
@@ -140,14 +144,14 @@
 						self.constructed = true;
 						self.element = element;
 
-						var positions = renderContext.positions;
+						var positions = nextPositions;
+						nextPositions = undefined;
+
 						if (!positions && targetComponent.getCurrentPositions) {
 							positions = targetComponent.getCurrentPositions();
 						}
 						if (positions) {
-							renderContext.positions = undefined;
-
-							self.setPositions(targetComponent, renderContext, positions);
+							self.updatePositions(positions);
 						}
 
 						return doc;
@@ -158,8 +162,8 @@
 
 				},
 
-				setPositions: function(component, renderContext, positions) {
-					renderContext.rendererProvider.PagerPositionsUpdate(positions, renderContext);
+				updatePositions: function(positions) {
+					this.pagerRenderer.pagerPositionsUpdate(positions);
 				}
 			};
 
@@ -201,7 +205,14 @@
 
 					var self = this;
 					this.$scope.$watch("format", function(format) {
-						var targetComponent = renderContext.target;
+						renderContext.format = format;
+
+						var renderer = self.pagerRenderer;
+						if (!renderer) {
+							return;
+						}
+
+						var targetComponent = renderer.target;
 						if (!targetComponent) {
 							return;
 						}
@@ -212,9 +223,9 @@
 							format = cm_pager_format;
 						}
 
-						renderContext.format = format;
+						renderer.format = format;
 
-						self.setPositions(targetComponent, renderContext, positions);
+						self.updatePositions(positions);
 					});
 
 					return PagerBase.prototype.constructFromTarget.call(this, renderContext);

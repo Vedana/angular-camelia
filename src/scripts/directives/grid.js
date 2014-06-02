@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
@@ -121,7 +122,8 @@
 				fieldName: '@fieldname',
 				checkList: '=?',
 				columnImageURL: '@columnimageurl',
-				cellImageURL: '@cellimageurl'
+				cellImageURL: '@cellimageurl',
+				criteriaValue: '@criteriavalue'
 			},
 			controller: function($scope) {
 				this.criterias = [];
@@ -186,6 +188,10 @@
 			},
 			compile: function() {
 				return {
+					pre: function($scope, element, attrs) {
+
+						//console.log("PRE Criteria  " + attrs.name);
+					},
 					post: function($scope, element, attrs, dataColumnController) {
 						var type = $scope.type;
 						if (!angular.isString(type) || !type.length) {
@@ -201,16 +207,20 @@
 							criteriaName = "camelia.criteria." + type;
 						}
 
+						//console.log("POST Criteria  " + attrs.name);
+
+						var criterias = dataColumnController.criterias;
 						try {
 							$injector.invoke([ criteriaName, function(criteriaClass) {
 								var criteria = new criteriaClass($scope, element, attrs);
 
-								dataColumnController.criterias.push(criteria);
+								criterias.push(criteria);
 							} ]);
 
 						} catch (x) {
 							$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
 						}
+
 					}
 				};
 			}

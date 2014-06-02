@@ -1,6 +1,7 @@
 /**
- * @license CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @author olivier@oeuillot.net
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
  */
 
 .cm_dataGrid {
@@ -110,6 +111,19 @@
 	background-color: transparent;
 }
 
+.cm_dataGrid_tcell_filtred .cm_dataGrid_tpArrow,
+.cm_dataGrid_tpFiltred {
+	display: none;
+}
+
+.cm_dataGrid_tcell_filtred .cm_dataGrid_tpFiltred {
+	display: block;
+}
+
+.cm_dataGrid_tpFiltred:after {
+	content: "\2714";
+}
+
 .cm_dataGrid_tpArrow {
 	position: absolute;
 	left: calc(50% - 4px);
@@ -121,7 +135,9 @@
 	border-top: 4px solid black;
 }
 
-.cm_dataGrid_tcell_filtreable_focus .cm_dataGrid_tparams,
+.cm_dataGrid_tcell_filtred .cm_dataGrid_tparams,
+.cm_dataGrid_tcell_openedPopup .cm_dataGrid_tparams,
+	.cm_dataGrid_tcell_filtreable_focus .cm_dataGrid_tparams,
 	.cm_dataGrid_tcell_filtreable_over .cm_dataGrid_tparams {
 	display: block;
 }
@@ -272,32 +288,36 @@
 
 /* "Segoe UI Light",  non supporté par Chrome */
 .cm_dataGrid_cell {
-	padding: 1px 3px 1px 4px;
+	padding: 0 3px;
+	border-color: transparent;
 	border-right-color: #E8F1FB;
+	border-width: 1px 0;
+}
+
+.cm_dataGrid_cfirst {
+	border-left-width: 1px;
+	padding-left: 2px;
+}
+
+.cm_dataGrid_clast {
+	border-right-width: 1px;
+	padding-right: 2px;
 }
 
 .cm_dataGrid_group_focus .cm_dataGrid_gcell, .cm_dataGrid_row_focus .cm_dataGrid_cell,
 	.cm_dataGrid_row_selected .cm_dataGrid_cell, .cm_dataGrid_row_over .cm_dataGrid_cell
 	{
 	padding-bottom: 0;
-	border-bottom-width: 1.0001px;
 	padding-top: 0;
-	border-top-width: 1.0001px;
 	border-right-color: transparent;
-	border-right-width: 0;
-	padding-right: 4px;
 }
 
 .cm_dataGrid_row_focus .cm_dataGrid_cfirst, .cm_dataGrid_row_selected .cm_dataGrid_cfirst,
 	.cm_dataGrid_row_over .cm_dataGrid_cfirst {
-	border-left-width: 1.0001px;
-	padding-left: 3px;
 }
 
 .cm_dataGrid_row_focus .cm_dataGrid_clast, .cm_dataGrid_row_selected .cm_dataGrid_clast,
 	.cm_dataGrid_row_over .cm_dataGrid_clast {
-	border-right-width: 1.0001px;
-	padding-right: 3px;
 }
 
 .cm_dataGrid_row_selected .cm_dataGrid_cell {
@@ -321,11 +341,11 @@
 }
 
 .cm_dataGrid_table_focus .cm_dataGrid_row_focus .cm_dataGrid_cell {
-	border-color: #3399FF;
+	border-left-color: #3399FF;
 }
 
 .cm_dataGrid_row_mouseDown .cm_dataGrid_cell {
-	border-color: #26A0DA;
+	border-left-color: #26A0DA;
 	background-color: #B8E0F3;
 }
 
@@ -348,11 +368,19 @@
 	background-color: #F3F8FD;
 }
 
+.cm_dataGrid_tcell_filtred {
+	padding-right: 22px;
+}
+
 .cm_dataGrid_tcell_mouseDown_sortable {
 	padding-top: 7px;
 	padding-bottom: 1px;
 	border-color: #C2CDDB;
 	background-color: #F9FAFB;
+}
+
+.cm_dataGrid_tcell_openedPopup {
+	background-color: #F3F8FD;
 }
 
 .cm_dataGrid_tcell_descending .cm_dataGrid_tcursor,
@@ -437,15 +465,15 @@
 }
 
 .cm_dataGrid_row_focus .cm_dataGrid_cell_focus {
-	border-left-width: 1.0001px;
-	padding-left: 3px;
-	border-right-width: 1.0001px;
-	padding-right: 3px;
+	border-left-width: 1px;
+	padding-left: 2px;
+	border-right-width: 1px;
+	padding-right: 2px;
 }
 
 .cm_dataGrid_row_focus .cm_dataGrid_cfirst_focus {
 	border-right-width: 0;
-	padding-right: 4px;
+	padding-right: 3px;
 }
 
 .cm_popup {
@@ -484,7 +512,6 @@
 	padding: 0 4px 0 24px;
 	border: 1px solid transparent;
 	flex-grow: 1;
-	
 	background: url(filtersPopupItem.png) no-repeat 0 0 scroll;
 	image-rendering: -moz-crisp-edges;
 }
@@ -493,11 +520,14 @@
 	font: 8pt Tahoma, Verdana, Arial, Helvetica, sans-serif;
 }
 
-.cm_filtersPopup_item_over .cm_filtersPopup_right {
-	border: 1px solid #26A0DA;
+.cm_filtersPopup_item_focus .cm_filtersPopup_right,
+	.cm_filtersPopup_item_over .cm_filtersPopup_right {
+	border-color: #6BBBE2;
 	background-color: #D8E6EE;
 }
 
+.cm_filtersPopup_item_focus .cm_filtersPopup_right_over,
 .cm_filtersPopup_item_over .cm_filtersPopup_right_over {
+	border-color: #26A0DA;
 	background-color: #C0DDEB;
 }
