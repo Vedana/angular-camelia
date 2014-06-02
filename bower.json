@@ -1,15 +1,12 @@
 {
 	"author": "Olivier Oeuillot",
   "name": "Camelia",
-  "version": "0.0.3",
-  "main": "camelia.js",
+  "version": "0.0.4",
+  "main": "./camelia.js",
   "dependencies": {
-    "angular": "1.2.14",
-    "angular-resource": "1.2.14",
-    "angular-sanitize": "1.2.14",
-    "angular-route": "1.2.14"
-  },
-  "devDependencies": {
+    "angular": "1.2.15",
+    "angular-resource": "1.2.15",
+    "angular-sanitize": "1.2.15"
   },
   "repository": {
     "type": "git",
