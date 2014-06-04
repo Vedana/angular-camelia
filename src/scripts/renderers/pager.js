@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -68,16 +71,17 @@
 					this._blurListener = this._onBlur();
 					container[0].addEventListener("blur", this._blurListener, true);
 
+					var self = this;
 					this.$scope.$on("$destroy", function() {
-						var listener = this._focusListener;
+						var listener = self._focusListener;
 						if (listener) {
-							this._focusListener = undefined;
+							self._focusListener = undefined;
 							container[0].removeEventListener("focus", listener, true);
 						}
 
-						listener = this._blurListener;
+						listener = self._blurListener;
 						if (listener) {
-							this._blurListener = undefined;
+							self._blurListener = undefined;
 							container[0].removeEventListener("blur", listener, true);
 						}
 					});
