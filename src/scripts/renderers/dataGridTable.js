@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -179,38 +182,37 @@
 						return false;
 					};
 
-					fct.getParameters = function() {
-						var parameters = [];
+					fct.toJSON = function() {
+						var pfilters = [];
+						var parameters = {
+							id: column.$scope.criteriaValue || column.$scope.fieldName || column.$scope.id || column.id,
+							filters: pfilters
+						};
 
 						var criterias = column._criterias;
 						angular.forEach(enabledCriterias, function(filters) {
 
 							angular.forEach(filters, function(filter) {
-								var value = filter.parameter;
 
-								var s = "CRIT:id=" + column.id;
-								if (value instanceof RegExp) {
-									s += ",t=regExp,v=/" + value.source.replace(/\//g, '\\/') + "/" + ((value.ignoreCase) ? "i" : "");
-
-								} else if (value instanceof Date) {
-									s += ",t=date,v=" + value.toISOString();
-
-								} else {
-									switch (typeof (value)) {
-									case "string":
-										s += "t=s,v='" + value.replace(/\'/g, '\'\'') + "'";
-										break;
-									case "number":
-										s += "t=n,v=" + value;
-										break;
-									case "boolean":
-										s += "t=b,v=" + value;
-										break;
-									}
+								if (!filter.enabled) {
+									return;
 								}
-								parameters.push(s);
+
+								var p = {
+									type: filter.type || filters.type || filter.id
+								};
+								pfilters.push(p);
+
+								var j = filter.toJSON && filter.toJSON();
+								if (j) {
+									p.parameters = j;
+								}
 							});
 						});
+
+						if (!pfilters.length) {
+							return null;
+						}
 
 						return parameters;
 					};
@@ -273,6 +275,7 @@
 								var c = enabledCriterias[criteria.id];
 								if (!c) {
 									c = [];
+									c.type = criteria.type;
 									enabledCriterias[criteria.id] = c;
 								}
 

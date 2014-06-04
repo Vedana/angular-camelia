@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -13,6 +16,8 @@
 
 		var MinMax = function(scope, element, attrs) {
 			Criteria.call(this, scope, element, attrs);
+
+			this.type = "MinMax";
 
 			if (!attrs.min && attrs.value) {
 				attrs.min = attrs.value;
@@ -43,9 +48,18 @@
 
 		angular.extend(MinMax.prototype, {
 			contributeFilters: function(container) {
+				var self = this;
 				return [ {
 					name: this.name,
-					reverse: this._false
+					toJSON: function() {
+						return {
+							min: self._min,
+							minEq: self._minEq,
+							max: self._max,
+							maxEq: self._maxEq,
+							reverse: self._false
+						};
+					}
 				} ];
 			},
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {

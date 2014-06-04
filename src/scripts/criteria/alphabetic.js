@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -16,6 +19,8 @@
 
 			var AlphabeticCriteria = function(scope, element, attrs) {
 				Criteria.call(this, scope, element, attrs);
+
+				this.type = "Alphabetic";
 			};
 
 			AlphabeticCriteria.prototype = Object.create(Criteria.prototype);
@@ -31,7 +36,11 @@
 							name: entry,
 							regExp: regExp,
 							id: "alphabetic_" + entry,
-							parameter: regExp
+							toJSON: function() {
+								return {
+									startsWith: entry
+								};
+							}
 						});
 					});
 
@@ -40,7 +49,11 @@
 						name: i18n.alphabetic_others,
 						regExp: regExp,
 						id: "alphabetic_OTHERS",
-						parameter: regExp
+						toJSON: function() {
+							return {
+								others: true
+							};
+						}
 					});
 
 					return c;

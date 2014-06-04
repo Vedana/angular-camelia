@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -13,6 +16,8 @@
 
 		var RegExpCriteria = function(scope, element, attrs) {
 			Criteria.call(this, scope, element, attrs);
+
+			this.type = "RegExp";
 
 			var value = attrs.value;
 			if (!value) {
@@ -36,10 +41,15 @@
 
 		angular.extend(RegExpCriteria.prototype, {
 			contributeFilters: function(container) {
-				var regExp = this._regExp;
+				var self = this;
 				return [ {
 					name: this.name,
-					parameter: regExp
+					toJSON: function() {
+						return {
+							regExp: self._regExp,
+							reverse: self._false
+						}
+					}
 				} ];
 			},
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {

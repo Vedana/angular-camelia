@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -806,6 +809,8 @@
 
 				var currentSessionId = this._sessionId;
 
+				var actionName = this.actionName;
+
 				var params = {};
 				params[this.offsetParameter] = offset;
 				params[this.countParameter] = rows;
@@ -831,13 +836,13 @@
 					params[this.filterParameter] = ps;
 
 					angular.forEach(filters, function(filter) {
-						if (!filter.getParameters) {
+						if (!filter.toJSON) {
 							return;
 						}
 
-						var parameters = filter.getParameters();
+						var parameters = filter.toJSON();
 						if (parameters) {
-							ps.push.apply(ps, parameters);
+							ps.push(parameters);
 						}
 
 					});
@@ -846,7 +851,7 @@
 				}
 
 				var self = this;
-				this.$resource[this.actionName].call(this.$resource, params, function(response, responseHeaders) {
+				this.$resource[actionName].call(this.$resource, params, function(response, responseHeaders) {
 					if (self._sessionId != currentSessionId) {
 						return deferred.reject("Session canceled");
 					}

@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -123,7 +126,7 @@
 				checkList: '=?',
 				columnImageURL: '@columnimageurl',
 				cellImageURL: '@cellimageurl',
-				criteriaValue: '@criteriavalue'
+				criteriaValue: '@criteriavalue',
 			},
 			controller: function($scope) {
 				this.criterias = [];
@@ -190,7 +193,7 @@
 				return {
 					pre: function($scope, element, attrs) {
 
-						//console.log("PRE Criteria  " + attrs.name);
+						// console.log("PRE Criteria " + attrs.name);
 					},
 					post: function($scope, element, attrs, dataColumnController) {
 						var type = $scope.type;
@@ -207,7 +210,7 @@
 							criteriaName = "camelia.criteria." + type;
 						}
 
-						//console.log("POST Criteria  " + attrs.name);
+						// console.log("POST Criteria " + attrs.name);
 
 						var criterias = dataColumnController.criterias;
 						try {
