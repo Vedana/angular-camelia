@@ -437,7 +437,11 @@
 							} catch (x) {
 								$log.error(x);
 							}
-						}
+						},
+						
+						lang: function(bundle, labelName) {
+							return bundle.en[labelName];
+						},
 					};
 				} ]);
 
@@ -868,7 +872,10 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -1609,7 +1616,7 @@
 			this._sessionId = 0;
 			this._rowCount = -1;
 
-			this._cache = {};
+			this._cache = [];
 
 			var self = this;
 			this.$on("begin", function() {
@@ -1674,8 +1681,8 @@
 
 				var currentSessionId = this._sessionId;
 
-				var actionName=this.actionName;
-				
+				var actionName = this.actionName;
+
 				var params = {};
 				params[this.offsetParameter] = offset;
 				params[this.countParameter] = rows;
@@ -1701,13 +1708,13 @@
 					params[this.filterParameter] = ps;
 
 					angular.forEach(filters, function(filter) {
-						if (!filter.getParameters) {
+						if (!filter.toJSON) {
 							return;
 						}
 
-						var parameters = filter.getParameters();
+						var parameters = filter.toJSON();
 						if (parameters) {
-							ps.push.apply(ps, parameters);
+							ps.push(parameters);
 						}
 
 					});
@@ -1746,12 +1753,14 @@
 			},
 			setSorters: function(sorters) {
 				this._cache = [];
+				this._rowCount = -1;
 				ResourceDataModel.prototype.$super.setSorters.call(this, sorters);
 			},
 			setFilters: function(filters) {
 				this._cache = [];
+				this._rowCount = -1;
 				ResourceDataModel.prototype.$super.setFilters.call(this, filters);
-			},
+			}
 
 		});
 
@@ -2663,6 +2672,501 @@
 (function(window, angular, undefined) {
 	'use strict';
 
+	var module = angular.module("camelia.criteria", [ "camelia.i18n.criteria" ]);
+
+	var anonymousId = 0;
+
+	module.factory("camelia.criteria.Criteria", [ "$log", function($log) {
+
+		var Criteria = function($scope, element, attrs) {
+			var id = $scope.id;
+			if (!id) {
+				id = "cm_criteria_" + (anonymousId++);
+			}
+			this.id = id;
+
+			this.name = attrs.name;
+		};
+
+		Criteria.prototype = {
+			contributeFilters: function(dataModel) {
+				return [];
+			},
+			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				return false;
+			}
+		};
+
+		return Criteria;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria");
+
+	module.factory("camelia.criteria.Alphabetic", [ "$log",
+		"camelia.core",
+		"camelia.criteria.Criteria",
+		"camelia.i18n.criteria",
+		function($log, cc, Criteria, i18n) {
+
+			var AlphabeticCriteria = function(scope, element, attrs) {
+				Criteria.call(this, scope, element, attrs);
+
+				this.type = "Alphabetic";
+			};
+
+			AlphabeticCriteria.prototype = Object.create(Criteria.prototype);
+
+			angular.extend(AlphabeticCriteria.prototype, {
+				contributeFilters: function(dataModel) {
+					var c = [];
+
+					var cnt = 0;
+					angular.forEach([ "A-D", "E-K", "L-P", "Q-Z", "0-9" ], function(entry) {
+						var regExp = new RegExp("^[" + entry + "]", "i");
+						c.push({
+							name: entry,
+							regExp: regExp,
+							id: "alphabetic_" + entry,
+							toJSON: function() {
+								return {
+									startsWith: entry
+								};
+							}
+						});
+					});
+
+					var regExp = new RegExp("^[^A-Z0-9]", "i");
+					c.push({
+						name: cc.lang(i18n, 'alphabetic_others'),
+						regExp: regExp,
+						id: "alphabetic_OTHERS",
+						toJSON: function() {
+							return {
+								others: true
+							};
+						}
+					});
+
+					return c;
+				},
+				filterData: function(filterContexts, value, rowScope, dataModel, column) {
+					var f = false;
+
+					if (typeof (value) != "string") {
+						return f;
+					}
+
+					for (var i = 0; i < filterContexts.length; i++) {
+						var filterContext = filterContexts[i];
+						if (!filterContext.enabled) {
+							continue;
+						}
+
+						if (filterContext.regExp.test(value)) {
+							return !f;
+						}
+					}
+
+					return f;
+				}
+			});
+
+			return AlphabeticCriteria;
+		} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria");
+
+	module.factory("camelia.criteria.MinMax", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+
+		var MinMax = function(scope, element, attrs) {
+			Criteria.call(this, scope, element, attrs);
+
+			this.type = "MinMax";
+
+			if (!attrs.min && attrs.value) {
+				attrs.min = attrs.value;
+			}
+
+			var self = this;
+			function processNumber(name) {
+				var v = attrs[name];
+				if (!angular.isString(v)) {
+					return;
+				}
+
+				if (v.charAt(0) == '=') {
+					v = v.substring(1);
+					self["_" + name + "Eq"] = true;
+				}
+
+				self["_" + name] = parseFloat(v);
+			}
+
+			processNumber("min");
+			processNumber("max");
+
+			this._false = (attrs.reverse == "true");
+		};
+
+		MinMax.prototype = Object.create(Criteria.prototype);
+
+		angular.extend(MinMax.prototype, {
+			contributeFilters: function(container) {
+				var self = this;
+				return [ {
+					name: this.name,
+					toJSON: function() {
+						return {
+							min: self._min,
+							minEq: self._minEq,
+							max: self._max,
+							maxEq: self._maxEq,
+							reverse: self._false
+						};
+					}
+				} ];
+			},
+			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				var f = this._false;
+
+				if (angular.isNumber(value) == false) {
+					return f;
+				}
+
+				var min = this._min;
+				if (min !== undefined && ((!this._minEq && value <= min) || (value < min))) {
+					return f;
+				}
+
+				var max = this._max;
+				if (max !== undefined && ((!this._maxEq && value >= max) || (value > max))) {
+					return f;
+				}
+
+				return !f;
+			}
+		});
+
+		return MinMax;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria");
+
+	module.factory("camelia.criteria.Number", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+
+		var NumberCriteria = function(scope, element, attrs) {
+			Criteria.call(this, scope, element, attrs);
+
+			this.type = "Number";
+
+			var value = attrs.value;
+			if (!value) {
+				throw new Error("You must specify value attribute");
+			}
+
+			if (attrs.integer == "true") {
+				this._integer = true;
+				value = parseInt(value, 10);
+
+			} else {
+				value = parseFloat(value);
+			}
+			this._value = value;
+
+			this._false = (attrs.reverse == "true");
+		};
+
+		NumberCriteria.prototype = Object.create(Criteria.prototype);
+
+		angular.extend(NumberCriteria.prototype, {
+			contributeFilters: function(container) {
+				var self = this;
+				return [ {
+					name: this.name,
+					toJSON: function() {
+						return {
+							value: self._value,
+							reverse: self._false
+						};
+					}
+				} ];
+			},
+			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				var f = this._false;
+
+				if (angular.isNumber(value) == false) {
+					return f;
+				}
+
+				if (this._integer) {
+					value = Math.floor(value);
+				}
+
+				if (this._value === value) {
+					return !f;
+				}
+
+				return f;
+			}
+		});
+
+		return NumberCriteria;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria");
+
+	module.factory("camelia.criteria.RegExp", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+
+		var RegExpCriteria = function(scope, element, attrs) {
+			Criteria.call(this, scope, element, attrs);
+
+			this.type = "RegExp";
+
+			var value = attrs.value;
+			if (!value) {
+				throw new Error("You must specify value attribute");
+			}
+
+			var modifiers = attrs.modifiers || "";
+			if (attrs.ignoreCase == "true") {
+				modifiers += "i";
+			}
+			if (attrs.global == "true") {
+				modifiers += "g";
+			}
+
+			this._false = (attrs.reverse == "true");
+
+			this._regexp = new RegExp(value, modifiers);
+		};
+
+		RegExpCriteria.prototype = Object.create(Criteria.prototype);
+
+		angular.extend(RegExpCriteria.prototype, {
+			contributeFilters: function(container) {
+				var self = this;
+				return [ {
+					name: this.name,
+					toJSON: function() {
+						return {
+							regExp: self._regExp,
+							reverse: self._false
+						}
+					}
+				} ];
+			},
+			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				var f = this._false;
+
+				if (typeof (value) != "string") {
+					return f;
+				}
+
+				var regexp = this._regexp;
+				if (regexp.test(value)) {
+					return !f;
+				}
+
+				return f;
+			}
+		});
+
+		return RegExpCriteria;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria");
+
+	module.factory("camelia.criteria.StartsWith", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+
+		var StartsWithCriteria = function(scope, element, attrs) {
+			Criteria.call(this, scope, element, attrs);
+
+			this.type = "StartsWidth";
+
+			var value = attrs.value;
+			if (!value) {
+				throw new Error("You must specify value attribute");
+			}
+
+			var modifiers = "";
+			if (attrs.ignoreCase == "true") {
+				modifiers += "i";
+				this._ignoreCase = true;
+			}
+
+			this._value = value;
+			this._regExp = new RegExp("^[" + value + "]", modifiers);
+
+			this._false = (attrs.reverse == "true");
+		};
+
+		StartsWithCriteria.prototype = Object.create(Criteria.prototype);
+
+		angular.extend(StartsWithCriteria.prototype, {
+			contributeFilters: function(container) {
+				var self = this;
+				return [ {
+					name: this.name,
+					toJSON: function() {
+						return {
+							startsWidth: self._value,
+							ignoreCase: !!self._ignoreCase,
+							reverse: self._false
+						};
+					}
+				} ];
+			},
+			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				var f = this._false;
+
+				var regExp = this._regExp;
+				if (rexExp.test(value)) {
+					return !f;
+				}
+
+				return f;
+			}
+		});
+
+		return StartsWithCriteria;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria");
+
+	module.factory("camelia.criteria.Type", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+
+		var Type = function(scope, element, attrs) {
+			Criteria.call(this, scope, element, attrs);
+
+			this.type = "Type";
+
+			var value = attrs.value;
+			if (!value) {
+				throw new Error("You must specify value attribute");
+			}
+
+			this._value = value;
+
+			this._false = (attrs.reverse == "true");
+		};
+
+		Type.prototype = Object.create(Criteria.prototype);
+
+		angular.extend(Type.prototype, {
+			contributeFilters: function(container) {
+				var self = this;
+				return [ {
+					name: this.name,
+					toJSON: function() {
+						return {
+							type: self._value,
+							reverse: self._false
+						};
+					}
+				} ];
+			},
+			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+				var f = this._false;
+
+				if (typeof (value) == this._value) {
+					return !f;
+				}
+
+				return f;
+			}
+		});
+
+		return Type;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
 	var module = angular.module("camelia.components.grid", [ "camelia.core",
 		"camelia.dataModel",
 		"camelia.cursorProvider",
@@ -3470,6 +3974,47 @@
 (function(window, angular, undefined) {
 	"use strict";
 
+	var module = angular.module("camelia.renderers.grid", [ "camelia.dataModel",
+		"camelia.selectionProvider",
+		"camelia.cursorProvider",
+		"camelia.selectionStrategy",
+		"camelia.key",
+		"camelia.renderers.popup",
+		"camelia.components.grid" ]);
+
+	module.value("cm_grid_rowIndentPx", 16);
+	module.value("cm_grid_className", "cm_dataGrid");
+	module.value("cm_grid_sizerPx", 6);
+
+	module.factory("camelia.renderers.GridProvider", [ "$log",
+		"camelia.renderers.grid.core",
+		"camelia.renderers.grid.group",
+		"camelia.renderers.grid.row",
+		"camelia.renderers.grid.table",
+		"camelia.renderers.grid.title",
+		"camelia.renderers.grid.utils",
+		function($log, CoreRenderers, GroupRenderers, RowRenderers, TableRenderers, TitleRenderers, GridUtils) {
+
+			angular.forEach([ GroupRenderers, RowRenderers, TableRenderers, TitleRenderers, GridUtils ], function(renderer) {
+				angular.extend(CoreRenderers.prototype, renderer);
+			});
+
+			return CoreRenderers;
+		} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
 	var module = angular.module("camelia.renderers.grid");
 
 	var ROW_OR_GROUP = {
@@ -4098,7 +4643,7 @@
 
 					case Key.VK_UP:
 						cancel = true;
-						next = cm.GetPreviousType(previousSibling, ROW_OR_GROUP);
+						next = cm.GetPreviousType(row.previousSibling, ROW_OR_GROUP);
 						prevPage();
 						break;
 
@@ -4543,7 +5088,7 @@
 					$log.debug("Refresh rows");
 
 					var tbody = this.tableTBody;
-					var table = tbody.parentNode;
+					var table = this.tableElement;
 					if (!table) {
 						// Big Problem !
 						// throw new Error("Tbody already dettached");
@@ -4559,12 +5104,14 @@
 						this._alignColumns(false);
 					}
 
+					var container = this.container;
+
 					var forceHeight = false;
-					if (!table.style.height || table.style.height.indexOf("px") < 0) {
+					if (!container.style.height || container.style.height.indexOf("px") < 0) {
 						forceHeight = true;
 
-						var cr = table.getBoundingClientRect();
-						table.style.height = cr.height + "px";
+						var cr = container.getBoundingClientRect();
+						container.style.height = cr.height + "px";
 					}
 
 					if (tbody.parentNode) {
@@ -4573,43 +5120,49 @@
 					}
 
 					var promise = this.tableRowsRenderer(tbody);
-					if (!cc.isPromise(promise)) {
-						promise = $q.when(promise);
-					}
 
 					var self = this;
-					return promise.then(function() {
+
+					function processResult(eventName) {
 						if (forceHeight) {
-							table.style.height = "auto";
+							container.style.height = "auto";
+							self.tableViewPort.style.height = "auto";
 						}
 						table.appendChild(tbody);
 
 						self._showBody();
 
-						var container = self.container;
-
 						self._gridReady(container, focus !== false);
 
-						self.$scope.$emit("cm_dataGrid_refreshed");
-					}, function(msg) {
-						// Failed
+						self.$scope.$emit(eventName || "cm_dataGrid_refreshed");
+					}
 
-						if (forceHeight) {
-							table.style.height = "auto";
+					function processPromise(promise) {
+						if (!cc.isPromise(promise)) {
+							promise = $q.when(promise);
 						}
-						table.appendChild(tbody);
 
-						self._showBody();
+						return promise.then(function() {
+							if (!self.dataGrid.rowCount && self.dataGrid.first) {
+								$timeout(function() {
+									self.dataGrid.first = 0;
+								}, 100);
+							}
 
-						var container = self.container;
+							return processResult();
 
-						self._gridReady(container, focus !== false);
+						}, function(msg) {
+							// Failed
+							console.error("Catch process failed message " + msg);
 
-						self.$scope.$emit("cm_dataGrid_errored");
+							return processResult("cm_dataGrid_errored");
 
-					}, function(update) {
-						// $log.debug("Update", update);
-					});
+						}, function(update) {
+							// $log.debug("Update", update);
+						});
+					}
+
+					return processPromise(promise);
 				},
 
 				_moveColumn: function(column, targetIndex, giveFocus) {
@@ -5574,426 +6127,621 @@
 
 	var PROGRESS_DELAY_MS = 200;
 
-	module.factory('camelia.renderers.grid.table', [ "$log",
-		"$q",
-		"$timeout",
-		"$injector",
-		"camelia.core",
-		"camelia.cmTypes",
-		"cm_grid_rowIndentPx",
-		"cm_grid_group_animation",
-		function($log, $q, $timeout, $injector, cc, cm, cm_dataGrid_rowIndentPx, cm_dataGrid_group_animation) {
+	module.factory('camelia.renderers.grid.table',
+			[ "$log",
+				"$q",
+				"$timeout",
+				"$injector",
+				"$interpolate",
+				"camelia.core",
+				"camelia.cmTypes",
+				"cm_grid_rowIndentPx",
+				"cm_grid_group_animation",
+				function($log, $q, $timeout, $injector, $interpolate, cc, cm, cm_dataGrid_rowIndentPx,
+						cm_dataGrid_group_animation) {
 
-			var anonymousId = 0;
+					var anonymousId = 0;
 
-			return {
-				tableRenderer: function(parent) {
+					return {
+						tableRenderer: function(parent) {
 
-					var viewPort = cc.createElement(parent, "div", {
-						id: "cm_table_" + (anonymousId++),
-						className: "cm_dataGrid_table"
-					});
-					this.tableViewPort = viewPort[0];
-
-					var self = this;
-					viewPort.on("scroll", function(event) {
-						self.titleViewPort.scrollLeft = self.tableViewPort.scrollLeft;
-					});
-
-					var table = cc.createElement(viewPort, "table", {
-						role: "grid",
-						className: "cm_dataGrid_ttable",
-						cellPadding: 0,
-						cellSpacing: 0
-					});
-					this.tableElement = table[0];
-
-					var caption = null;
-					var captionText = this.$scope.caption;
-					if (captionText !== undefined) {
-						caption = cc.createElement(table, "caption", {
-							className: "cm_dataGrid_caption",
-						});
-
-						caption.text(captionText);
-					}
-
-					this.$scope.$watch('caption', function() {
-						var captionText = self.$scope.caption;
-
-						if (!caption) {
-							caption = cc.createElement(thead, "caption", {
-								className: "cm_dataGrid_caption"
+							var viewPort = cc.createElement(parent, "div", {
+								id: "cm_table_" + (anonymousId++),
+								className: "cm_dataGrid_table"
 							});
-						}
+							this.tableViewPort = viewPort[0];
 
-						caption.text(angular.isString(captionText) ? captionText : "");
-					});
-
-					var rowIndent = this.rowIndent;
-					if (rowIndent) {
-						var colgroupIndent = cc.createElement(table, "colgroup", {
-							className: "cm_dataGrid_colgroupIndent",
-							"aria-hidden": "true"
-						});
-
-						for (var i = 0; i < rowIndent; i++) {
-							var co = cc.createElement(colgroupIndent, "col", {
-								className: "cm_dataGrid_colIndent"
+							var self = this;
+							viewPort.on("scroll", function(event) {
+								self.titleViewPort.scrollLeft = self.tableViewPort.scrollLeft;
 							});
-							co[0].style.width = cm_dataGrid_rowIndentPx + "px";
-						}
-					}
 
-					var colgroup = cc.createElement(table, "colgroup", {
-						className: "cm_dataGrid_colgroup"
-					});
+							var table = cc.createElement(viewPort, "table", {
+								role: "grid",
+								className: "cm_dataGrid_ttable",
+								cellPadding: 0,
+								cellSpacing: 0
+							});
+							this.tableElement = table[0];
 
-					var visibleColumns = this.visibleColumns;
-					angular.forEach(visibleColumns, function(column) {
-						var col = cc.createElement(colgroup, "col", {
-							className: "cm_dataGrid_col"
-						});
-						col.data("cm_column", column);
-						column.bodyColElement = col[0];
-					});
+							var caption = null;
+							var captionText = this.$scope.caption;
+							if (captionText !== undefined) {
+								caption = cc.createElement(table, "caption", {
+									className: "cm_dataGrid_caption",
+								});
 
-					if (this.hasResizableColumnVisible) {
-						this.rightColElement = cc.createElement(colgroup, "col", {
-							"aria-hidden": true,
-							className: "cm_dataGrid_colSizer"
-						})[0];
-					}
-
-					var thead = cc.createElement(table, "thead", {
-						className: "cm_dataGrid_thead"
-					});
-					this.tableTHead = thead[0];
-
-					var titleRow = cc.createElement(thead, "tr");
-
-					for (var i = 0; i < rowIndent; i++) {
-						cc.createElement(titleRow, "th", {
-							className: "cm_dataGrid_thIndent",
-							"aria-hidden": "true"
-						});
-					}
-
-					angular.forEach(visibleColumns, function(column) {
-						var th = cc.createElement(titleRow, "th", {
-							id: column.columnId,
-							scope: "col"
-						});
-						column.bodyTitleElement = th[0];
-
-						if (column.visibleIndex == 0 && rowIndent) {
-							th.colspan = (1 + rowIndent);
-						}
-
-						var title = column.$scope.title;
-						if (title) {
-							th.text(title);
-						}
-						column.$scope.$watch("title", function(newValue) {
-							th.text(newValue ? newValue : "");
-						});
-					});
-
-					var tbody = cc.createElement(table, "tbody", {
-						className: "cm_dataGrid_tbody",
-						id: "cm_tbody_" + (anonymousId++)
-					});
-					this.tableTBody = tbody[0];
-
-					this.tableStyleUpdate(viewPort);
-
-					return viewPort;
-				},
-
-				newCriteriasExpression: function(column, enabledCriterias) {
-					var fct = function(rowScope, dataModel) {
-						var criteriaValue = column.$scope.criteriaValue;
-
-						if (!criteriaValue) {
-							var criteriaValue = column.interpolatedExpression;
-							if (!criteriaValue) {
-								return false;
-							}
-						}
-
-						var value = rowScope.$eval(criteriaValue);
-
-						var criterias = column._criterias;
-						for (var k = 0; k < criterias.length; k++) {
-							var criteria = criterias[k];
-
-							var filterContexts = enabledCriterias[criteria.id];
-							if (!filterContexts) {
-								continue;
+								caption.text(captionText);
 							}
 
-							if (criteria.filterData(filterContexts, value, rowScope, dataModel, column) !== false) {
-								return true;
-							}
-						}
+							this.$scope.$watch('caption', function() {
+								var captionText = self.$scope.caption;
 
-						return false;
-					};
-
-					fct.toJSON = function() {
-						var filters = [];
-						var parameters = {
-							columndId: columnId,
-							filters: filters
-						};
-
-						var criterias = column._criterias;
-						angular.forEach(enabledCriterias, function(filters) {
-
-							angular.forEach(filters, function(filter) {
-
-								var p = {
-									id: filter.id
-								};
-
-								var j = filter.toJSON && filter.toJSON();
-								if (j) {
-									p.parameters = j;
-								}
-							});
-						});
-
-						if (!filters.length) {
-							return null;
-						}
-
-						return parameters;
-					};
-
-					return fct;
-				},
-
-				tableRowsRenderer: function(tbody) {
-					var dataModel = this.dataModel;
-					if (!dataModel) {
-						return;
-					}
-					var dataGrid = this.dataGrid;
-
-					var varName = this.$scope.varName;
-
-					var self = this;
-
-					// Prepare columns
-
-					var visibleColumns = this.visibleColumns;
-					angular.forEach(visibleColumns, function(column) {
-						var interpolatedExpression = column.interpolatedExpression;
-						if (interpolatedExpression) {
-							return;
-						}
-
-						var expression = column.$scope.valueRawExpression;
-						if (!expression && column.$scope.fieldName) {
-							expression = $interpolate.startSymbol() + "$row." + column.$scope.fieldName + $interpolate.endSymbol();
-						}
-						if (expression) {
-							interpolatedExpression = self.$interpolate(expression);
-							column.interpolatedExpression = interpolatedExpression;
-						}
-					});
-
-					// Prepare filters
-
-					var filters = [];
-
-					angular.forEach(visibleColumns, function(column) {
-						var criterias = column._criterias;
-						if (!criterias || !criterias.length) {
-							return;
-						}
-
-						var criteriasContext = column._criteriasContext;
-
-						var enabledCriterias = {};
-						var count = 0;
-						angular.forEach(criterias, function(criteria) {
-
-							var criteriaContext = criteriasContext[criteria.id];
-							angular.forEach(criteriaContext, function(filterContext, filterId) {
-								if (!filterContext.enabled) {
-									return;
-								}
-
-								var c = enabledCriterias[criteria.id];
-								if (!c) {
-									c = [];
-									enabledCriterias[criteria.id] = c;
-								}
-
-								c.push(filterContext);
-								count++;
-							});
-						});
-
-						var filtredState = !!count;
-						var titleElement = column.titleElement;
-						if (titleElement._filtred != filtredState) {
-							titleElement._filtred = filtredState;
-
-							cc.BubbleEvent(titleElement, "cm_update");
-						}
-
-						if (!count) {
-							return;
-						}
-
-						filters.push(self.newCriteriasExpression(column, enabledCriterias));
-					});
-					var dataModelFilters = undefined;
-					if (filters.length) {
-						if (!dataModel.isFilterSupport()) {
-							dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
-								return new FiltredDataModel(dataModel, varName);
-							} ]);
-						}
-
-						dataModelFilters = filters;
-					}
-					dataModel.setFilters(dataModelFilters);
-
-					// Prepare sorters
-
-					var sorters = this.sorters;
-					var dataModelSorters = undefined;
-					if (sorters && sorters.length) {
-						var sorter0 = sorters[0];
-
-						var columnSorters = sorter0.column.$scope.sorter;
-						if (columnSorters && columnSorters != "server") {
-							if (!dataModel.isSortSupport()) {
-								dataModel = $injector.invoke([ "camelia.SortedDataModel", function(SortedDataModel) {
-									return new SortedDataModel(dataModel);
-								} ]);
-							}
-							dataModelSorters = [ {
-								expression: columnSorters,
-								column: sorter0.column,
-								ascending: sorter0.ascending
-							} ];
-						}
-					}
-					dataModel.setSorters(dataModelSorters);
-
-					var dataModelGrouped = false;
-					var groupDataModel = null;
-					var groupProvider = this.selectedGroupProvider;
-					if (groupProvider) {
-						if (!dataModel.isGroupSupport()) {
-							dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
-								return new GroupedDataModel(dataModel, groupProvider, varName);
-							} ]);
-						}
-						dataModelGrouped = true;
-						groupDataModel = dataModel;
-					}
-					dataModel.setGrouped(dataModelGrouped);
-
-					var rowIndent = (groupDataModel) ? 1 : 0;
-
-					dataModel.setScope(this.$scope.$parent);
-
-					var first = this.$scope.first;
-					if (!angular.isNumber(first) || first < 0) {
-						first = 0;
-					}
-					dataGrid.first = first;
-					var rowIndex = first;
-
-					var rows = this.$scope.rows;
-					if (!angular.isNumber(rows)) {
-						rows = -1;
-					} else {
-						dataModel.setFetchProperties({
-							rows: rows
-						});
-					}
-
-					dataGrid.rows = rows;
-
-					if (!angular.isNumber(dataGrid.maxRows)) {
-						dataGrid.maxRows = -1;
-					}
-
-					var rowCount = dataModel.getRowCount(false);
-					if (rowCount < 0) {
-						rowCount = -1;
-					}
-					dataGrid.rowCount = rowCount;
-
-					var visibleIndex = 0;
-					var tbodyElement = tbody[0] || tbody;
-
-					var rowScope = this.$scope.$parent.$new();
-					var currentGroup = null;
-					var groupIndex = -1;
-
-					var progressDefer = null;
-					var progressDate = 0;
-
-					function availablePromise(available) {
-						if (!available) {
-							dataModel.setRowIndex(-1);
-							rowScope.$destroy();
-
-							dataGrid.rowCount = first + visibleIndex;
-							dataGrid.maxRows = Math.max(dataGrid.maxRows, dataGrid.rowCount);
-							return false;
-						}
-
-						var groupCollapsed = false;
-
-						for (; rows < 0 || visibleIndex < rows;) {
-							var nextAvailable;
-
-							if (progressDefer) {
-								var now = Date.now();
-								if (now > progressDate) {
-									progressDate = now + PROGRESS_DELAY_MS;
-
-									progressDefer.notify({
-										count: visibleIndex,
-										rows: rows
+								if (!caption) {
+									caption = cc.createElement(thead, "caption", {
+										className: "cm_dataGrid_caption"
 									});
 								}
+
+								caption.text(angular.isString(captionText) ? captionText : "");
+							});
+
+							var rowIndent = this.rowIndent;
+							if (rowIndent) {
+								var colgroupIndent = cc.createElement(table, "colgroup", {
+									className: "cm_dataGrid_colgroupIndent",
+									"aria-hidden": "true"
+								});
+
+								for (var i = 0; i < rowIndent; i++) {
+									var co = cc.createElement(colgroupIndent, "col", {
+										className: "cm_dataGrid_colIndent"
+									});
+									co[0].style.width = cm_dataGrid_rowIndentPx + "px";
+								}
 							}
 
-							try {
-								var rowData = dataModel.getRowData();
-								if (groupDataModel) {
-									var group = groupDataModel.getGroup(rowScope, rowData);
-									if (group !== currentGroup) {
-										currentGroup = group;
-										groupIndex++;
+							var colgroup = cc.createElement(table, "colgroup", {
+								className: "cm_dataGrid_colgroup"
+							});
 
-										groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
+							var visibleColumns = this.visibleColumns;
+							angular.forEach(visibleColumns, function(column) {
+								var col = cc.createElement(colgroup, "col", {
+									className: "cm_dataGrid_col"
+								});
+								col.data("cm_column", column);
+								column.bodyColElement = col[0];
+							});
 
-										rowScope.$group = group;
-										rowScope.$count = groupDataModel.getGroupCount(group);
+							if (this.hasResizableColumnVisible) {
+								this.rightColElement = cc.createElement(colgroup, "col", {
+									"aria-hidden": true,
+									className: "cm_dataGrid_colSizer"
+								})[0];
+							}
 
-										var tr = self.groupRenderer(tbodyElement, groupProvider, rowScope, groupIndex, groupCollapsed);
-										tr.data("cm_rowValues", groupDataModel.getGroupValues(group));
-										tr.data("cm_value", group);
+							var thead = cc.createElement(table, "thead", {
+								className: "cm_dataGrid_thead"
+							});
+							this.tableTHead = thead[0];
 
-										var trElement = tr[0];
-										trElement._visibleIndex = visibleIndex;
-										trElement._rowIndex = rowIndex;
+							var titleRow = cc.createElement(thead, "tr");
 
-										delete rowScope.$count;
+							for (var i = 0; i < rowIndent; i++) {
+								cc.createElement(titleRow, "th", {
+									className: "cm_dataGrid_thIndent",
+									"aria-hidden": "true"
+								});
+							}
+
+							angular.forEach(visibleColumns, function(column) {
+								var th = cc.createElement(titleRow, "th", {
+									id: column.columnId,
+									scope: "col"
+								});
+								column.bodyTitleElement = th[0];
+
+								if (column.visibleIndex == 0 && rowIndent) {
+									th.colspan = (1 + rowIndent);
+								}
+
+								var title = column.$scope.title;
+								if (title) {
+									th.text(title);
+								}
+								column.$scope.$watch("title", function(newValue) {
+									th.text(newValue ? newValue : "");
+								});
+							});
+
+							var tbody = cc.createElement(table, "tbody", {
+								className: "cm_dataGrid_tbody",
+								id: "cm_tbody_" + (anonymousId++)
+							});
+							this.tableTBody = tbody[0];
+
+							this.tableStyleUpdate(viewPort);
+
+							return viewPort;
+						},
+
+						newCriteriasExpression: function(column, enabledCriterias) {
+							var fct = function(rowScope, dataModel) {
+								var criteriaValue = column.$scope.criteriaValue;
+
+								if (!criteriaValue) {
+									var criteriaValue = column.interpolatedExpression;
+									if (!criteriaValue) {
+										return false;
 									}
 								}
 
-								if (!groupCollapsed) {
+								var value = rowScope.$eval(criteriaValue);
+
+								var criterias = column._criterias;
+								for (var k = 0; k < criterias.length; k++) {
+									var criteria = criterias[k];
+
+									var filterContexts = enabledCriterias[criteria.id];
+									if (!filterContexts) {
+										continue;
+									}
+
+									if (criteria.filterData(filterContexts, value, rowScope, dataModel, column) !== false) {
+										return true;
+									}
+								}
+
+								return false;
+							};
+
+							fct.toJSON = function() {
+								var pfilters = [];
+								var parameters = {
+									id: column.$scope.criteriaValue || column.$scope.fieldName || column.$scope.id,
+									filters: pfilters
+								};
+
+								var criterias = column._criterias;
+								angular.forEach(enabledCriterias, function(filters) {
+
+									angular.forEach(filters, function(filter) {
+
+										if (!filter.enabled) {
+											return;
+										}
+
+										var p = {
+											type: filter.type || filters.type || filter.id
+										};
+										pfilters.push(p);
+
+										var j = filter.toJSON && filter.toJSON();
+										if (j) {
+											p.parameters = j;
+										}
+									});
+								});
+
+								if (!pfilters.length) {
+									return null;
+								}
+
+								return parameters;
+							};
+
+							return fct;
+						},
+
+						tableRowsRenderer: function(tbody) {
+							var dataModel = this.dataModel;
+							if (!dataModel) {
+								return;
+							}
+							var dataGrid = this.dataGrid;
+
+							var varName = this.$scope.varName;
+
+							var self = this;
+
+							// Prepare columns
+
+							var visibleColumns = this.visibleColumns;
+							angular.forEach(visibleColumns, function(column) {
+								var interpolatedExpression = column.interpolatedExpression;
+								if (interpolatedExpression) {
+									return;
+								}
+
+								var expression = column.$scope.valueRawExpression;
+								if (!expression) {
+									var fieldName = column.$scope.fieldName || column.$scope.id;
+									if (fieldName) {
+										expression = $interpolate.startSymbol() + "$row." + fieldName + $interpolate.endSymbol();
+									}
+								}
+								if (expression) {
+									interpolatedExpression = self.$interpolate(expression);
+									column.interpolatedExpression = interpolatedExpression;
+								}
+							});
+
+							// Prepare filters
+
+							var filters = [];
+
+							angular.forEach(visibleColumns, function(column) {
+								var criterias = column._criterias;
+								if (!criterias || !criterias.length) {
+									return;
+								}
+
+								var criteriasContext = column._criteriasContext;
+
+								var enabledCriterias = {};
+								var count = 0;
+								angular.forEach(criterias, function(criteria) {
+
+									var criteriaContext = criteriasContext[criteria.id];
+									angular.forEach(criteriaContext, function(filterContext, filterId) {
+										if (!filterContext.enabled) {
+											return;
+										}
+
+										var c = enabledCriterias[criteria.id];
+										if (!c) {
+											c = [];
+											c.type = criteria.type;
+											enabledCriterias[criteria.id] = c;
+										}
+
+										c.push(filterContext);
+										count++;
+									});
+								});
+
+								var filtredState = !!count;
+								var titleElement = column.titleElement;
+								if (titleElement._filtred != filtredState) {
+									titleElement._filtred = filtredState;
+
+									cc.BubbleEvent(titleElement, "cm_update");
+								}
+
+								if (!count) {
+									return;
+								}
+
+								filters.push(self.newCriteriasExpression(column, enabledCriterias));
+							});
+							var dataModelFilters = undefined;
+							if (filters.length) {
+								if (!dataModel.isFilterSupport()) {
+									dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
+										return new FiltredDataModel(dataModel, varName);
+									} ]);
+								}
+
+								dataModelFilters = filters;
+							}
+							dataModel.setFilters(dataModelFilters);
+
+							// Prepare sorters
+
+							var sorters = this.sorters;
+							var dataModelSorters = undefined;
+							if (sorters && sorters.length) {
+								var sorter0 = sorters[0];
+
+								var columnSorters = sorter0.column.$scope.sorter;
+								if (columnSorters && columnSorters != "server") {
+									if (!dataModel.isSortSupport()) {
+										dataModel = $injector.invoke([ "camelia.SortedDataModel", function(SortedDataModel) {
+											return new SortedDataModel(dataModel);
+										} ]);
+									}
+									dataModelSorters = [ {
+										expression: columnSorters,
+										column: sorter0.column,
+										ascending: sorter0.ascending
+									} ];
+								}
+							}
+							dataModel.setSorters(dataModelSorters);
+
+							var dataModelGrouped = false;
+							var groupDataModel = null;
+							var groupProvider = this.selectedGroupProvider;
+							if (groupProvider) {
+								if (!dataModel.isGroupSupport()) {
+									dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
+										return new GroupedDataModel(dataModel, groupProvider, varName);
+									} ]);
+								}
+								dataModelGrouped = true;
+								groupDataModel = dataModel;
+							}
+							dataModel.setGrouped(dataModelGrouped);
+
+							var rowIndent = (groupDataModel) ? 1 : 0;
+
+							dataModel.setScope(this.$scope.$parent);
+
+							var first = this.$scope.first;
+							if (!angular.isNumber(first) || first < 0) {
+								first = 0;
+							}
+							dataGrid.first = first;
+							var rowIndex = first;
+
+							var rows = this.$scope.rows;
+							if (!angular.isNumber(rows)) {
+								rows = -1;
+							} else {
+								dataModel.setFetchProperties({
+									rows: rows
+								});
+							}
+
+							dataGrid.rows = rows;
+
+							if (!angular.isNumber(dataGrid.maxRows)) {
+								dataGrid.maxRows = -1;
+							}
+
+							var rowCount = dataModel.getRowCount(false);
+							if (rowCount < 0) {
+								rowCount = -1;
+							}
+							dataGrid.rowCount = rowCount;
+
+							var visibleIndex = 0;
+							var tbodyElement = tbody[0] || tbody;
+
+							var rowScope = this.$scope.$parent.$new();
+							var currentGroup = null;
+							var groupIndex = -1;
+
+							var progressDefer = null;
+							var progressDate = 0;
+
+							function setupDataGrid() {
+								if (!visibleIndex) {
+									if (first) {
+										dataGrid.rowCount = 0;
+										dataGrid.maxRows = 0;
+
+									} else {
+										dataGrid.rowCount = -1;
+										dataGrid.maxRows = -1;
+									}
+
+								} else {
+									dataGrid.rowCount = first + visibleIndex;
+									dataGrid.maxRows = Math.max(dataGrid.maxRows, dataGrid.rowCount);
+								}
+							}
+
+							function availablePromise(available) {
+								if (!available) {
+									dataModel.setRowIndex(-1);
+									rowScope.$destroy();
+
+									setupDataGrid();
+									return false;
+								}
+
+								var groupCollapsed = false;
+
+								for (; rows < 0 || visibleIndex < rows;) {
+									var nextAvailable;
+
+									if (progressDefer) {
+										var now = Date.now();
+										if (now > progressDate) {
+											progressDate = now + PROGRESS_DELAY_MS;
+
+											progressDefer.notify({
+												count: visibleIndex,
+												rows: rows
+											});
+										}
+									}
+
+									try {
+										var rowData = dataModel.getRowData();
+										if (groupDataModel) {
+											var group = groupDataModel.getGroup(rowScope, rowData);
+											if (group !== currentGroup) {
+												currentGroup = group;
+												groupIndex++;
+
+												groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
+
+												rowScope.$group = group;
+												rowScope.$count = groupDataModel.getGroupCount(group);
+
+												var tr = self.groupRenderer(tbodyElement, groupProvider, rowScope, groupIndex, groupCollapsed);
+												tr.data("cm_rowValues", groupDataModel.getGroupValues(group));
+												tr.data("cm_value", group);
+
+												var trElement = tr[0];
+												trElement._visibleIndex = visibleIndex;
+												trElement._rowIndex = rowIndex;
+
+												delete rowScope.$count;
+											}
+										}
+
+										if (!groupCollapsed) {
+											rowScope.$index = visibleIndex;
+											rowScope.$odd = !(visibleIndex & 1);
+											rowScope.$even = !rowScope.$odd;
+											rowScope.$first = (visibleIndex == 0);
+											rowScope.$pageNumber = -1;
+											rowScope.$pageCount = -1;
+											rowScope.$rowIndex = rowIndex;
+											rowScope.$row = rowData;
+											if (varName) {
+												rowScope[varName] = rowData;
+											}
+
+											var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent);
+
+											tr.data("cm_value", rowData);
+										}
+
+										rowIndex++;
+										visibleIndex++;
+
+										if (rows > 0 && visibleIndex >= rows) {
+											break;
+										}
+
+										dataModel.setRowIndex(rowIndex);
+
+										nextAvailable = dataModel.isRowAvailable();
+
+									} catch (x) {
+										dataModel.setRowIndex(-1);
+										rowScope.$destroy();
+
+										throw x;
+									}
+
+									if (cc.isPromise(nextAvailable)) {
+										return nextAvailable.then(availablePromise);
+									}
+
+									if (nextAvailable !== true) {
+										break;
+									}
+								}
+
+								dataModel.setRowIndex(-1);
+								rowScope.$destroy();
+
+								setupDataGrid();
+
+								return $q.when(false);
+							}
+
+							var nextAvailable;
+							try {
+								dataModel.setRowIndex(rowIndex);
+
+								nextAvailable = dataModel.isRowAvailable();
+
+							} catch (x) {
+								dataModel.setRowIndex(-1);
+								rowScope.$destroy();
+								
+								dataGrid.rowCount = -1;
+								dataGrid.maxRows = -1;
+
+								throw x;
+							}
+
+							if (!cc.isPromise(nextAvailable)) {
+								return availablePromise(nextAvailable);
+							}
+
+							progressDefer = null
+
+							return nextAvailable.then(availablePromise);
+						},
+
+						tableStyleUpdate: function(body) {
+							return cm.MixElementClasses(body, [ "cm_dataGrid_table" ], [ "cm_dataGrid_table_scroll" ]);
+						},
+
+						tableLayout: function(container) {
+
+						},
+
+						moveColumnTable: function(column, beforeColumn) {
+
+							var self = this;
+							function move(name) {
+								var title = column[name];
+								var beforeTitle = beforeColumn && beforeColumn[name];
+								if (!beforeTitle) {
+									beforeTitle = self._lastVisibleColumn[name].nextSibling;
+								}
+
+								var parent = title.parentNode;
+								parent.removeChild(title);
+								parent.insertBefore(title, beforeTitle);
+							}
+
+							move("bodyColElement");
+							move("bodyTitleElement");
+
+							this.forEachBodyElement("row", function(row) {
+								self.moveColumnRow(row, column, beforeColumn);
+							});
+						},
+						removeRowsOfGroup: function(group, groupElement) {
+							var lst = [];
+							for (var e = groupElement.nextSibling; e;) {
+								var next = e.nextSibling;
+								var type = cm.GetCMType(e);
+
+								if (type == "group") {
+									break;
+								}
+
+								if (!cm_dataGrid_group_animation) {
+									angular.element(e).remove();
+								} else {
+									lst.push(e);
+								}
+
+								e = next;
+							}
+
+							if (!lst.length) {
+								return;
+							}
+
+							function timer() {
+								var e = lst.shift();
+
+								angular.element(e).remove();
+
+								if (lst.length) {
+									return $timeout(timer, cm_dataGrid_group_animation, false);
+								}
+							}
+
+							$timeout(timer, cm_dataGrid_group_animation, false);
+
+						},
+						addRowsOfGroup: function(group, groupElement) {
+
+							var visibleIndex = groupElement._visibleIndex;
+							var rowIndex = groupElement._rowIndex;
+							var rowValues = cc.CloneArray(angular.element(groupElement).data("cm_rowValues"));
+
+							if (!rowValues.length) {
+								return;
+							}
+
+							var fragment = document.createDocumentFragment();
+							var varName = this.$scope.varName;
+
+							var rowIndent = this.rowIndent;
+
+							var nextSibling = groupElement.nextSibling;
+
+							var self = this;
+							function timer() {
+
+								var rowScope = self.$scope.$parent.$new();
+								try {
+									var rowData = rowValues.shift();
+
 									rowScope.$index = visibleIndex;
 									rowScope.$odd = !(visibleIndex & 1);
 									rowScope.$even = !rowScope.$odd;
@@ -6006,203 +6754,39 @@
 										rowScope[varName] = rowData;
 									}
 
-									var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent);
+									var tr = self.rowRenderer(fragment, rowScope, rowIndex, rowIndent);
 
 									tr.data("cm_value", rowData);
+
+									rowIndex++;
+									visibleIndex++;
+
+								} finally {
+									rowScope.$destroy();
 								}
 
-								rowIndex++;
-								visibleIndex++;
+								if (cm_dataGrid_group_animation) {
+									groupElement.parentNode.insertBefore(fragment, nextSibling);
 
-								if (rows > 0 && visibleIndex >= rows) {
-									break;
+									if (rowValues.length) {
+										return $timeout(timer, cm_dataGrid_group_animation, false);
+									}
 								}
-
-								dataModel.setRowIndex(rowIndex);
-
-								nextAvailable = dataModel.isRowAvailable();
-
-							} catch (x) {
-								dataModel.setRowIndex(-1);
-								rowScope.$destroy();
-
-								throw x;
 							}
 
-							if (cc.isPromise(nextAvailable)) {
-								return nextAvailable.then(availablePromise);
+							if (!cm_dataGrid_group_animation) {
+								for (; rowValues.length;) {
+									timer();
+								}
+								groupElement.parentNode.insertBefore(fragment, nextSibling);
+								return;
 							}
 
-							if (nextAvailable !== true) {
-								break;
-							}
+							$timeout(timer, cm_dataGrid_group_animation, false);
 						}
+					};
 
-						dataModel.setRowIndex(-1);
-						rowScope.$destroy();
-
-						dataGrid.maxRows = Math.max(dataGrid.maxRows, Math.max(first + visibleIndex, dataGrid.rowCount));
-
-						return $q.when(false);
-					}
-
-					var nextAvailable;
-					try {
-						dataModel.setRowIndex(rowIndex);
-
-						nextAvailable = dataModel.isRowAvailable();
-
-					} catch (x) {
-						dataModel.setRowIndex(-1);
-						rowScope.$destroy();
-
-						throw x;
-					}
-
-					if (!cc.isPromise(nextAvailable)) {
-						return availablePromise(nextAvailable);
-					}
-
-					progressDefer = null
-
-					return nextAvailable.then(availablePromise);
-				},
-
-				tableStyleUpdate: function(body) {
-					return cm.MixElementClasses(body, [ "cm_dataGrid_table" ], [ "cm_dataGrid_table_scroll" ]);
-				},
-
-				tableLayout: function(container) {
-
-				},
-
-				moveColumnTable: function(column, beforeColumn) {
-
-					var self = this;
-					function move(name) {
-						var title = column[name];
-						var beforeTitle = beforeColumn && beforeColumn[name];
-						if (!beforeTitle) {
-							beforeTitle = self._lastVisibleColumn[name].nextSibling;
-						}
-
-						var parent = title.parentNode;
-						parent.removeChild(title);
-						parent.insertBefore(title, beforeTitle);
-					}
-
-					move("bodyColElement");
-					move("bodyTitleElement");
-
-					this.forEachBodyElement("row", function(row) {
-						self.moveColumnRow(row, column, beforeColumn);
-					});
-				},
-				removeRowsOfGroup: function(group, groupElement) {
-					var lst = [];
-					for (var e = groupElement.nextSibling; e;) {
-						var next = e.nextSibling;
-						var type = cm.GetCMType(e);
-
-						if (type == "group") {
-							break;
-						}
-
-						if (!cm_dataGrid_group_animation) {
-							angular.element(e).remove();
-						} else {
-							lst.push(e);
-						}
-
-						e = next;
-					}
-
-					if (!lst.length) {
-						return;
-					}
-
-					function timer() {
-						var e = lst.shift();
-
-						angular.element(e).remove();
-
-						if (lst.length) {
-							return $timeout(timer, cm_dataGrid_group_animation, false);
-						}
-					}
-
-					$timeout(timer, cm_dataGrid_group_animation, false);
-
-				},
-				addRowsOfGroup: function(group, groupElement) {
-
-					var visibleIndex = groupElement._visibleIndex;
-					var rowIndex = groupElement._rowIndex;
-					var rowValues = cc.CloneArray(angular.element(groupElement).data("cm_rowValues"));
-
-					if (!rowValues.length) {
-						return;
-					}
-
-					var fragment = document.createDocumentFragment();
-					var varName = this.$scope.varName;
-
-					var rowIndent = this.rowIndent;
-
-					var nextSibling = groupElement.nextSibling;
-
-					var self = this;
-					function timer() {
-
-						var rowScope = self.$scope.$parent.$new();
-						try {
-							var rowData = rowValues.shift();
-
-							rowScope.$index = visibleIndex;
-							rowScope.$odd = !(visibleIndex & 1);
-							rowScope.$even = !rowScope.$odd;
-							rowScope.$first = (visibleIndex == 0);
-							rowScope.$pageNumber = -1;
-							rowScope.$pageCount = -1;
-							rowScope.$rowIndex = rowIndex;
-							rowScope.$row = rowData;
-							if (varName) {
-								rowScope[varName] = rowData;
-							}
-
-							var tr = self.rowRenderer(fragment, rowScope, rowIndex, rowIndent);
-
-							tr.data("cm_value", rowData);
-
-							rowIndex++;
-							visibleIndex++;
-
-						} finally {
-							rowScope.$destroy();
-						}
-
-						if (cm_dataGrid_group_animation) {
-							groupElement.parentNode.insertBefore(fragment, nextSibling);
-
-							if (rowValues.length) {
-								return $timeout(timer, cm_dataGrid_group_animation, false);
-							}
-						}
-					}
-
-					if (!cm_dataGrid_group_animation) {
-						for (; rowValues.length;) {
-							timer();
-						}
-						groupElement.parentNode.insertBefore(fragment, nextSibling);
-						return;
-					}
-
-					$timeout(timer, cm_dataGrid_group_animation, false);
-				}
-			};
-
-		} ]);
+				} ]);
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
@@ -7251,45 +7835,10 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
- * @author olivier.oeuillot@vedana.com
- */
-
-(function(window, angular, undefined) {
-	"use strict";
-
-	var module = angular.module("camelia.renderers.grid", [ "camelia.dataModel",
-		"camelia.selectionProvider",
-		"camelia.cursorProvider",
-		"camelia.selectionStrategy",
-		"camelia.key",
-		"camelia.renderers.popup",
-		"camelia.components.grid" ]);
-
-	module.value("cm_grid_rowIndentPx", 16);
-	module.value("cm_grid_className", "cm_dataGrid");
-	module.value("cm_grid_sizerPx", 6);
-
-	module.factory("camelia.renderers.GridProvider", [ "$log",
-		"camelia.renderers.grid.core",
-		"camelia.renderers.grid.group",
-		"camelia.renderers.grid.row",
-		"camelia.renderers.grid.table",
-		"camelia.renderers.grid.title",
-		"camelia.renderers.grid.utils",
-		function($log, CoreRenderers, GroupRenderers, RowRenderers, TableRenderers, TitleRenderers, GridUtils) {
-
-			angular.forEach([ GroupRenderers, RowRenderers, TableRenderers, TitleRenderers, GridUtils ], function(renderer) {
-				angular.extend(CoreRenderers.prototype, renderer);
-			});
-
-			return CoreRenderers;
-		} ]);
-
-})(window, window.angular);
-/**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -7357,16 +7906,17 @@
 					this._blurListener = this._onBlur();
 					container[0].addEventListener("blur", this._blurListener, true);
 
+					var self = this;
 					this.$scope.$on("$destroy", function() {
-						var listener = this._focusListener;
+						var listener = self._focusListener;
 						if (listener) {
-							this._focusListener = undefined;
+							self._focusListener = undefined;
 							container[0].removeEventListener("focus", listener, true);
 						}
 
-						listener = this._blurListener;
+						listener = self._blurListener;
 						if (listener) {
-							this._blurListener = undefined;
+							self._blurListener = undefined;
 							container[0].removeEventListener("blur", listener, true);
 						}
 					});
@@ -7604,12 +8154,12 @@
 
 				renderButton: function(parent, value, type) {
 					var element = cc.createElement(parent, "button", {
-						textNode: i18n[type + "_label"],
+						textNode: cc.lang(i18n, type + "_label"),
 						id: "cm_bpager_" + (anonymousId++),
 						$value: value,
 						$pagerType: type
 					});
-					var toolTip = i18n[type + "_tooltip"];
+					var toolTip = cc.lang(i18n, type + "_tooltip");
 					if (toolTip) {
 						element.title = toolTip;
 					}
@@ -7752,16 +8302,17 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.renderers.popup", [ "camelia.components.popup",
-		"camelia.key",
-		"camelia.i18n.pager" ]);
+	var module = angular.module("camelia.renderers.popup", [ "camelia.components.popup", "camelia.key" ]);
 
 	module.value("cm_popup_className", "cm_popup");
 
@@ -8094,7 +8645,10 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -8217,7 +8771,7 @@
 				checkList: '=?',
 				columnImageURL: '@columnimageurl',
 				cellImageURL: '@cellimageurl',
-				criteriaValue: '@criteriavalue'
+				criteriaValue: '@criteriavalue',
 			},
 			controller: function($scope) {
 				this.criterias = [];
@@ -8284,7 +8838,7 @@
 				return {
 					pre: function($scope, element, attrs) {
 
-						//console.log("PRE Criteria  " + attrs.name);
+						// console.log("PRE Criteria " + attrs.name);
 					},
 					post: function($scope, element, attrs, dataColumnController) {
 						var type = $scope.type;
@@ -8301,7 +8855,7 @@
 							criteriaName = "camelia.criteria." + type;
 						}
 
-						//console.log("POST Criteria  " + attrs.name);
+						// console.log("POST Criteria " + attrs.name);
 
 						var criterias = dataColumnController.criterias;
 						try {
@@ -8395,7 +8949,10 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -8407,9 +8964,9 @@
 	module.factory("camelia.i18n.criteria", [ function() {
 
 		return {
-			id: 'en',
-			
-			alphabetic_others: "Others"
+			'en': {
+				alphabetic_others: "Others"
+			}
 		};
 
 	} ]);
@@ -8417,7 +8974,37 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.criteria");
+
+	module.config([ '$provide', function($provide) {
+
+		$provide.decorator("camelia.i18n.criteria", [ '$delegate', function($delegate) {
+
+			return angular.extend($delegate, {
+				'fr': {
+					alphabetic_others: "Autres"
+				}
+			});
+		} ]);
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -8429,14 +9016,48 @@
 	module.factory("camelia.i18n.pager", [ function() {
 
 		return {
-			id: 'en',
-			
-			bprev_label: "Prev",
-			bprev_tooltip: "Show previous page",
-			bnext_label: "Next",
-			bnext_tooltip: "Show next page",
+			'en': {
+				bfirst_label: "First",
+				blast_label: "Last",
+				bprev_label: "Previous",
+				bprev_tooltip: "Show previous page",
+				bnext_label: "Next",
+				bnext_tooltip: "Show next page"
+			}
 		};
 
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.pager");
+
+	module.config([ '$provide', function($provide) {
+
+		$provide.decorator("camelia.i18n.pager", [ '$delegate', function($delegate) {
+
+			return angular.extend($delegate, {
+				'fr': {
+					bfirst_label: "Premier",
+					blast_label: "Dernier",
+					bprev_label: "Précédent",
+					bprev_tooltip: "Voir la page précédente",
+					bnext_label: "Suivant",
+					bnext_tooltip: "Voir la page suivante"
+				}
+			});
+		} ]);
 	} ]);
 
 })(window, window.angular);
