@@ -339,10 +339,6 @@
   border-color: #DEDEDE;
 }
 
-XXX.cm_dataGrid_table_focus .cm_dataGrid_row_focus .cm_dataGrid_cell {
-  border-left-color: #3399FF;
-}
-
 .cm_dataGrid_row_mouseDown .cm_dataGrid_cell {
   border-left-color: #26A0DA;
   background-color: #B8E0F3;

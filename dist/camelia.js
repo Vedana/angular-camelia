@@ -8878,7 +8878,10 @@
 })(window, window.angular);
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -8911,14 +8914,14 @@
 				},
 				replace: true,
 
-				controller: function($scope) {
+				controller: [ "$scope", function($scope) {
 					var componentProvider = $scope.componentProvider;
 					if (!componentProvider) {
 						var componentProviderName = $scope.componentProviderName || cm_pager_componentProviderName;
 						componentProvider = cc.LoadProvider(componentProviderName);
 					}
 					this.componentProvider = componentProvider;
-				},
+				} ],
 				compile: function() {
 					return {
 						pre: function($scope, element, attrs, controller) {

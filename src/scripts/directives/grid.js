@@ -51,7 +51,7 @@
 				},
 				replace: true,
 
-				controller: function($scope) {
+				controller: [ "$scope", function($scope) {
 					// var dataGridProvider='camelia.datagrid';
 
 					var componentProvider = $scope.componentProvider;
@@ -70,7 +70,7 @@
 					this.appendGroupProvider = function(groupProvider) {
 						$scope.groupProviders.push(groupProvider);
 					}
-				},
+				} ],
 				compile: function() {
 					return {
 						pre: function($scope, element, attrs, controller) {
@@ -128,7 +128,7 @@
 				cellImageURL: '@cellimageurl',
 				criteriaValue: '@criteriavalue',
 			},
-			controller: function($scope) {
+			controller: function() {
 				this.criterias = [];
 			},
 			compile: function() {
