@@ -437,7 +437,11 @@
 							} catch (x) {
 								$log.error(x);
 							}
-						}
+						},
+						
+						lang: function(bundle, labelName) {
+							return bundle.en[labelName];
+						},
 					};
 				} ]);
 
