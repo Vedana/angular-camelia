@@ -4504,7 +4504,7 @@
 					}
 
 					this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
-					this.tableElement.style.tableLayout = "fixed";
+					//this.tableElement.style.tableLayout = "fixed";
 
 					$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer);
 				},
@@ -5073,11 +5073,14 @@
 					// ts.height = "auto";
 					ts.visibility = "hidden";
 
+					this.tableElement.style.tableLayout = "";
+
 					$log.debug("Hide body");
 				},
 				_showBody: function() {
 					var ts = this.tableViewPort.style;
 
+					this.tableElement.style.tableLayout = "fixed";
 					ts.visibility = "";
 					$log.debug("Show body");
 				},
