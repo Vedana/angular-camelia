@@ -319,12 +319,12 @@
 
 				renderButton: function(parent, value, type) {
 					var element = cc.createElement(parent, "button", {
-						textNode: i18n[type + "_label"],
+						textNode: cc.lang(i18n, type + "_label"),
 						id: "cm_bpager_" + (anonymousId++),
 						$value: value,
 						$pagerType: type
 					});
-					var toolTip = i18n[type + "_tooltip"];
+					var toolTip = cc.lang(i18n, type + "_tooltip");
 					if (toolTip) {
 						element.title = toolTip;
 					}

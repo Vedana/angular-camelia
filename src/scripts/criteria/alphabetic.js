@@ -13,9 +13,10 @@
 	var module = angular.module("camelia.criteria");
 
 	module.factory("camelia.criteria.Alphabetic", [ "$log",
+		"camelia.core",
 		"camelia.criteria.Criteria",
 		"camelia.i18n.criteria",
-		function($log, Criteria, i18n) {
+		function($log, cc, Criteria, i18n) {
 
 			var AlphabeticCriteria = function(scope, element, attrs) {
 				Criteria.call(this, scope, element, attrs);
@@ -46,7 +47,7 @@
 
 					var regExp = new RegExp("^[^A-Z0-9]", "i");
 					c.push({
-						name: i18n.alphabetic_others,
+						name: cc.lang(i18n, 'alphabetic_others'),
 						regExp: regExp,
 						id: "alphabetic_OTHERS",
 						toJSON: function() {

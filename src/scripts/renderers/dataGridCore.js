@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -635,7 +638,7 @@
 
 					case Key.VK_UP:
 						cancel = true;
-						next = cm.GetPreviousType(previousSibling, ROW_OR_GROUP);
+						next = cm.GetPreviousType(row.previousSibling, ROW_OR_GROUP);
 						prevPage();
 						break;
 
@@ -1080,7 +1083,7 @@
 					$log.debug("Refresh rows");
 
 					var tbody = this.tableTBody;
-					var table = tbody.parentNode;
+					var table = this.tableElement;
 					if (!table) {
 						// Big Problem !
 						// throw new Error("Tbody already dettached");
@@ -1096,12 +1099,14 @@
 						this._alignColumns(false);
 					}
 
+					var container = this.container;
+
 					var forceHeight = false;
-					if (!table.style.height || table.style.height.indexOf("px") < 0) {
+					if (!container.style.height || container.style.height.indexOf("px") < 0) {
 						forceHeight = true;
 
-						var cr = table.getBoundingClientRect();
-						table.style.height = cr.height + "px";
+						var cr = container.getBoundingClientRect();
+						container.style.height = cr.height + "px";
 					}
 
 					if (tbody.parentNode) {
@@ -1110,43 +1115,49 @@
 					}
 
 					var promise = this.tableRowsRenderer(tbody);
-					if (!cc.isPromise(promise)) {
-						promise = $q.when(promise);
-					}
 
 					var self = this;
-					return promise.then(function() {
+
+					function processResult(eventName) {
 						if (forceHeight) {
-							table.style.height = "auto";
+							container.style.height = "auto";
+							self.tableViewPort.style.height = "auto";
 						}
 						table.appendChild(tbody);
 
 						self._showBody();
 
-						var container = self.container;
-
 						self._gridReady(container, focus !== false);
 
-						self.$scope.$emit("cm_dataGrid_refreshed");
-					}, function(msg) {
-						// Failed
+						self.$scope.$emit(eventName || "cm_dataGrid_refreshed");
+					}
 
-						if (forceHeight) {
-							table.style.height = "auto";
+					function processPromise(promise) {
+						if (!cc.isPromise(promise)) {
+							promise = $q.when(promise);
 						}
-						table.appendChild(tbody);
 
-						self._showBody();
+						return promise.then(function() {
+							if (!self.dataGrid.rowCount && self.dataGrid.first) {
+								$timeout(function() {
+									self.dataGrid.first = 0;
+								}, 100);
+							}
 
-						var container = self.container;
+							return processResult();
 
-						self._gridReady(container, focus !== false);
+						}, function(msg) {
+							// Failed
+							console.error("Catch process failed message " + msg);
 
-						self.$scope.$emit("cm_dataGrid_errored");
+							return processResult("cm_dataGrid_errored");
 
-					}, function(update) {
-						// $log.debug("Update", update);
-					});
+						}, function(update) {
+							// $log.debug("Update", update);
+						});
+					}
+
+					return processPromise(promise);
 				},
 
 				_moveColumn: function(column, targetIndex, giveFocus) {
