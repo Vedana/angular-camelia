@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -39,7 +42,7 @@
 				configuration = configuration || {};
 				configuration.className = "cm_filtersPopup";
 
-				PopupRenderer.call(this, $scope, configuration);
+				PopupRenderer.call(this, $scope.$new(true), configuration);
 
 				this._refreshFunc = refreshFunc;
 				this._column = column;

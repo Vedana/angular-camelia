@@ -27,16 +27,14 @@
 
 			var anonymousId = 0;
 
-			function PopupRenderer($parentScope, configuration) {
+			function PopupRenderer($scope, configuration) {
 
 				if (configuration) {
 					this.configuration = configuration;
 				}
 
-				var $scope = ($parentScope || $rootScope).$new();
 				this._releaseScope = true;
-
-				this.$scope = $scope;
+				this.$scope = $scope || $rootScope.$new(true);
 			}
 
 			PopupRenderer.INITIALIZING = 0x01;
