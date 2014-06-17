@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.grid', [ 'camelia.core' ]);
+	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.components.template' ]);
 
 	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
 
@@ -20,7 +20,8 @@
 		"$q",
 		"camelia.core",
 		"cm_grid_componentProviderName",
-		function($injector, $interpolate, $log, $q, cc, cm_grid_componentProviderName) {
+		"camelia.components.Template",
+		function($injector, $interpolate, $log, $q, cc, cm_grid_componentProviderName, Template) {
 
 			return {
 				restrict: "E",
@@ -79,6 +80,8 @@
 
 							var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
 							controller.dataGrid = dataGrid;
+
+							Template.markContainer(element, $scope);
 						},
 						post: function($scope, element, attrs, controller) {
 							var dataGrid = controller.dataGrid;
@@ -103,56 +106,70 @@
 			};
 		} ]);
 
-	module.directive("cmDatacolumn", [ "camelia.core", function(cc) {
-		return {
-			require: "^cmDatagrid",
-			restrict: "E",
-			replace: true,
-			scope: {
-				id: '@',
-				visible: '@',
-				titleAlign: '@titlealign',
-				cellAlign: '@cellalign',
-				width: '@',
-				maxWidth: '@maxwidth',
-				minWidth: '@minwidth',
-				title: '@',
-				cellClass: '@',
-				columnClass: '@',
-				sorter: '@',
-				resizeable: '@',
-				checkable: '@',
-				fieldName: '@fieldname',
-				checkList: '=?',
-				columnImageURL: '@columnimageurl',
-				cellImageURL: '@cellimageurl',
-				criteriaValue: '@criteriavalue',
-			},
-			controller: function() {
-				this.criterias = [];
-			},
-			compile: function() {
-				return {
-					pre: function($scope, element, attrs) {
-						$scope.valueRawExpression = element.attr("text") || element.attr("value");
-					},
-					post: function($scope, element, attrs, datagridController) {
-						var controller = element.controller("cmDatacolumn");
+	module.directive("cmDatacolumn", [ "camelia.core",
+		"camelia.components.Template",
 
-						var column = new datagridController.componentProvider.DataColumn($scope);
+		function(cc, Template) {
+			return {
+				require: "^cmDatagrid",
+				restrict: "E",
+				replace: true,
+				scope: {
+					id: '@',
+					visible: '@',
+					titleAlign: '@titlealign',
+					cellAlign: '@cellalign',
+					width: '@',
+					maxWidth: '@maxwidth',
+					minWidth: '@minwidth',
+					title: '@',
+					cellClass: '@',
+					columnClass: '@',
+					sorter: '@',
+					resizeable: '@',
+					checkable: '@',
+					fieldName: '@fieldname',
+					checkList: '=?',
+					columnImageURL: '@columnimageurl',
+					cellImageURL: '@cellimageurl',
+					criteriaValue: '@criteriavalue',
+					watched: '@'
+				},
+				controller: function() {
+					this.criterias = [];
+				},
+				compile: function() {
+					return {
+						pre: function($scope, element, attrs) {
+							$scope.valueRawExpression = element.attr("text") || element.attr("value");
 
-						angular.forEach(controller.criterias, function(criteria) {
-							column.addCriteria(criteria);
-						});
+							Template.markContainer(element, $scope);
+						},
+						post: function($scope, element, attrs, datagridController) {
 
-						datagridController.appendColumn(column);
-					}
-				};
-			}
-		};
-	} ]);
+							if ($scope.fieldName) {
+								if (/[^\w]/.test($scope.fieldName)) {
+									throw new Error("Invalid fieldName expression '" + $scope.fieldName + "' use value='{{"
+											+ $scope.fieldName + "}}' instead !");
+								}
+							}
 
-	module.directive("cmDatagroup", [ "camelia.core", function(cc) {
+							var controller = element.controller("cmDatacolumn");
+
+							var column = new datagridController.componentProvider.DataColumn($scope);
+
+							angular.forEach(controller.criterias, function(criteria) {
+								column.addCriteria(criteria);
+							});
+
+							datagridController.appendColumn(column);
+						}
+					};
+				}
+			};
+		} ]);
+
+	module.directive("cmDatagroup", [ "camelia.core", "camelia.components.Template", function(cc, Template) {
 		return {
 			require: "^cmDatagrid",
 			restrict: "E",
@@ -171,6 +188,8 @@
 						$scope.titleRawExpression = element.attr("title");
 						$scope.titleClassRawExpression = element.attr("titleclass");
 						$scope.valueRawExpression = element.attr("value");
+
+						Template.markContainer(element, $scope);
 					},
 					post: function($scope, element, attrs, dataGridController) {
 						var column = new dataGridController.componentProvider.DataGroup($scope);
@@ -223,7 +242,6 @@
 						} catch (x) {
 							$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
 						}
-
 					}
 				};
 			}
