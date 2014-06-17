@@ -499,7 +499,7 @@
 					}
 
 					this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
-					//this.tableElement.style.tableLayout = "fixed";
+					// this.tableElement.style.tableLayout = "fixed";
 
 					$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer);
 				},
@@ -1085,13 +1085,6 @@
 				_refreshRows: function(updateColumnWidths, focus) {
 					$log.debug("Refresh rows");
 
-					var tbody = this.tableTBody;
-					var table = this.tableElement;
-					if (!table) {
-						// Big Problem !
-						// throw new Error("Tbody already dettached");
-					}
-
 					this._hideBody();
 
 					if (updateColumnWidths) {
@@ -1112,12 +1105,9 @@
 						container.style.height = cr.height + "px";
 					}
 
-					if (tbody.parentNode) {
-						table.removeChild(tbody);
-						angular.element(tbody).empty(); // clear Data informations
-					}
+					this.tableClearRows();
 
-					var promise = this.tableRowsRenderer(tbody);
+					var promise = this.tableRowsRenderer();
 
 					var self = this;
 
@@ -1126,7 +1116,6 @@
 							container.style.height = "auto";
 							self.tableViewPort.style.height = "auto";
 						}
-						table.appendChild(tbody);
 
 						self._showBody();
 

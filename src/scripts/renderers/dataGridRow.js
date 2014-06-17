@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -19,7 +22,7 @@
 			var anonymousId = 0;
 
 			return {
-				rowRenderer: function(parentElement, rowScope, index, rowIdent) {
+				rowRenderer: function(parentElement, rowScope, index, rowIdent, destroyScopeRef) {
 					var doc = parentElement.ownerDocument || document;
 
 					var tr = cc.createElement(parentElement, "tr", {
@@ -117,7 +120,7 @@
 
 						self.cellStyleUpdate(td);
 
-						self.cellRenderer(td, rowScope, index, column, columnIndex);
+						self.cellRenderer(td, rowScope, index, column, columnIndex, destroyScopeRef);
 
 						columnIndex++;
 					});
@@ -145,28 +148,56 @@
 					return cm.MixElementClasses(tr, classes);
 				},
 
-				cellRenderer: function(td, rowScope, index, column, columnIndex) {
+				cellRenderer: function(td, rowScope, index, column, columnIndex, destroyScopeRef) {
+					var value;
+
+					var templates = column.templates;
+					if (templates) {
+						for (var i = 0; i < templates.length; i++) {
+							var template = templates[i];
+
+							var templateIE = column.templatesIE[template.id];
+							if (templateIE) {
+								if (rowScope.$eval(templateIE) === false) {
+									continue;
+								}
+							}
+
+							var comp = template.transclude(angular.element(td), rowScope);
+
+							destroyScopeRef.value = false;
+
+							return comp;
+						}
+					}
+
 					var label = cc.createElement(td, "label", {
 						className: "cm_dataGrid_clabel"
 					});
 
-					var interpolatedExpression = column.interpolatedExpression;
-					/*
-					 * Already prepared by TableRowsRenderer if (!interpolatedExpression) {
-					 * var expression = column.$scope.valueRawExpression; if (!expression &&
-					 * column.$scope.fieldName) { expression = $interpolate.startSymbol() +
-					 * "$row." + column.$scope.fieldName + $interpolate.endSymbol(); } if
-					 * (expression) { interpolatedExpression =
-					 * renderContext.$interpolate(expression);
-					 * column.interpolatedExpression = interpolatedExpression; } }
-					 */
+					var valueExpression = column.valueExpression;
+					if (!valueExpression) {
+						return label;
+					}
 
-					if (interpolatedExpression) {
-						var value = rowScope.$eval(interpolatedExpression);
+					if (column.$scope.watched) {
+						destroyScopeRef.value = false;
+
+						rowScope.$watch(column.interpolatedExpression, function(newText) {
+							label.text((newText == undefined) ? '' : newText);
+						});
+
+					} else {
+						if (valueExpression) {
+							value = valueExpression(rowScope);
+						}
+
 						if (value) {
 							label.text(value);
 						}
 					}
+
+					return label;
 				},
 
 				cellStyleUpdate: function(element) {

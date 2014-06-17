@@ -144,11 +144,11 @@
 								});
 							});
 
-							var tbody = cc.createElement(table, "tbody", {
-								className: "cm_dataGrid_tbody",
-								id: "cm_tbody_" + (anonymousId++)
-							});
-							this.tableTBody = tbody[0];
+							/*
+							 * var tbody = cc.createElement(table, "tbody", { className:
+							 * "cm_dataGrid_tbody", id: "cm_tbody_" + (anonymousId++) });
+							 * this.tableTBody = tbody[0];
+							 */
 
 							this.tableStyleUpdate(viewPort);
 
@@ -223,7 +223,26 @@
 							return fct;
 						},
 
-						tableRowsRenderer: function(tbody) {
+						tableClearRows: function() {
+							var tbody = this.tableTBody;
+							if (!tbody) {
+								return;
+							}
+
+							this.tableTBody = undefined;
+
+							if (!tbody.parentNode) {
+								return;
+							}
+
+							this.tableElement.removeChild(tbody);
+
+							$timeout(function clearRows() {
+								angular.element(tbody).empty(); // clear Data informations
+							}, 50);
+						},
+
+						tableRowsRenderer: function() {
 							var dataModel = this.dataModel;
 							if (!dataModel) {
 								return;
@@ -234,25 +253,76 @@
 
 							var self = this;
 
+							var tbody = cc.createElement(this.tableElement, "tbody", {
+								className: "cm_dataGrid_tbody",
+								id: "cm_tbody_" + (anonymousId++)
+							});
+							this.tableTBody = tbody[0];
+
 							// Prepare columns
 
 							var visibleColumns = this.visibleColumns;
 							angular.forEach(visibleColumns, function(column) {
-								var interpolatedExpression = column.interpolatedExpression;
-								if (interpolatedExpression) {
-									return;
+								var valueExpression = column.valueExpression;
+								if (valueExpression === undefined) {
+									valueExpression = false;
+
+									var expression = column.$scope.valueRawExpression;
+									if (!expression) {
+										var fieldName = column.$scope.fieldName || column.$scope.id;
+										if (fieldName) {
+											if (column.$scope.watched) {
+												expression = $interpolate.startSymbol() + "$row." + fieldName + $interpolate.endSymbol();
+
+											} else {
+												valueExpression = function(rowScope) {
+													return rowScope.$row[fieldName];
+												}
+											}
+										}
+									}
+
+									var exp = null;
+									if (expression) {
+										exp = self.$interpolate(expression);
+
+										valueExpression = function(rowScope) {
+											return rowScope.$eval(exp);
+										}
+									}
+
+									column.interpolatedExpression = exp;
+									column.valueExpression = valueExpression;
 								}
 
-								var expression = column.$scope.valueRawExpression;
-								if (!expression) {
-									var fieldName = column.$scope.fieldName || column.$scope.id;
-									if (fieldName) {
-										expression = $interpolate.startSymbol() + "$row." + fieldName + $interpolate.endSymbol();
+								var templates = column.templates;
+								if (templates === undefined) {
+									templates = [];
+
+									var ts = column.$scope.templates;
+									if (ts) {
+										var templatesIE = {};
+										column.templatesIE = templatesIE;
+
+										angular.forEach(ts, function(t) {
+											if (t.$scope.name != "cell") {
+												return;
+											}
+
+											var enabledE = t.$scope.enabledExpresion;
+											if (enabledE) {
+												if (enabledE === "false") {
+													return;
+												}
+
+												templatesIE[t.id] = self.$interpolate(enabledE);
+											}
+
+											templates.push(t);
+										});
 									}
-								}
-								if (expression) {
-									interpolatedExpression = self.$interpolate(expression);
-									column.interpolatedExpression = interpolatedExpression;
+
+									column.templates = (templates.length) ? templates : false;
 								}
 							});
 
@@ -388,14 +458,15 @@
 							var visibleIndex = 0;
 							var tbodyElement = tbody[0] || tbody;
 
-							var rowScope = this.$scope.$parent.$new();
+							var rowScope = null;
+							var groupScope = null;
 							var currentGroup = null;
 							var groupIndex = -1;
 
 							var progressDefer = null;
 							var progressDate = 0;
 
-							function setupDataGrid() {
+							function setupDataGrid(lastRowReached) {
 								if (!visibleIndex) {
 									if (first) {
 										dataGrid.rowCount = 0;
@@ -407,7 +478,9 @@
 									}
 
 								} else {
-									dataGrid.rowCount = first + visibleIndex;
+									if (lastRowReached) {
+										dataGrid.rowCount = first + visibleIndex;
+									}
 									dataGrid.maxRows = Math.max(dataGrid.maxRows, dataGrid.rowCount);
 								}
 							}
@@ -415,9 +488,15 @@
 							function availablePromise(available) {
 								if (!available) {
 									dataModel.setRowIndex(-1);
-									rowScope.$destroy();
 
-									setupDataGrid();
+									if (rowScope) {
+										rowScope.$destroy();
+									}
+									if (groupScope) {
+										groupScope.$destroy();
+									}
+
+									setupDataGrid(true);
 									return false;
 								}
 
@@ -441,29 +520,55 @@
 									try {
 										var rowData = dataModel.getRowData();
 										if (groupDataModel) {
-											var group = groupDataModel.getGroup(rowScope, rowData);
+											if (!groupScope) {
+												groupScope = self.$scope.$new(true);
+											}
+
+											groupScope.$group = null;
+											groupScope.$count = null;
+											groupScope.$row = rowData;
+											if (varName) {
+												groupScope[varName] = rowData;
+											}
+
+											var group = groupDataModel.getGroup(groupScope, rowData);
 											if (group !== currentGroup) {
 												currentGroup = group;
 												groupIndex++;
 
 												groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
 
-												rowScope.$group = group;
-												rowScope.$count = groupDataModel.getGroupCount(group);
+												groupScope.$group = group;
+												groupScope.$count = groupDataModel.getGroupCount(group);
 
-												var tr = self.groupRenderer(tbodyElement, groupProvider, rowScope, groupIndex, groupCollapsed);
+												var destroyGroupScopeRef = {
+													value: true
+												};
+												var tr = self.groupRenderer(tbodyElement, groupProvider, groupScope, groupIndex,
+														groupCollapsed, destroyGroupScopeRef);
 												tr.data("cm_rowValues", groupDataModel.getGroupValues(group));
 												tr.data("cm_value", group);
+
+												if (!destroyGroupScopeRef.value) {
+													tr.on('$destroy', function() {
+														groupScope.$destroy()
+													});
+													tr.data('$isolateScope', groupScope);
+													groupScope.$digest();
+													groupScope = null;
+												}
 
 												var trElement = tr[0];
 												trElement._visibleIndex = visibleIndex;
 												trElement._rowIndex = rowIndex;
-
-												delete rowScope.$count;
 											}
 										}
 
 										if (!groupCollapsed) {
+											if (!rowScope) {
+												rowScope = self.$scope.$new(true);
+											}
+
 											rowScope.$index = visibleIndex;
 											rowScope.$odd = !(visibleIndex & 1);
 											rowScope.$even = !rowScope.$odd;
@@ -476,9 +581,22 @@
 												rowScope[varName] = rowData;
 											}
 
-											var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent);
+											var destroyRowScopeRef = {
+												value: true
+											};
+
+											var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent, destroyRowScopeRef);
 
 											tr.data("cm_value", rowData);
+
+											if (!destroyRowScopeRef.value) {
+												tr.on('$destroy', function() {
+													rowScope.$destroy()
+												});
+												tr.data('$isolateScope', rowScope);
+												rowScope.$digest();
+												rowScope = null;
+											}
 										}
 
 										rowIndex++;
@@ -494,7 +612,13 @@
 
 									} catch (x) {
 										dataModel.setRowIndex(-1);
-										rowScope.$destroy();
+
+										if (rowScope) {
+											rowScope.$destroy();
+										}
+										if (groupScope) {
+											groupScope.$destroy();
+										}
 
 										throw x;
 									}
@@ -509,9 +633,14 @@
 								}
 
 								dataModel.setRowIndex(-1);
-								rowScope.$destroy();
+								if (rowScope) {
+									rowScope.$destroy();
+								}
+								if (groupScope) {
+									groupScope.$destroy();
+								}
 
-								setupDataGrid();
+								setupDataGrid(rows > 0 && visibleIndex < rows);
 
 								return $q.when(false);
 							}
@@ -524,8 +653,10 @@
 
 							} catch (x) {
 								dataModel.setRowIndex(-1);
-								rowScope.$destroy();
-								
+								if (rowScope) {
+									rowScope.$destroy();
+								}
+
 								dataGrid.rowCount = -1;
 								dataGrid.maxRows = -1;
 
@@ -627,7 +758,10 @@
 							var self = this;
 							function timer() {
 
-								var rowScope = self.$scope.$parent.$new();
+								var rowScope = self.$scope.$new(true);
+								var destroyRowScopeRef = {
+									value: true
+								};
 								try {
 									var rowData = rowValues.shift();
 
@@ -643,15 +777,26 @@
 										rowScope[varName] = rowData;
 									}
 
-									var tr = self.rowRenderer(fragment, rowScope, rowIndex, rowIndent);
+									var tr = self.rowRenderer(fragment, rowScope, rowIndex, rowIndent, destroyRowScopeRef);
 
 									tr.data("cm_value", rowData);
+
+									if (!destroyRowScopeRef.value) {
+										tr.on('$destroy', function() {
+											rowScope.$destroy()
+										});
+										tr.data('$isolateScope', rowScope);
+										rowScope.$digest();
+										rowScope = null;
+									}
 
 									rowIndex++;
 									visibleIndex++;
 
 								} finally {
-									rowScope.$destroy();
+									if (rowScope) {
+										rowScope.$destroy();
+									}
 								}
 
 								if (cm_dataGrid_group_animation) {
