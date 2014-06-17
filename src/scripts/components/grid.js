@@ -325,7 +325,7 @@
 		function DataColumn($scope) {
 			this.$scope = $scope;
 
-			$scope._component = this;
+			//$scope._component = this;
 
 			var id = $scope.id;
 			if (!id) {
@@ -418,7 +418,7 @@
 			function DataGroup($scope) {
 				this.$scope = $scope;
 
-				$scope._component = this;
+				//$scope._component = this;
 
 				var id = $scope.id;
 				if (!id) {
