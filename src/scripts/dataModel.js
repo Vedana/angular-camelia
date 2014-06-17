@@ -141,10 +141,18 @@
 					return this._fetchProperties;
 				},
 				setSorters: function(sorters) {
+					if (this._sorters === sorters) {
+						return false;
+					}
 					this._sorters = sorters;
+					return true;
 				},
 				setFilters: function(filters) {
+					if (this._filters === filters) {
+						return false;
+					}
 					this._filters = filters;
+					return true;
 				},
 				setGrouped: function(grouped) {
 					this._grouped = !!grouped;
@@ -490,7 +498,7 @@
 					return array;
 				}
 
-				var scope = this.$scope.$new();
+				var scope = this.$scope.$new(true);
 				try {
 					angular.forEach(this._sorters, function(sorter) {
 
@@ -555,7 +563,7 @@
 				var rowVarName = this._rowVarName;
 
 				var newArray = [];
-				var rowScope = this.$scope.$new();
+				var rowScope = this.$scope.$new(true);
 				var self = this;
 				try {
 					angular.forEach(array, function(rowData) {
@@ -649,7 +657,7 @@
 						return array;
 					}
 
-					var rowScope = this.$scope.$new();
+					var rowScope = this.$scope.$new(true);
 					try {
 						var self = this;
 
@@ -744,7 +752,7 @@
 			this._sessionId = 0;
 			this._rowCount = -1;
 
-			this._cache = {};
+			this._cache = [];
 
 			var self = this;
 			this.$on("begin", function() {
@@ -818,7 +826,7 @@
 				if (this._sorters && this.sorterParameter) {
 					var sorter = this._sorters[0];
 
-					var expression = sorter.expression || sorter.column.$scope.fieldName;
+					var expression = sorter.expression || sorter.column.$scope.fieldName || sorter.column.$scope.id;
 
 					if (!sorter.ascending) {
 						expression += ":desc";
@@ -880,13 +888,20 @@
 				return this._rowCount;
 			},
 			setSorters: function(sorters) {
+				if (!ResourceDataModel.prototype.$super.setSorters.call(this, sorters)) {
+					return;
+				}
 				this._cache = [];
-				ResourceDataModel.prototype.$super.setSorters.call(this, sorters);
+				this._rowCount = -1;
+
 			},
 			setFilters: function(filters) {
+				if (!ResourceDataModel.prototype.$super.setFilters.call(this, filters)) {
+					return;
+				}
 				this._cache = [];
-				ResourceDataModel.prototype.$super.setFilters.call(this, filters);
-			},
+				this._rowCount = -1;
+			}
 
 		});
 
