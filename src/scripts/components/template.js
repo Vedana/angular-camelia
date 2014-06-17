@@ -38,7 +38,7 @@
 				containerScope.templates.push(this);
 			}
 
-			Template.markContainer = function($scope, element) {
+			Template.markContainer = function(element, $scope) {
 				element.data('$cmTemplateContainerController', $scope);
 			}
 
@@ -52,9 +52,9 @@
 					var f = this._transcludeFunc;
 
 					var clone = new f($scope, function(clone, newScope) {
-						
-						//clone.scope=newScope;
-						
+
+						// clone.scope=newScope;
+
 						parent.append(clone);
 					});
 
