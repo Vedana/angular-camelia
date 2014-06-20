@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -22,10 +25,10 @@
 						return parseInt(str, 10);
 					}
 
-					var msie = undefined;
+					var msie;
 
 					return {
-						Assert: function(arg, name, message) {
+						Assert: function(arg, name /* , message */) {
 							if (arg) {
 								return;
 							}
@@ -67,11 +70,11 @@
 								doc = parent.ownerDocument;
 							}
 
-							var element = undefined;
+							var element;
 
 							for (var i = 1; i < arguments.length;) {
-								var tagName = arguments[i++];
-								var properties = arguments[i++];
+								tagName = arguments[i++];
+								properties = arguments[i++];
 
 								this.Assert(typeof (tagName) == "string", "createElement", "Invalid 'tagName' parameter (" + tagName
 										+ ")");
@@ -270,7 +273,7 @@
 											return;
 										}
 										if (fn.handler) {
-											fn.handler.call(element, event)
+											fn.handler.call(element, event);
 										}
 									} catch (e) {
 										$exceptionHandler(e);
@@ -332,7 +335,7 @@
 
 									sp.push(String(arg));
 								});
-							}
+							};
 
 							f(as);
 
@@ -429,7 +432,7 @@
 
 						setFocus: function(element) {
 
-							this.log("SetFocus ", element)
+							// this.log("SetFocus ", element);
 
 							try {
 								element.focus();
@@ -438,10 +441,86 @@
 								$log.error(x);
 							}
 						},
-						
-						lang: function(bundle, labelName) {
-							return bundle.en[labelName];
+
+						lang: function(bundle, labelName, params) {
+							var label = bundle.en[labelName];
+							if (!label || !params) {
+								return label;
+							}
+
+							var formatted = [];
+							var reg = /\{\w+\}/g;
+
+							var last = 0;
+							for (;;) {
+								var ret = reg.exec(label);
+								if (!ret) {
+									break;
+								}
+
+								if (ret.index) {
+									formatted.push(label.substring(last, ret.index));
+								}
+								var p = params[ret[0].substring(1, ret[0].length - 1)];
+								formatted.push((p === undefined) ? '?' : p);
+
+								last = reg.lastIndex;
+							}
+
+							if (!last) {
+								return label;
+							}
+
+							formatted.push(label.substring(last));
+							return formatted.join('');
 						},
+
+						setAudioDescription: function(parent, text, type) {
+							if (parent[0]) {
+								parent = parent[0];
+							}
+
+							if (!type) {
+								type = "main";
+							}
+
+							var qs = parent.querySelectorAll(".cm_audioDescription");
+							for (var i = 0; i < qs.length; i++) {
+								var ad = qs[i];
+
+								if (ad.type != type) {
+									continue;
+								}
+
+								var elt = angular.element(ad).empty();
+								if (text) {
+									elt.text(text);
+								}
+								return;
+							}
+
+							if (!text) {
+								return;
+							}
+
+							this.createElement(parent, "SPAN", {
+								className: "cm_audioDescription",
+								$type: type,
+								textnode: text
+							});
+						},
+
+						getProto: function(type) {
+							return type.__proto__ || Object.getPrototypeOf(type);
+						},
+
+						inheritRootScope: function(obj) {
+							var prototype = obj.__proto__;
+
+							var scope = $rootScope.$new(true);
+							obj.__proto__ = scope;
+							scope.__proto__ = prototype;
+						}
 					};
 				} ]);
 

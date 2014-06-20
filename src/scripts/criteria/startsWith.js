@@ -43,7 +43,7 @@
 				var self = this;
 				return [ {
 					name: this.name,
-					toJSON: function() {
+					toJson: function() {
 						return {
 							startsWidth: self._value,
 							ignoreCase: !!self._ignoreCase,

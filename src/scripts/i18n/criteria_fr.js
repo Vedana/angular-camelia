@@ -14,7 +14,7 @@
 
 	module.config([ '$provide', function($provide) {
 
-		$provide.decorator("camelia.i18n.criteria", [ '$delegate', function($delegate) {
+		$provide.decorator("camelia.i18n.Criteria", [ '$delegate', function($delegate) {
 
 			return angular.extend($delegate, {
 				'fr': {

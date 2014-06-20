@@ -14,7 +14,7 @@
 
 	module.config([ '$provide', function($provide) {
 
-		$provide.decorator("camelia.i18n.pager", [ '$delegate', function($delegate) {
+		$provide.decorator("camelia.i18n.Pager", [ '$delegate', function($delegate) {
 
 			return angular.extend($delegate, {
 				'fr': {
@@ -23,7 +23,14 @@
 					bprev_label: "Précédent",
 					bprev_tooltip: "Voir la page précédente",
 					bnext_label: "Suivant",
-					bnext_tooltip: "Voir la page suivante"
+					bnext_tooltip: "Voir la page suivante",
+					index_label: "{pageIndex}",
+					index_tooltip: "Voir page #{pageIndex}",
+					cindex_label: "{pageIndex}",
+					cindex_tooltip: "Page courrante #{pageIndex}",
+					uindex_label: "...",
+					uindex_tooltip: "Voir la page suivante",
+					separator: " "
 				}
 			});
 		} ]);

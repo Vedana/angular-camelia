@@ -23,7 +23,7 @@
 		"camelia.cmTypes",
 		"cm_pager_className",
 		"camelia.Key",
-		"camelia.i18n.pager",
+		"camelia.i18n.Pager",
 		function($log, $q, $exceptionHandler, cc, cm, cm_pager_className, Key, i18n) {
 
 			var anonymousId = 0;
@@ -39,7 +39,7 @@
 
 			var PagerRenderer = function(renderContext) {
 				angular.extend(this, renderContext);
-			}
+			};
 
 			PagerRenderer.prototype = {
 				render: function(parent) {
@@ -229,6 +229,11 @@
 				},
 
 				renderExpression: function(fragment, message, positions) {
+					var $scope = this.$scope;
+					$scope.first = positions.first;
+					$scope.rowCount = positions.rowCount;
+					$scope.maxRows = positions.maxRows;
+					$scope.rows = positions.rows;
 
 					var span = null;
 					for (var i = 0; i < message.length;) {
@@ -265,7 +270,7 @@
 								}
 							}
 
-							this.renderType(fragment, varName, parameters, positions);
+							this.renderType(fragment, varName, parameters);
 
 							continue;
 						}
@@ -317,16 +322,18 @@
 					return element;
 				},
 
-				renderButton: function(parent, value, type) {
+				renderButton: function(parent, value, type, langParams) {
+					var text = cc.lang(i18n, type + "_label", langParams);
+					var tooltip = cc.lang(i18n, type + "_tooltip", langParams);
+
 					var element = cc.createElement(parent, "button", {
-						textNode: cc.lang(i18n, type + "_label"),
+						textNode: text,
 						id: "cm_bpager_" + (anonymousId++),
 						$value: value,
 						$pagerType: type
 					});
-					var toolTip = cc.lang(i18n, type + "_tooltip");
-					if (toolTip) {
-						element.title = toolTip;
+					if (tooltip) {
+						element.attr("title", tooltip);
 					}
 					if (value < 0) {
 						element.attr("disabled", true);
@@ -349,11 +356,17 @@
 					return element;
 				},
 
-				renderType: function(fragment, type, parameters, positions) {
-					var first = positions.first;
-					var rowCount = positions.rowCount;
-					var maxRows = positions.maxRows;
-					var rows = positions.rows;
+				renderType: function(fragment, type, parameters) {
+					var $scope = this.$scope;
+
+					var first = $scope.first;
+					var rowCount = $scope.rowCount;
+					var maxRows = $scope.maxRows;
+					var rows = $scope.rows;
+
+					if (!rows) {
+						return;
+					}
 
 					switch (type) {
 					case "first":
@@ -427,6 +440,85 @@
 
 						this.renderButton(fragment, nextIndex, "bnext");
 						break;
+
+					case "bpages":
+						this.appendBPages(fragment, parameters);
+						break;
+					}
+
+				},
+
+				appendBPages: function(parent, parameters) {
+					var $scope = this.$scope;
+
+					var first = $scope.first;
+					var rowCount = $scope.rowCount;
+					var maxRows = $scope.maxRows;
+					var rows = $scope.rows;
+
+					var maxPage = 3 * 2 + 1;
+					var sep = null;
+
+					if (parameters) {
+						if (parameters["separator"]) {
+							sep = parameters["separator"];
+						}
+						if (parameters["pages"]) {
+							maxPage = parseInt(parameters["pages"], 10);
+						}
+					}
+
+					var selectedPage = Math.floor(first / rows);
+					var nbPage;
+					if (rowCount < 0) {
+						nbPage = Math.floor((maxRows + rows - 1) / rows) + 1;
+					} else {
+						nbPage = Math.floor((rowCount + rows - 1) / rows);
+					}
+
+					var showPage = nbPage;
+					if (showPage > maxPage) {
+						showPage = maxPage;
+					}
+
+					var pageOffset = 0;
+					if (showPage < nbPage) {
+						pageOffset = selectedPage - Math.floor(showPage / 2);
+						if (pageOffset + showPage > nbPage) {
+							pageOffset = nbPage - showPage;
+						}
+
+						if (pageOffset < 0) {
+							pageOffset = 0;
+						}
+					}
+
+					if (sep === null) {
+						sep = cc.lang(i18n, "separator");
+					}
+
+					for (var i = 0; i < showPage; i++) {
+						if (i > 0) {
+							this.renderSpan(parent, sep);
+						}
+
+						var pi = pageOffset + i;
+
+						var type = "index";
+						var label = (pi + 1);
+						if (rowCount < 0 && pi + 1 == nbPage) {
+							label = "...";
+							type = "uindex";
+
+						} else if (pi == selectedPage) {
+							type = "cindex";
+						}
+
+						var langParams = {
+							pageIndex: pi + 1
+						};
+
+						this.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams);
 					}
 
 				},

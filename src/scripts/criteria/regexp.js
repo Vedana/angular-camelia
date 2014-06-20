@@ -44,11 +44,11 @@
 				var self = this;
 				return [ {
 					name: this.name,
-					toJSON: function() {
+					toJson: function() {
 						return {
 							regExp: self._regExp,
 							reverse: self._false
-						}
+						};
 					}
 				} ];
 			},

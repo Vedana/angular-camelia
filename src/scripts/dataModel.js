@@ -19,14 +19,28 @@
 		"$resource",
 		function($q, $rootScope, cc, $injector, $resource) {
 
-			var scopeProto = $rootScope.__proto__ || Object.getPrototypeOf($rootScope);
-
-			var resource = $resource();
-			var resourceProto = resource.__proto__ || Object.getPrototypeOf(resource);
+			var scopeProto = cc.getProto($rootScope);
+			var resourceProto = cc.getProto($resource());
 
 			function DataModel() {
-				scopeProto.constructor.call(this);
-				this.$parent = $rootScope;
+				cc.inheritRootScope(this);
+
+				var self = this;
+				this.$on("$destroy", function() {
+
+					var deRegistration = self._watcherDeRegistration;
+					if (deRegistration) {
+						self._watcherDeRegistration = undefined;
+
+						deRegistration();
+					}
+
+					self._wrappedData = undefined;
+					self._sorters = undefined;
+					self._filters = undefined;
+					self._dataScope = undefined;
+					self._fetchProperties = undefined;
+				});
 			}
 
 			DataModel.DATA_MODEL_CHANGED_EVENT = "dataModelChanged";
@@ -39,7 +53,7 @@
 					return parameter;
 				}
 
-				var parameterProto = parameter && (parameter.__proto__ || Object.getPrototypeOf(parameter));
+				var parameterProto = parameter && cc.getProto(parameter);
 
 				if (parameterProto === resourceProto) {
 					return $injector.invoke([ "camelia.ResourceDataModel", function(ResourceDataModel) {
@@ -53,7 +67,7 @@
 				}
 
 				return new DataModel();
-			}
+			};
 
 			DataModel.prototype = Object.create(scopeProto);
 			angular.extend(DataModel.prototype, {
@@ -65,7 +79,7 @@
 				installWatcher: function($scope, varName) {
 					var self = this;
 					this._watcherDeRegistration = $scope.$watch(varName, function(newValue) {
-						self.$emit(DataModel.DATA_MODEL_CHANGED_EVENT, newValue);
+						self.$broadcast(DataModel.DATA_MODEL_CHANGED_EVENT, newValue);
 					});
 				},
 
@@ -81,7 +95,7 @@
 				 * @return {Promise|number}
 				 */
 				getRowCount: function(force) {
-					return 0;
+					return -1;
 				},
 				/**
 				 * @return {Object}
@@ -104,29 +118,16 @@
 
 					this._rowIndex = rowIndex;
 
-					if (old < 0 && rowIndex >= 0) {
-						// Broadcast START
-						this.$emit("begin");
+					if (this.$parent == $rootScope) {
+						if (old < 0 && rowIndex >= 0) {
+							// Broadcast START
+							this.$broadcast("begin");
+						}
+
+						if (old >= 0 && rowIndex < 0) {
+							this.$broadcast("end");
+						}
 					}
-
-					if (old >= 0 && rowIndex < 0) {
-						this.$emit("end");
-					}
-				},
-				$destroy: function() {
-					scopeProto.$destroy.call(this);
-
-					var deRegistration = this._watcherDeRegistration;
-					if (deRegistration) {
-						this._watcherDeRegistration = undefined;
-
-						deRegistration();
-					}
-
-					this._wrappedData = undefined;
-					this._sorters = undefined;
-					this._filters = undefined;
-					this.$scope = undefined;
 				},
 				getWrappedData: function() {
 					return this._wrappedData;
@@ -136,9 +137,6 @@
 				},
 				setFetchProperties: function(fetchProperties) {
 					this._fetchProperties = fetchProperties;
-				},
-				getFetchProperties: function() {
-					return this._fetchProperties;
 				},
 				setSorters: function(sorters) {
 					if (this._sorters === sorters) {
@@ -157,8 +155,8 @@
 				setGrouped: function(grouped) {
 					this._grouped = !!grouped;
 				},
-				setScope: function(scope) {
-					this.$scope = scope;
+				setDataScope: function(scope) {
+					this._dataScope = scope;
 				},
 				isFilterSupport: function() {
 					return this.filterSupport;
@@ -183,13 +181,13 @@
 						for (; available; index++) {
 							self.setRowIndex(index);
 
-							var available = self.isRowAvailable();
+							available = self.isRowAvailable();
 							if (available === false) {
 								break;
 							}
 
 							if (cc.isPromise(available)) {
-								return available.then(promiseIndex)
+								return available.then(promiseIndex);
 							}
 
 							var data = self.getRowData();
@@ -213,6 +211,12 @@
 					}
 
 					return ret;
+				},
+
+				$destroyChildren: function() {
+					for (; this.$$childHead;) {
+						this.$$childHead.$destroy();
+					}
 				}
 			});
 
@@ -244,7 +248,7 @@
 					}
 
 					self.setWrappedData(newValue);
-					self.$emit(DataModel.DATA_MODEL_UPDATED_EVENT, newValue);
+					self.$broadcast(DataModel.DATA_MODEL_UPDATED_EVENT, newValue);
 				});
 			},
 
@@ -305,172 +309,165 @@
 		"camelia.core",
 		function(ArrayDataModel, cc) {
 
-			function WrappedArrayDataModel(dataModel) {
-				this._dataModel = dataModel;
+			var DELEGATE_TO_PARENT = "$$DELAGATE_PARENT$$";
+			var NO_DATA = "$$NO-DATA$$";
 
+			function WrappedArrayDataModel(dataModel) {
 				ArrayDataModel.call(this, undefined);
+
+				this.$parent = dataModel;
+
 			}
 			WrappedArrayDataModel.prototype = Object.create(ArrayDataModel.prototype);
 
-			angular
-					.extend(WrappedArrayDataModel.prototype,
-							{
-								constructor: WrappedArrayDataModel,
-								$super: ArrayDataModel.prototype,
+			angular.extend(WrappedArrayDataModel.prototype, {
+				constructor: WrappedArrayDataModel,
+				$super: ArrayDataModel.prototype,
 
-								$destroy: function() {
-									WrappedArrayDataModel.prototype.$super.$destroy.call(this);
+				setSorters: function(sorters) {
+					this.$parent.setSorters(sorters);
+					WrappedArrayDataModel.prototype.$super.setSorters.call(this, sorters);
+				},
+				setFilters: function(filters) {
+					this.$parent.setFilters(filters);
+					WrappedArrayDataModel.prototype.$super.setFilters.call(this, filters);
+				},
+				setGrouped: function(grouped) {
+					this.$parent.setGrouped(grouped);
+					WrappedArrayDataModel.prototype.$super.setGrouped.call(this, grouped);
+				},
+				setDataScope: function(scope) {
+					this.$parent.setDataScope(scope);
+					WrappedArrayDataModel.prototype.$super.setDataScope.call(this, scope);
+				},
+				isFilterSupport: function() {
+					return WrappedArrayDataModel.prototype.$super.isFilterSupport.call(this) || this.$parent.isFilterSupport();
+				},
+				isSortSupport: function() {
+					return WrappedArrayDataModel.prototype.$super.isSortSupport.call(this) || this.$parent.isSortSupport();
+				},
+				isGroupSupport: function() {
+					return WrappedArrayDataModel.prototype.$super.isGroupSupport.call(this) || this.$parent.isGroupSupport();
+				},
 
-									this._dataModel.$destroy();
+				setFetchProperties: function(fetchProperties) {
+					this.$parent.setFetchProperties(fetchProperties);
+					WrappedArrayDataModel.prototype.$super.setFetchProperties.call(this, fetchProperties);
+				},
 
-									this._dataModel = undefined;
-								},
+				setRowIndex: function(index) {
+					this.$parent.setRowIndex(index);
+					WrappedArrayDataModel.prototype.$super.setRowIndex.call(this, index);
+				},
 
-								setSorters: function(sorters) {
-									var dataModel = this._dataModel;
-									dataModel.setSorters(sorters);
-									WrappedArrayDataModel.prototype.$super.setSorters.call(this, sorters);
-								},
-								setFilters: function(filters) {
-									var dataModel = this._dataModel;
-									dataModel.setFilters(filters);
-									WrappedArrayDataModel.prototype.$super.setFilters.call(this, filters);
-								},
-								setGrouped: function(grouped) {
-									var dataModel = this._dataModel;
-									dataModel.setGrouped(grouped);
-									WrappedArrayDataModel.prototype.$super.setGrouped.call(this, grouped);
-								},
-								setScope: function(scope) {
-									WrappedArrayDataModel.prototype.$super.setScope.call(this, scope);
-									this._dataModel.setScope(scope);
-								},
-								isFilterSupport: function() {
-									return WrappedArrayDataModel.prototype.$super.isFilterSupport.call(this)
-											|| this._dataModel.isFilterSupport();
-								},
-								isSortSupport: function() {
-									return WrappedArrayDataModel.prototype.$super.isSortSupport.call(this)
-											|| this._dataModel.isSortSupport();
-								},
-								isGroupSupport: function() {
-									return WrappedArrayDataModel.prototype.$super.isGroupSupport.call(this)
-											|| this._dataModel.isGroupSupport();
-								},
+				getRowCount: function() {
+					// TODO Fix must call isRowAvailable before !!!!?
+					var localArray = this.getWrappedData();
+					if (localArray === undefined) {
+						return -1;
+					}
 
-								setFetchProperties: function(fetchProperties) {
-									this._dataModel.setFetchProperties(fetchProperties);
-								},
+					if (localArray === DELEGATE_TO_PARENT) {
+						return this.$parent.getRowCount();
+					}
 
-								getFetchProperties: function() {
-									return this._dataModel.getFetchProperties();
-								},
+					return WrappedArrayDataModel.prototype.$super.getRowCount.call(this);
+				},
 
-								setRowIndex: function(index) {
-									this._dataModel.setRowIndex(index);
-									WrappedArrayDataModel.prototype.$super.setRowIndex.call(this, index);
-								},
+				getRowData: function() {
+					var localArray = this.getWrappedData();
+					if (localArray === DELEGATE_TO_PARENT) {
+						return this.$parent.getRowData();
+					}
 
-								getRowCount: function() {
-									// TODO Fix must call isRowAvailable before !!!!
-									var localArray = this.getWrappedData();
-									if (localArray === null) {
-										return this._dataModel.getRowCount();
-									}
+					return WrappedArrayDataModel.prototype.$super.getRowData.call(this);
+				},
 
-									return WrappedArrayDataModel.prototype.$super.getRowCount.call(this);
-								},
+				isRowAvailable: function() {
 
-								getRowData: function() {
-									var localArray = this.getWrappedData();
-									if (localArray === null) {
-										return this._dataModel.getRowData();
-									}
+					var localArray = this.getWrappedData();
 
-									return WrappedArrayDataModel.prototype.$super.getRowData.call(this);
-								},
+					if (localArray === DELEGATE_TO_PARENT) {
+						return this.$parent.isRowAvailable();
+					}
 
-								isRowAvailable: function() {
-									var localArray = this.getWrappedData();
-									if (localArray) {
-										return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(this);
-									}
+					if (localArray === NO_DATA) {
+						return false;
+					}
 
-									if (localArray === null) {
-										return this._dataModel.isRowAvailable();
-									}
+					if (localArray) {
+						return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(this);
+					}
 
-									if (localArray === false) {
-										return false;
-									}
+					var self = this;
 
-									var self = this;
+					function _arrayReady(parentArray) {
 
-									function _arrayReady(parentArray) {
+						localArray = self.processParentArray(parentArray);
 
-										localArray = self.processParentArray(parentArray);
+						self.setWrappedData(localArray);
 
-										self.setWrappedData(localArray);
+						return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(self);
+					}
 
-										return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(self);
-									}
+					function _processArray() {
+						var parentArray = self.$parent.toArray();
 
-									function _processArray() {
-										var parentArray = self._dataModel.toArray();
-
-										if (cc.isPromise(parentArray)) {
-											return parentArray.then(function(array) {
-												return _arrayReady(array);
-											});
-										}
-
-										if (!parentArray) {
-											parentArray = [];
-										}
-
-										if (angular.isArray(parentArray)) {
-											return _arrayReady(parentArray);
-										}
-
-										throw new Error("Invalid toArray return !");
-									}
-
-									var avail = this._dataModel.isRowAvailable();
-									if (avail === false) {
-										return false;
-									}
-
-									if (!cc.isPromise(avail)) {
-										if (!this.wrappingEnabled()) {
-											this.setWrappedData(null);
-											return true;
-										}
-
-										return _processArray();
-									}
-
-									return avail.then(function(av) {
-										if (av === false) {
-											return false;
-										}
-
-										if (!self.wrappingEnabled()) {
-											self.setWrappedData(null);
-											return true;
-										}
-
-										return _processArray();
-									});
-								},
-
-								wrappingEnabled: function() {
-									return false;
-								},
-
-								processParentArray: function(array) {
-									return array;
-								}
+						if (cc.isPromise(parentArray)) {
+							return parentArray.then(function(array) {
+								return _arrayReady(array);
 							});
+						}
+
+						if (!parentArray) {
+							parentArray = [];
+						}
+
+						if (angular.isArray(parentArray)) {
+							return _arrayReady(parentArray);
+						}
+
+						throw new Error("Invalid toArray return !");
+					}
+
+					var avail = this.$parent.isRowAvailable();
+					if (avail === false) {
+						this.setWrappedData(NO_DATA);
+						return false;
+					}
+
+					if (!cc.isPromise(avail)) {
+						if (this.delegateToParent()) {
+							this.setWrappedData(DELEGATE_TO_PARENT);
+							return true;
+						}
+
+						return _processArray();
+					}
+
+					return avail.then(function(av) {
+						if (av === false) {
+							self.setWrappedData(NO_DATA);
+							return false;
+						}
+
+						if (self.delegateToParent()) {
+							self.setWrappedData(DELEGATE_TO_PARENT);
+							return true;
+						}
+
+						return _processArray();
+					});
+				},
+
+				delegateToParent: function() {
+					return false;
+				},
+
+				processParentArray: function(array) {
+					return array;
+				}
+			});
 
 			return WrappedArrayDataModel;
 		} ]);
@@ -498,7 +495,7 @@
 					return array;
 				}
 
-				var scope = this.$scope.$new(true);
+				var scope = this._dataScope.$new(true);
 				try {
 					angular.forEach(this._sorters, function(sorter) {
 
@@ -525,8 +522,8 @@
 				return array;
 			},
 
-			wrappingEnabled: function() {
-				return !this._dataModel.isSortSupport() && this._sorters;
+			delegateToParent: function() {
+				return this.$parent.isSortSupport() || !this._sorters;
 			}
 
 		});
@@ -563,7 +560,7 @@
 				var rowVarName = this._rowVarName;
 
 				var newArray = [];
-				var rowScope = this.$scope.$new(true);
+				var rowScope = this._dataScope.$new(true);
 				var self = this;
 				try {
 					angular.forEach(array, function(rowData) {
@@ -591,8 +588,8 @@
 				return newArray;
 			},
 
-			wrappingEnabled: function() {
-				return !this._dataModel.isFilterSupport() && this._filters;
+			delegateToParent: function() {
+				return this.$parent.isFilterSupport() || !this._filters;
 			}
 		});
 
@@ -612,10 +609,19 @@
 				this.groupSupport = true;
 
 				this._groupProvider = groupProvider;
+				this._rowVarName = rowVarName;
 				this._groups = [];
 				this._groupCount = [];
-				this._rowVarName = rowVarName;
 				this._groupValues = [];
+
+				var self = this;
+				this.$on("$destroy", function() {
+					self._groupProvider = groupProvider;
+					self._rowVarName = rowVarName;
+					self._groups = [];
+					self._groupCount = [];
+					self._groupValues = [];
+				});
 			}
 			GroupedDataModel.prototype = Object.create(WrappedArrayDataModel.prototype);
 
@@ -657,7 +663,7 @@
 						return array;
 					}
 
-					var rowScope = this.$scope.$new(true);
+					var rowScope = this._dataScope.$new(true);
 					try {
 						var self = this;
 
@@ -667,7 +673,7 @@
 
 						angular.forEach(array, function(rowData) {
 
-							var group = self.getGroup(rowScope, rowData)
+							var group = self.getGroup(rowScope, rowData);
 							var idx = groups.indexOf(group);
 							if (idx < 0) {
 								idx = groups.length;
@@ -699,7 +705,7 @@
 							var idx = groups.indexOf(group);
 
 							ret = ret.concat(groupValues[idx]);
-						})
+						});
 
 						return ret;
 
@@ -708,18 +714,8 @@
 					}
 				},
 
-				$destroy: function() {
-					GroupedDataModel.prototype.$super.$destroy.call(this);
-
-					this._groupProvider = undefined;
-					this._groups = undefined;
-					this._groupCount = undefined;
-					this._rowVarName = undefined;
-					this._groupValues = undefined;
-				},
-
-				wrappingEnabled: function() {
-					return !this._dataModel.isGroupSupport() && this._grouped;
+				delegateToParent: function() {
+					return this.$parent.isGroupSupport() || !this._grouped;
 				}
 			});
 
@@ -757,10 +753,24 @@
 			var self = this;
 			this.$on("begin", function() {
 				self._sessionId = (sessionId++);
+				// console.log("Start session " + self._sessionId);
 			});
 
 			this.$on("end", function() {
+				// console.log("End session " + self._sessionId);
 				self._sessionId = -1;
+
+				var requestPromise = self._requestPromise;
+				if (requestPromise) {
+					self._requestPromise = undefined;
+					requestPromise.cancel();
+				}
+			});
+
+			this.$on("clearState", function() {
+				// debugger;
+				self._cache = [];
+				self._rowCount = -1;
 			});
 		}
 		ResourceDataModel.prototype = Object.create(DataModel.prototype);
@@ -770,39 +780,44 @@
 			$super: DataModel.prototype,
 
 			isRowAvailable: function() {
-
+				this.needRowAvailable = false;
 				var rowIndex = this.getRowIndex();
 
 				var cache = this._cache;
 				if (cache[rowIndex] !== undefined) {
+					console.log("Ask for #" + rowIndex + " => in cache !");
 					return true;
 				}
 
 				if (this._rowCount >= 0 && rowIndex >= this._rowCount) {
+					console.log("Ask for #" + rowIndex + " => outside of rowCount");
 					return false;
 				}
 
+				this.sortSupport = false;
+				this.filterSupport = false;
+
 				var deferred = $q.defer();
 
-				var fetchProperties = this.getFetchProperties();
+				var fetchProperties = this._fetchProperties;
 
 				var offset = rowIndex;
-				var rows = this.pageSize;
+				var fetchRows = (fetchProperties && fetchProperties.rows) || 0;
+				var rows = Math.max(fetchRows, this.pageSize);
 
-				var useFetchRows = false;
-				var fetchRows = (fetchProperties && fetchProperties.rows);
-				if (fetchRows > 0) {
-					if ((offset % fetchRows) == 0) {
-						rows = fetchRows;
-						useFetchRows = true;
-					}
+				if (this.offsetMod > 0) {
+					offset -= (offset % this.offsetMod);
+
+					var last = (rowIndex + rows - 1);
+					last -= (last % this.offsetMod);
+
+					rows = (Math.floor((last - offset) / this.pageSize) + 1) * this.pageSize;
+
+					// console.log("rowIndex=" + rowIndex + " offset=" + offset + " last="
+					// + last + " rows=" + rows + " pageSize="+ this.pageSize);
 				}
 
-				if (!useFetchRows && this.offsetMod) {
-					offset %= this.offsetMod;
-				}
-
-				if (!this._keepCache) {
+				if (this._keepCache === false) {
 					cache = [];
 					this._cache = cache;
 
@@ -824,31 +839,33 @@
 				params[this.countParameter] = rows;
 
 				if (this._sorters && this.sorterParameter) {
-					var sorter = this._sorters[0];
+					var ss = [];
+					params[this.sorterParameter] = ss;
 
-					var expression = sorter.expression || sorter.column.$scope.fieldName || sorter.column.$scope.id;
+					angular.forEach(this._sorters, function(sorter) {
+						var expression = sorter.expression || sorter.column.$scope.fieldName || sorter.column.$scope.id;
 
-					if (!sorter.ascending) {
-						expression += ":desc";
-					}
+						if (!sorter.ascending) {
+							expression += ":desc";
+						}
 
-					params[this.sorterParameter] = expression;
+						ss.push(expression);
+					});
 
 					this.sortSupport = true;
 				}
 
 				var filters = this._filters;
 				if (filters && this.filterParameter) {
-
 					var ps = [];
 					params[this.filterParameter] = ps;
 
 					angular.forEach(filters, function(filter) {
-						if (!filter.toJSON) {
+						if (!filter.toJson) {
 							return;
 						}
 
-						var parameters = filter.toJSON();
+						var parameters = filter.toJson();
 						if (parameters) {
 							ps.push(parameters);
 						}
@@ -858,47 +875,86 @@
 					this.filterSupport = true;
 				}
 
+				if (this._rowCount < 0 && this.requestRowCountParameter) {
+					params[this.requestRowCountParameter] = true;
+				}
+
+				var requestPromise = this._requestPromise;
+				if (requestPromise) {
+					this._requestPromise = undefined;
+					requestPromise.cancel();
+				}
+
 				var self = this;
-				this.$resource[actionName].call(this.$resource, params, function(response, responseHeaders) {
+				var ret = this.$resource[actionName].call(this.$resource, params, function(response, responseHeaders) {
+					self._requestPromise = undefined;
 					if (self._sessionId != currentSessionId) {
 						return deferred.reject("Session canceled");
 					}
 
 					for (var i = 0; i < response.length; i++) {
 						cache[i + offset] = response[i];
+
+						console.log("Reg#" + (i + offset) + " => " + response[i]);
 					}
 					if (response.length < rows) {
-						self._rowCount = offset + response.length;
+						if (response.length || !offset) {
+							self._rowCount = offset + response.length;
+						}
 					}
 
-					deferred.resolve(typeof (cache[rowIndex]) !== undefined);
+					console.log("Ask for #" + rowIndex + " => Deferred " + cache[rowIndex]);
+
+					deferred.resolve(cache[rowIndex] !== undefined);
 
 				}, function(error) {
 					return deferred.reject("Query error: " + error);
 				});
 
+				this._requestPromise = ret.$promise;
+
+				console.log("Ask for #" + rowIndex + " => Returns promise");
+
 				return deferred.promise;
 			},
+
+			setRowIndex: function(index) {
+				console.log("Set rowIndex=" + index);
+				ResourceDataModel.prototype.$super.setRowIndex.call(this, index);
+				this.needRowAvailable = true;
+			},
 			getRowData: function() {
+				if (this.needRowAvailable) {
+					debugger;
+				}
+
 				var rowIndex = this.getRowIndex();
 
-				return this._cache[rowIndex];
+				var ret = this._cache[rowIndex];
+
+				console.log("#" + rowIndex + " => " + ret + " " + typeof (rowIndex));
+
+				if (ret === undefined) {
+					debugger;
+				}
+
+				return ret;
 			},
 			getRowCount: function(force) {
 				return this._rowCount;
 			},
 			setSorters: function(sorters) {
-				if (!ResourceDataModel.prototype.$super.setSorters.call(this, sorters)) {
-					return;
-				}
+				ResourceDataModel.prototype.$super.setSorters.call(this, sorters);
 				this._cache = [];
 				this._rowCount = -1;
-
 			},
 			setFilters: function(filters) {
-				if (!ResourceDataModel.prototype.$super.setFilters.call(this, filters)) {
-					return;
-				}
+				ResourceDataModel.prototype.$super.setFilters.call(this, filters);
+				this._cache = [];
+				this._rowCount = -1;
+			},
+			setGrouped: function(grouped) {
+				ResourceDataModel.prototype.$super.setGrouped.call(this, grouped);
 				this._cache = [];
 				this._rowCount = -1;
 			}

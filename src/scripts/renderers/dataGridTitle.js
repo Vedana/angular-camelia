@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -18,7 +21,8 @@
 		"camelia.cmTypes",
 		"cm_grid_rowIndentPx",
 		"cm_grid_sizerPx",
-		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx) {
+		"camelia.i18n.Grid",
+		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx, i18n) {
 
 			var anonymousId = 0;
 
@@ -67,16 +71,15 @@
 						if (column.visible) {
 							var cellElement = cc.createElement(ul, "li", {
 								id: "cm_tcell_" + (anonymousId++),
-								$cm_columnIndex: index,
-								role: "columnheader"
+								$cm_columnIndex: index
 							});
 							column.titleElement = cellElement[0];
 							column.visibleIndex = visibleColumns.length;
 							cellElement.data("cm_column", column);
 
-							self.titleCellStyleUpdate(cellElement);
-
 							self.titleCellRenderer(cellElement, column, index);
+
+							self.titleCellStyleUpdate(cellElement);
 
 							visibleColumns.push(column);
 
@@ -114,13 +117,17 @@
 					var titleCell = element;
 
 					var prevColumn = null;
+					var hasParams = false;
 
 					if (column) {
+						var idx = anonymousId++;
 						var parent = titleCell;
 
 						var button = cc.createElement(parent, "button", {
+							// id: "cm_tbut_" + idx,
 							className: "cm_dataGrid_tbutton",
-							tabIndex: this.tabIndex
+							tabIndex: this.tabIndex,
+							role: "columnheader"
 						});
 						column.buttonElement = button[0];
 						parent = button;
@@ -137,24 +144,30 @@
 						var title = column.$scope.title;
 
 						var label = cc.createElement(parent, "label", {
+							id: "cm_tlab_" + idx,
 							className: "cm_dataGrid_tlabel",
-							textNode: (title ? title : "")
+						// textNode: (title ? title : "")
 						});
 
 						column.labelElement = label[0];
 
+						var self = this;
 						column.$scope.$watch("title", function(newValue) {
 							label.text(newValue ? newValue : "");
+
+							self.titleAriaMessages(element, column, true);
 						});
 
-						var hasParams = false;
 						if (column._criterias && column._criterias.length) {
 							var parameters = cc.createElement(titleCell, "button", {
 								className: "cm_dataGrid_tparams",
 								tabIndex: -1,
+								"aria-hidden": true,
 								id: "cm_tparams_" + (anonymousId++)
 							});
 							column.parametersElement = parameters[0];
+
+							button.attr("aria-expanded", false);
 
 							cc.createElement(parameters, "div", {
 								className: "cm_dataGrid_tpArrow"
@@ -204,17 +217,57 @@
 
 					var column = this.columns[index];
 
+					this.titleAriaMessages(element, column);
+
 					var constantClasses = null;
 					var align = angular.isString(column.titleAlign) ? column.titleAlign : column.cellAlign;
 					if (align) {
 						constantClasses = [ "cm_dataGrid_talign_" + align ];
 					}
 
-					return cm.MixElementClasses(element, [ "cm_dataGrid_tcell" /*
-																																			 * ,
-																																			 * "cm_dataGrid_tcell_" +
-																																			 * index
-																																			 */], constantClasses);
+					return cm.MixElementClasses(element, [ "cm_dataGrid_tcell" ], constantClasses);
+				},
+
+				titleAriaMessages: function(element, column, reset) {
+
+					var newAriaSorter = 0;
+					var messageSorter = null;
+					if (element._sortable) {
+						newAriaSorter |= 0x01;
+						messageSorter = "sortableColumn";
+
+						if (element._ascending) {
+							newAriaSorter |= 0x02;
+							messageSorter = "sortAscending";
+
+						} else if (element._descending) {
+							newAriaSorter |= 0x04;
+							messageSorter = "sortDescending";
+						}
+					}
+					if (reset || column._ariaSorter != newAriaSorter) {
+						column._ariaSorter = newAriaSorter;
+
+						cc.setAudioDescription(column.buttonElement, messageSorter && cc.lang(i18n, messageSorter), "sorter");
+					}
+
+					var newAriaFiltred = 0;
+					var messageFiltred = null;
+					if (element._filtreable) {
+						newAriaFiltred |= 0x01;
+						messageFiltred = "filtreableColumn";
+
+						if (element._filtred) {
+							newAriaSorter |= 0x02;
+							messageFiltred = "filtredColumn";
+						}
+					}
+					if (reset || column._ariaFiltred != newAriaFiltred) {
+						column._ariaFiltred = newAriaFiltred;
+
+						cc.setAudioDescription(column.buttonElement, messageFiltred && cc.lang(i18n, messageFiltred), "filtred");
+					}
+
 				},
 
 				titleLayout: function(container, width) {
@@ -283,7 +336,7 @@
 							nw = column.maxWidth;
 						}
 
-						column.width = nw
+						column.width = nw;
 						leftWidth -= nw;
 						column.widthType = "natural";
 					});

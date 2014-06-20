@@ -12,7 +12,7 @@
 
 	var module = angular.module("camelia.i18n.criteria", []);
 
-	module.factory("camelia.i18n.criteria", [ function() {
+	module.factory("camelia.i18n.Criteria", [ function() {
 
 		return {
 			'en': {

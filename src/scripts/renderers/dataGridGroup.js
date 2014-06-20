@@ -88,7 +88,7 @@
 					id: "cm_groupTitle_" + (anonymousId++),
 					tabIndex: -1,
 					nowrap: "nowrap",
-					role: "gridcell",
+					role: "rowgroup",
 					className: "cm_dataGrid_gcell",
 					colspan: (this.visibleColumns.length + 1 + this.rowIndent)
 				});

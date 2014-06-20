@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -11,17 +14,17 @@
 
 	module.factory('camelia.SelectionProvider', [ "$rootScope",
 		"$injector",
-		function($rootScope, $injector) {
+		"camelia.core",
+		function($rootScope, $injector, cc) {
 
-			var scopeProto = $rootScope.__proto__ || Object.getPrototypeOf($rootScope);
+			var scopeProto = cc.getProto($rootScope);
 
 			/*
 			 * ------------------------ SelectionProvider --------------------------
 			 */
 
 			function SelectionProvider() {
-				scopeProto.constructor.call(this);
-				this.$parent = $rootScope;
+				cc.inheritRootScope(this);
 			}
 
 			SelectionProvider.SELECTION_CHANGING_EVENT = "selectionChanging";
@@ -43,7 +46,7 @@
 				}
 
 				return new ArraySelectionProvider([ parameter ]);
-			}
+			};
 
 			SelectionProvider.prototype = Object.create(scopeProto);
 			angular.extend(SelectionProvider.prototype, {
@@ -78,7 +81,7 @@
 					if (!this._lock) {
 						var self = this;
 						return this.run(function() {
-							return self._processSet(array)
+							return self._processSet(array);
 						});
 					}
 
@@ -97,7 +100,7 @@
 					if (!this._lock) {
 						var self = this;
 						return this.run(function() {
-							return self._processAdd(array)
+							return self._processAdd(array);
 						});
 					}
 					return this._processAdd(array);
@@ -115,7 +118,7 @@
 					if (!this._lock) {
 						var self = this;
 						return this.run(function() {
-							return self._processRemove(array)
+							return self._processRemove(array);
 						});
 					}
 					return this._processRemove(array);

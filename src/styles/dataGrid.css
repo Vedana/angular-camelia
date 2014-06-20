@@ -3,7 +3,6 @@
  * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
  * @author olivier.oeuillot@vedana.com
  */
-
 .cm_dataGrid {
 	position: relative;
 	border: 1px solid #E8F1FB;
@@ -111,8 +110,8 @@
 	background-color: transparent;
 }
 
-.cm_dataGrid_tcell_filtred .cm_dataGrid_tpArrow,
-.cm_dataGrid_tpFiltred {
+.cm_dataGrid_tcell_filtred .cm_dataGrid_tpArrow, .cm_dataGrid_tpFiltred
+	{
 	display: none;
 }
 
@@ -136,7 +135,7 @@
 }
 
 .cm_dataGrid_tcell_filtred .cm_dataGrid_tparams,
-.cm_dataGrid_tcell_openedPopup .cm_dataGrid_tparams,
+	.cm_dataGrid_tcell_openedPopup .cm_dataGrid_tparams,
 	.cm_dataGrid_tcell_filtreable_focus .cm_dataGrid_tparams,
 	.cm_dataGrid_tcell_filtreable_over .cm_dataGrid_tparams {
 	display: block;
@@ -261,10 +260,13 @@
 /* -------------------------------------------------------------------------------------- */
 /* --- Windows 8 --- */
 /* -------------------------------------------------------------------------------------- */
-.cm_dataGrid_tlabel, .cm_dataGrid_clabel, .cm_dataGrid_glabel {
-	font-size: 9pt;
+.cm_dataGrid {
 	font-family: "Segoe WPC", "Segoe UI", Helvetica, Arial,
 		"Arial Unicode MS", Sans-Serif;
+}
+
+.cm_dataGrid_tlabel, .cm_dataGrid_clabel, .cm_dataGrid_glabel {
+	font-size: 9pt;
 	font-weight: 500;
 }
 
@@ -314,10 +316,12 @@
 
 .cm_dataGrid_row_focus .cm_dataGrid_cfirst, .cm_dataGrid_row_selected .cm_dataGrid_cfirst,
 	.cm_dataGrid_row_over .cm_dataGrid_cfirst {
+	
 }
 
 .cm_dataGrid_row_focus .cm_dataGrid_clast, .cm_dataGrid_row_selected .cm_dataGrid_clast,
 	.cm_dataGrid_row_over .cm_dataGrid_clast {
+	
 }
 
 .cm_dataGrid_row_selected .cm_dataGrid_cell {
@@ -470,62 +474,4 @@
 .cm_dataGrid_row_focus .cm_dataGrid_cfirst_focus {
 	border-right-width: 0;
 	padding-right: 3px;
-}
-
-.cm_popup {
-	position: absolute;
-	left: -10000px;
-	top: -10000px;
-	border: 1px solid #646464;
-	box-shadow: 2px 2px 2px #656565;
-}
-
-.cm_filtersPopup {
-	background-color: #F0F0F0;
-}
-
-.cm_filtersPopup_list {
-	padding: 1px;
-	margin: 0;
-	list-style-type: none;
-	background: url(filtersPopupBg.png) repeat-y 0 0;
-	image-rendering: -moz-crisp-edges;
-}
-
-.cm_filtersPopup_item {
-	display: flex;
-	margin: 1px;
-}
-
-.cm_filtersPopup_input {
-	flex-grow: 0;
-	-ms-flex-preferred-size: auto;
-	margin-left: 6px;
-	margin-right: 8px;
-	vertical-align: middle;
-}
-
-.cm_filtersPopup_right {
-	padding: 0 4px 0 24px;
-	border: 1px solid transparent;
-	flex-grow: 1;
-	-ms-flex-preferred-size: auto;
-	background: url(filtersPopupItem.png) no-repeat 0 0 scroll;
-	image-rendering: -moz-crisp-edges;
-}
-
-.cm_filtersPopup_label {
-	font: 8pt Tahoma, Verdana, Arial, Helvetica, sans-serif;
-}
-
-.cm_filtersPopup_item_focus .cm_filtersPopup_right,
-	.cm_filtersPopup_item_over .cm_filtersPopup_right {
-	border-color: #6BBBE2;
-	background-color: #D8E6EE;
-}
-
-.cm_filtersPopup_item_focus .cm_filtersPopup_right_over,
-.cm_filtersPopup_item_over .cm_filtersPopup_right_over {
-	border-color: #26A0DA;
-	background-color: #C0DDEB;
 }

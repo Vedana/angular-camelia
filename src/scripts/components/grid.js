@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -25,6 +28,7 @@
 		"$injector",
 		"$interpolate",
 		"$q",
+		"$timeout",
 		"camelia.core",
 		"camelia.SelectionStrategy",
 		"camelia.SelectionProvider",
@@ -33,7 +37,7 @@
 		"cm_grid_rendererProviderName",
 		"camelia.pagerRegistry",
 		"camelia.DataModel",
-		function($log, $injector, $interpolate, $q, cc, SelectionStrategy, SelectionProvider, CursorProvider,
+		function($log, $injector, $interpolate, $q, $timeout, cc, SelectionStrategy, SelectionProvider, CursorProvider,
 				cm_dataGrid_dataModelProviderName, cm_dataGrid_rendererProviderName, pagerRegistry, DataModel) {
 
 			/*
@@ -194,24 +198,30 @@
 					var gridRenderer = new this.rendererProvider(renderContext);
 					this.gridRenderer = gridRenderer;
 
-					gridRenderer.$scope.$watch("first", function(newValue, oldValue) {
+					$scope.$watch("first", function(newValue, oldValue) {
 						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
-						if (self.readyState == "complete") {
-							gridRenderer.updateData(false, false);
+						if (self.readyState != "complete") {
+							return;
 						}
+
+						$timeout(function() {
+							gridRenderer.updateData(false, false);
+						}, 10, false);
 					});
 
-					gridRenderer.$scope.$watch("rows", function(newValue, oldValue) {
+					$scope.$watch("rows", function(newValue, oldValue) {
 						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
-						if (self.readyState == "complete") {
-							gridRenderer.updateData(false);
+						if (self.readyState != "complete") {
+							return;
 						}
+
+						gridRenderer.updateData(false);
 					});
 
 					var containerPromise = gridRenderer.render(doc);
@@ -289,9 +299,9 @@
 				 * @returns {Promise|DataModel}
 				 */
 				normalizeDataModel: function(value) {
-					var dataModelProvider = this.dataModelProvider;
-					if (dataModelProvider) {
-						return new dataModelProvider(value);
+					var DataModelProvider = this.dataModelProvider;
+					if (DataModelProvider) {
+						return new DataModelProvider(value);
 					}
 
 					return DataModel.From(value);
@@ -320,20 +330,22 @@
 	 * ------------------------ DataColumn --------------------------
 	 */
 
-	module.factory("camelia.components.DataColumn", [ "$log", function($log) {
+	module.factory("camelia.components.DataColumn", [ "$log", "camelia.core", function($log, cc) {
 
-		function DataColumn($scope) {
+		function DataColumn($scope, index) {
 			this.$scope = $scope;
 
-			//$scope._component = this;
+			// $scope._component = this;
 
 			var id = $scope.id;
 			if (!id) {
-				id = "cm_data_column_" + (anonymousId++);
+				id = "cm_data_column_" + (index || anonymousId++);
 			}
 			this.id = id;
 
-			this.visible = ($scope.visible !== false);
+			this.visible = $scope.visible === undefined || (cc.toBoolean($scope.visible) !== false);
+
+			this.editable = $scope.editable === undefined || (cc.toBoolean($scope.editable) !== false);
 
 			var titleAlign = $scope.titleAlign;
 			if (titleAlign && /^(center|left|right)$/i.test(titleAlign)) {
@@ -415,14 +427,14 @@
 		"camelia.SelectionProvider",
 		function($log, SelectionProvider) {
 
-			function DataGroup($scope) {
+			function DataGroup($scope, index) {
 				this.$scope = $scope;
 
-				//$scope._component = this;
+				// $scope._component = this;
 
 				var id = $scope.id;
 				if (!id) {
-					id = "cm_data_group_" + (anonymousId++);
+					id = "cm_data_group_" + (index || anonymousId++);
 				}
 				this.id = id;
 

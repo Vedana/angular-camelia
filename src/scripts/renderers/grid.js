@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -13,7 +16,8 @@
 		"camelia.selectionStrategy",
 		"camelia.key",
 		"camelia.renderers.popup",
-		"camelia.components.grid" ]);
+		"camelia.components.grid",
+		"camelia.i18n.grid" ]);
 
 	module.value("cm_grid_rowIndentPx", 16);
 	module.value("cm_grid_className", "cm_dataGrid");

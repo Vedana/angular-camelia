@@ -15,7 +15,7 @@
 	module.factory("camelia.criteria.Alphabetic", [ "$log",
 		"camelia.core",
 		"camelia.criteria.Criteria",
-		"camelia.i18n.criteria",
+		"camelia.i18n.Criteria",
 		function($log, cc, Criteria, i18n) {
 
 			var AlphabeticCriteria = function(scope, element, attrs) {
@@ -37,7 +37,7 @@
 							name: entry,
 							regExp: regExp,
 							id: "alphabetic_" + entry,
-							toJSON: function() {
+							toJson: function() {
 								return {
 									startsWith: entry
 								};
@@ -50,7 +50,7 @@
 						name: cc.lang(i18n, 'alphabetic_others'),
 						regExp: regExp,
 						id: "alphabetic_OTHERS",
-						toJSON: function() {
+						toJson: function() {
 							return {
 								others: true
 							};

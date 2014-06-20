@@ -29,7 +29,7 @@
 		"camelia.renderers.Popup",
 		function($log, $q, $exceptionHandler, $timeout, cc, cm, cm_filtersPopup_className, Key, PopupRenderer) {
 
-			function SearchElements(target) {
+			function searchElements(target) {
 				return cm.SearchElements({
 					lfilter: null,
 					ifilter: null,
@@ -87,29 +87,33 @@
 							}
 							newContext[id] = fContext;
 
+							var idx = (anonymousId++);
 							var li = cc.createElement(ul, "li", {
-								id: "cm_" + ROW_TYPE + "_" + (anonymousId++)
+								id: "cm_" + ROW_TYPE + "_" + idx
 							});
 
 							li.data("context", fContext);
 
 							var input = cc.createElement(li, "input", {
-								id: "cm_ifilter_" + (anonymousId++),
+								id: "cm_ifilter_" + idx,
 								type: "checkbox",
 								className: "cm_filtersPopup_input",
-								name: id,
+								"aria-labelledby": "cm_llfilter_" + idx,
+								name: id
 							});
 							if (fContext.enabled) {
 								input[0].checked = true;
 							}
 
 							var right = cc.createElement(li, "div", {
-								id: "cm_lfilter_" + (anonymousId++),
+								id: "cm_lfilter_" + idx,
 								$inputTarget: input[0].id
 							});
 
 							var label = cc.createElement(right, "label", {
+								id: "cm_llfilter_" + idx,
 								className: "cm_filtersPopup_label",
+								"for": input[0].id,
 								textNode: filter.name || "### unknown ###"
 							});
 
@@ -205,7 +209,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						cm.SwitchOnState(self, elements, "over");
 					};
@@ -217,7 +221,7 @@
 					return function(event) {
 						var target = event.relatedTarget;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOffState(self, elements, "over");
 					};
 				},
@@ -228,7 +232,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOffState(self, elements, "over");
 					};
 				},
@@ -238,7 +242,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						cc.log("FiltersPopup.OnFocus ", target, elements, event.relatedTarget);
 
@@ -258,7 +262,7 @@
 					return function(event) {
 						var target = event.relatedTarget;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						cc.log("FiltersPopup.OnBlur relatedTarget=", target, "target=", event.target, elements);
 
@@ -276,7 +280,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						if (elements.ifilter) {
 							angular.element(elements.rfilter).data("context").enabled = !!elements.ifilter.checked;
 
@@ -291,7 +295,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						cc.log("FiltersPopup.OnMouseDown ", target, elements);
 
@@ -312,7 +316,8 @@
 							self._refreshDatas();
 							$timeout(function() {
 								self.close();
-							});
+
+							}, false);
 						}
 
 						cm.SwitchOnState(self, elements, "mouseDown", function(elements) {
@@ -356,7 +361,7 @@
 					var self = this;
 					return function(event) {
 						var target = event.target;
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						if (elements.ifilter) {
 							return self.performKeyPress_input(elements.ifilter, event, elements);
@@ -372,6 +377,7 @@
 					var viewPort = this.container;
 					var cancel;
 
+					var self = this;
 					switch (event.keyCode) {
 					case Key.VK_DOWN:
 						cancel = true;
@@ -419,6 +425,14 @@
 					case Key.VK_HOME:
 						cancel = true;
 						next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+						break;
+
+					case Key.VK_ESCAPE:
+						cancel = true;
+
+						$timeout(function() {
+							self.close();
+						}, 0, false);
 						break;
 					}
 

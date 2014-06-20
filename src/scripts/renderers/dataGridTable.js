@@ -31,6 +31,12 @@
 
 					var anonymousId = 0;
 
+					function _destroyScope($scope) {
+						return function() {
+							$scope.$destroy();
+						}
+					}
+
 					return {
 						tableRenderer: function(parent) {
 
@@ -54,25 +60,18 @@
 							this.tableElement = table[0];
 
 							var caption = null;
-							var captionText = this.$scope.caption;
-							if (captionText !== undefined) {
-								caption = cc.createElement(table, "caption", {
-									className: "cm_dataGrid_caption",
-								});
-
-								caption.text(captionText);
-							}
-
-							this.$scope.$watch('caption', function() {
-								var captionText = self.$scope.caption;
-
+							this.$scope.$watch('caption', function(newText) {
 								if (!caption) {
-									caption = cc.createElement(thead, "caption", {
+									if (!newText) {
+										return;
+									}
+
+									caption = cc.createElement(table, "caption", {
 										className: "cm_dataGrid_caption"
 									});
 								}
 
-								caption.text(angular.isString(captionText) ? captionText : "");
+								caption.text(angular.isString(newText) ? newText : "");
 							});
 
 							var rowIndent = this.rowIndent;
@@ -144,15 +143,13 @@
 								});
 							});
 
-							/*
-							 * var tbody = cc.createElement(table, "tbody", { className:
-							 * "cm_dataGrid_tbody", id: "cm_tbody_" + (anonymousId++) });
-							 * this.tableTBody = tbody[0];
-							 */
-
 							this.tableStyleUpdate(viewPort);
 
 							return viewPort;
+						},
+						tableDestroy: function() {
+							this.lastDataModel = undefined;
+							this.lastParametersKey = undefined;
 						},
 
 						newCriteriasExpression: function(column, enabledCriterias) {
@@ -185,7 +182,7 @@
 								return false;
 							};
 
-							fct.toJSON = function() {
+							fct.toJson = function() {
 								var pfilters = [];
 								var parameters = {
 									id: column.$scope.criteriaValue || column.$scope.fieldName || column.$scope.id,
@@ -206,7 +203,7 @@
 										};
 										pfilters.push(p);
 
-										var j = filter.toJSON && filter.toJSON();
+										var j = filter.toJson && filter.toJson();
 										if (j) {
 											p.parameters = j;
 										}
@@ -239,28 +236,173 @@
 
 							$timeout(function clearRows() {
 								angular.element(tbody).empty(); // clear Data informations
-							}, 50);
+							}, 50, false);
 						},
 
-						tableRowsRenderer: function() {
-							var dataModel = this.dataModel;
-							if (!dataModel) {
-								return;
-							}
-							var dataGrid = this.dataGrid;
+						tablePrepareDataModel: function(dataModel) {
+							var visibleColumns = this.visibleColumns;
 
+							// Prepare filters
 							var varName = this.$scope.varName;
 
+							var key = {
+								varName: varName
+							};
+
+							var filtersKey;
+
+							var dataModelFilters = null;
 							var self = this;
+							angular.forEach(visibleColumns, function(column) {
+								var criterias = column._criterias;
+								if (!criterias || !criterias.length) {
+									return;
+								}
 
-							var tbody = cc.createElement(this.tableElement, "tbody", {
-								className: "cm_dataGrid_tbody",
-								id: "cm_tbody_" + (anonymousId++)
+								var criteriasContext = column._criteriasContext;
+
+								var enabledCriterias = {};
+								var count = 0;
+								angular.forEach(criterias, function(criteria) {
+
+									var criteriaContext = criteriasContext[criteria.id];
+									angular.forEach(criteriaContext, function(filterContext, filterId) {
+										if (!filterContext.enabled) {
+											return;
+										}
+
+										var c = enabledCriterias[criteria.id];
+										if (!c) {
+											c = [];
+											c.type = criteria.type;
+											enabledCriterias[criteria.id] = c;
+										}
+
+										c.push(filterContext);
+										count++;
+									});
+								});
+
+								var filtredState = !!count;
+								var titleElement = column.titleElement;
+								if (titleElement._filtred != filtredState) {
+									titleElement._filtred = filtredState;
+
+									cc.BubbleEvent(titleElement, "cm_update");
+								}
+
+								if (!count) {
+									return;
+								}
+
+								if (!dataModelFilters) {
+									dataModelFilters = [];
+								}
+
+								var ce = self.newCriteriasExpression(column, enabledCriterias);
+								dataModelFilters.push(ce);
+
+								var ceParameters = ce.toJson();
+								if (ceParameters) {
+									if (!filtersKey) {
+										filtersKey = [];
+										key.filters = filtersKey;
+									}
+
+									filtersKey.push(ceParameters);
+								}
 							});
-							this.tableTBody = tbody[0];
 
-							// Prepare columns
+							var sorters = this.sorters;
+							var dataModelSorters = undefined;
+							if (sorters && sorters.length) {
+								dataModelSorters = [];
 
+								var sortersKey = [];
+								key.sorters = sortersKey;
+
+								angular.forEach(sorters, function(sorter) {
+									var column = sorter.column;
+
+									var columnSorters = column.$scope.sorter;
+									if (!columnSorters) {
+										return;
+									}
+
+									dataModelSorters.push({
+										expression: columnSorters,
+										column: column,
+										ascending: sorter.ascending
+									});
+
+									sortersKey.push({
+										expression: columnSorters,
+										column: column.$scope.id || column.$scope.fieldName || column.id,
+										ascending: sorter.ascending
+									});
+								});
+							}
+
+							var groupProvider = this.selectedGroupProvider;
+							if (groupProvider) {
+								key.groupProvider = groupProvider.$scope.id || groupProvider.id;
+							}
+
+							var parametersKey = angular.toJson(key);
+							if (this.lastDataModel === dataModel && this.lastParametersKey == parametersKey) {
+								return this.lastDecoratedDataModel;
+							}
+							this.lastDataModel = dataModel;
+							this.lastParametersKey = parametersKey;
+							if (this.lastDecoratedDataModel) {
+								this.lastDecoratedDataModel.$destroyChildren();
+								this.lastDecoratedDataModel = null;
+							}
+
+							if (dataModelFilters) {
+								if (!dataModel.isFilterSupport()) {
+
+									dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
+										return new FiltredDataModel(dataModel, varName);
+									} ]);
+								}
+							}
+							dataModel.setFilters(dataModelFilters);
+
+							if (dataModelSorters) {
+								if (!dataModel.isSortSupport()) {
+									dataModel = $injector.invoke([ "camelia.SortedDataModel", function(SortedDataModel) {
+										return new SortedDataModel(dataModel);
+									} ]);
+								}
+							}
+							dataModel.setSorters(dataModelSorters);
+
+							var dataModelGrouped = false;
+							if (groupProvider) {
+								if (!dataModel.isGroupSupport()) {
+									dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
+										return new GroupedDataModel(dataModel, groupProvider, varName);
+									} ]);
+								}
+								dataModel.setGrouped(dataModelGrouped);
+							}
+
+							dataModel.setDataScope(this.$scope.$parent);
+
+							this.lastDecoratedDataModel = dataModel;
+
+							var dataGrid = this.dataGrid;
+							dataGrid.rowCount = -1;
+							dataGrid.maxRows = -1;
+							dataGrid.visibleRows = -1;
+
+							return dataModel;
+						},
+
+						tablePrepareColumns: function() {
+
+							var self = this;
 							var visibleColumns = this.visibleColumns;
 							angular.forEach(visibleColumns, function(column) {
 								var valueExpression = column.valueExpression;
@@ -276,6 +418,9 @@
 
 											} else {
 												valueExpression = function(rowScope) {
+													if (!rowScope.$row) {
+														debugger;
+													}
 													return rowScope.$row[fieldName];
 												}
 											}
@@ -325,107 +470,50 @@
 									column.templates = (templates.length) ? templates : false;
 								}
 							});
+						},
 
-							// Prepare filters
+						tableRowsRenderer: function() {
+							var dataModel = this.dataModel;
+							if (!dataModel) {
+								return $q.when(false);
+							}
+							var dataGrid = this.dataGrid;
 
-							var filters = [];
+							var varName = this.$scope.varName;
 
-							angular.forEach(visibleColumns, function(column) {
-								var criterias = column._criterias;
-								if (!criterias || !criterias.length) {
-									return;
-								}
+							var self = this;
 
-								var criteriasContext = column._criteriasContext;
+							var fragment = angular.element(document.createDocumentFragment());
 
-								var enabledCriterias = {};
-								var count = 0;
-								angular.forEach(criterias, function(criteria) {
-
-									var criteriaContext = criteriasContext[criteria.id];
-									angular.forEach(criteriaContext, function(filterContext, filterId) {
-										if (!filterContext.enabled) {
-											return;
-										}
-
-										var c = enabledCriterias[criteria.id];
-										if (!c) {
-											c = [];
-											c.type = criteria.type;
-											enabledCriterias[criteria.id] = c;
-										}
-
-										c.push(filterContext);
-										count++;
-									});
-								});
-
-								var filtredState = !!count;
-								var titleElement = column.titleElement;
-								if (titleElement._filtred != filtredState) {
-									titleElement._filtred = filtredState;
-
-									cc.BubbleEvent(titleElement, "cm_update");
-								}
-
-								if (!count) {
-									return;
-								}
-
-								filters.push(self.newCriteriasExpression(column, enabledCriterias));
+							var tbody = cc.createElement(fragment, "tbody", {
+								className: "cm_dataGrid_tbody",
+								id: "cm_tbody_" + (anonymousId++)
 							});
-							var dataModelFilters = undefined;
-							if (filters.length) {
-								if (!dataModel.isFilterSupport()) {
-									dataModel = $injector.invoke([ "camelia.FiltredDataModel", function(FiltredDataModel) {
-										return new FiltredDataModel(dataModel, varName);
-									} ]);
+
+							function showTBody() {
+								if (!fragment) {
+									return;
 								}
 
-								dataModelFilters = filters;
-							}
-							dataModel.setFilters(dataModelFilters);
+								self.tableElement.appendChild(fragment[0]);
+								self.tableTBody = tbody[0];
 
-							// Prepare sorters
-
-							var sorters = this.sorters;
-							var dataModelSorters = undefined;
-							if (sorters && sorters.length) {
-								var sorter0 = sorters[0];
-
-								var columnSorters = sorter0.column.$scope.sorter;
-								if (columnSorters && columnSorters != "server") {
-									if (!dataModel.isSortSupport()) {
-										dataModel = $injector.invoke([ "camelia.SortedDataModel", function(SortedDataModel) {
-											return new SortedDataModel(dataModel);
-										} ]);
-									}
-									dataModelSorters = [ {
-										expression: columnSorters,
-										column: sorter0.column,
-										ascending: sorter0.ascending
-									} ];
+								fragment = null;
+								if (showTimerPromise) {
+									$timeout.cancel(showTimerPromise);
+									showTimerPromise = null;
 								}
 							}
-							dataModel.setSorters(dataModelSorters);
 
-							var dataModelGrouped = false;
-							var groupDataModel = null;
-							var groupProvider = this.selectedGroupProvider;
-							if (groupProvider) {
-								if (!dataModel.isGroupSupport()) {
-									dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
-										return new GroupedDataModel(dataModel, groupProvider, varName);
-									} ]);
-								}
-								dataModelGrouped = true;
-								groupDataModel = dataModel;
-							}
-							dataModel.setGrouped(dataModelGrouped);
+							var showTimerPromise = $timeout(showTBody, 500, false);
+
+							this.tablePrepareColumns();
+
+							dataModel = this.tablePrepareDataModel(dataModel);
+
+							var groupDataModel = dataModel.getGroup && dataModel;
 
 							var rowIndent = (groupDataModel) ? 1 : 0;
-
-							dataModel.setScope(this.$scope.$parent);
 
 							var first = this.$scope.first;
 							if (!angular.isNumber(first) || first < 0) {
@@ -454,6 +542,7 @@
 								rowCount = -1;
 							}
 							dataGrid.rowCount = rowCount;
+							console.log("Return rowCount=" + rowCount + " from model");
 
 							var visibleIndex = 0;
 							var tbodyElement = tbody[0] || tbody;
@@ -467,22 +556,24 @@
 							var progressDate = 0;
 
 							function setupDataGrid(lastRowReached) {
+								showTBody();
+
 								if (!visibleIndex) {
-									if (first) {
+									if (!first) {
 										dataGrid.rowCount = 0;
 										dataGrid.maxRows = 0;
 
-									} else {
-										dataGrid.rowCount = -1;
-										dataGrid.maxRows = -1;
+										console.log("Reset rowCount and maxRows");
 									}
 
 								} else {
 									if (lastRowReached) {
 										dataGrid.rowCount = first + visibleIndex;
 									}
-									dataGrid.maxRows = Math.max(dataGrid.maxRows, dataGrid.rowCount);
+									dataGrid.maxRows = Math.max(dataGrid.maxRows, first + visibleIndex);
 								}
+
+								dataGrid.visibleRows = visibleIndex;
 							}
 
 							function availablePromise(available) {
@@ -521,7 +612,7 @@
 										var rowData = dataModel.getRowData();
 										if (groupDataModel) {
 											if (!groupScope) {
-												groupScope = self.$scope.$new(true);
+												groupScope = self.$scope.$parent.$new();
 											}
 
 											groupScope.$group = null;
@@ -550,9 +641,7 @@
 												tr.data("cm_value", group);
 
 												if (!destroyGroupScopeRef.value) {
-													tr.on('$destroy', function() {
-														groupScope.$destroy()
-													});
+													tr.on('$destroy', _destroyScope(groupScope));
 													tr.data('$isolateScope', groupScope);
 													groupScope.$digest();
 													groupScope = null;
@@ -566,7 +655,7 @@
 
 										if (!groupCollapsed) {
 											if (!rowScope) {
-												rowScope = self.$scope.$new(true);
+												rowScope = self.$scope.$parent.$new();
 											}
 
 											rowScope.$index = visibleIndex;
@@ -590,9 +679,7 @@
 											tr.data("cm_value", rowData);
 
 											if (!destroyRowScopeRef.value) {
-												tr.on('$destroy', function() {
-													rowScope.$destroy()
-												});
+												tr.on('$destroy', _destroyScope(rowScope));
 												tr.data('$isolateScope', rowScope);
 												rowScope.$digest();
 												rowScope = null;
@@ -659,6 +746,9 @@
 
 								dataGrid.rowCount = -1;
 								dataGrid.maxRows = -1;
+								dataGrid.visibleRows = visibleIndex;
+
+								showTBody();
 
 								throw x;
 							}
@@ -758,7 +848,7 @@
 							var self = this;
 							function timer() {
 
-								var rowScope = self.$scope.$new(true);
+								var rowScope = self.$scope.$parent.$new();
 								var destroyRowScopeRef = {
 									value: true
 								};
@@ -782,9 +872,7 @@
 									tr.data("cm_value", rowData);
 
 									if (!destroyRowScopeRef.value) {
-										tr.on('$destroy', function() {
-											rowScope.$destroy()
-										});
+										tr.on('$destroy', _destroyScope(rowScope));
 										tr.data('$isolateScope', rowScope);
 										rowScope.$digest();
 										rowScope = null;

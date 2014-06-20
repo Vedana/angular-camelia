@@ -36,7 +36,7 @@
 				var self = this;
 				return [ {
 					name: this.name,
-					toJSON: function() {
+					toJson: function() {
 						return {
 							type: self._value,
 							reverse: self._false

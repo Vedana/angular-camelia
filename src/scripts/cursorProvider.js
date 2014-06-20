@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -8,13 +11,13 @@
 	'use strict';
 
 	var module = angular.module('camelia.cursorProvider', [ "camelia.core" ]);
-	
+
 	module.factory('camelia.CursorProvider', [ "$rootScope", "camelia.core", function($rootScope, cc) {
 
-		var scopeProto = $rootScope.__proto__ || Object.getPrototypeOf($rootScope);
+		var scopeProto = cc.getProto($rootScope);
 
 		function CursorProvider(cardinality) {
-			scopeProto.constructor.call(this);
+			cc.inheritRootScope(this);
 		}
 
 		CursorProvider.CURSOR_CHANGED = "cursorChanged";

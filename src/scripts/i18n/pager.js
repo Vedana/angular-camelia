@@ -12,16 +12,23 @@
 
 	var module = angular.module("camelia.i18n.pager", []);
 
-	module.factory("camelia.i18n.pager", [ function() {
+	module.factory("camelia.i18n.Pager", [ function() {
 
 		return {
 			'en': {
 				bfirst_label: "First",
 				blast_label: "Last",
-				bprev_label: "Previous",
+				bprev_label: "<",
 				bprev_tooltip: "Show previous page",
-				bnext_label: "Next",
-				bnext_tooltip: "Show next page"
+				bnext_label: ">",
+				bnext_tooltip: "Show next page",
+				index_label: "{pageIndex}",
+				index_tooltip: "Show page #{pageIndex}",
+				cindex_label: "{pageIndex}",
+				cindex_tooltip: "Current page #{pageIndex}",
+				uindex_label: "...",
+				uindex_tooltip: "Show next page",
+				separator: " "
 			}
 		};
 

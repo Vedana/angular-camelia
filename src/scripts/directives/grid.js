@@ -65,12 +65,20 @@
 					$scope.columns = [];
 					this.appendColumn = function(column) {
 						$scope.columns.push(column);
-					}
+					};
+
+					this.getColumnIndex = function() {
+						return $scope.columns.length;
+					};
 
 					$scope.groupProviders = [];
 					this.appendGroupProvider = function(groupProvider) {
 						$scope.groupProviders.push(groupProvider);
-					}
+					};
+
+					this.getProviderIndex = function() {
+						return $scope.groupProviders.length;
+					};
 				} ],
 				compile: function() {
 					return {
@@ -133,7 +141,8 @@
 					columnImageURL: '@columnimageurl',
 					cellImageURL: '@cellimageurl',
 					criteriaValue: '@criteriavalue',
-					watched: '@'
+					watched: '@',
+					editable: '@' // For aria-readOnly
 				},
 				controller: function() {
 					this.criterias = [];
@@ -156,7 +165,8 @@
 
 							var controller = element.controller("cmDatacolumn");
 
-							var column = new datagridController.componentProvider.DataColumn($scope);
+							var column = new datagridController.componentProvider.DataColumn($scope, datagridController
+									.getColumnIndex() + 1);
 
 							angular.forEach(controller.criterias, function(criteria) {
 								column.addCriteria(criteria);
@@ -169,37 +179,40 @@
 			};
 		} ]);
 
-	module.directive("cmDatagroup", [ "camelia.core", "camelia.components.Template", function(cc, Template) {
-		return {
-			require: "^cmDatagrid",
-			restrict: "E",
-			scope: {
-				title: '@',
-				value: '@',
-				closeable: '@',
-				disabled: '@',
-				collapsedGroups: '=?collapsedgroups',
-				className: '@class',
-				sorter: '@'
-			},
-			compile: function() {
-				return {
-					pre: function($scope, element, attrs) {
-						$scope.titleRawExpression = element.attr("title");
-						$scope.titleClassRawExpression = element.attr("titleclass");
-						$scope.valueRawExpression = element.attr("value");
+	module.directive("cmDatagroup", [ "camelia.core",
+		"camelia.components.Template",
+		function(cc, Template) {
+			return {
+				require: "^cmDatagrid",
+				restrict: "E",
+				scope: {
+					title: '@',
+					value: '@',
+					closeable: '@',
+					disabled: '@',
+					collapsedGroups: '=?collapsedgroups',
+					className: '@class',
+					sorter: '@'
+				},
+				compile: function() {
+					return {
+						pre: function($scope, element, attrs) {
+							$scope.titleRawExpression = element.attr("title");
+							$scope.titleClassRawExpression = element.attr("titleclass");
+							$scope.valueRawExpression = element.attr("value");
 
-						Template.markContainer(element, $scope);
-					},
-					post: function($scope, element, attrs, dataGridController) {
-						var column = new dataGridController.componentProvider.DataGroup($scope);
+							Template.markContainer(element, $scope);
+						},
+						post: function($scope, element, attrs, dataGridController) {
+							var column = new dataGridController.componentProvider.DataGroup($scope, datagridController
+									.getProviderIndex() + 1);
 
-						dataGridController.appendGroupProvider(column);
-					}
+							dataGridController.appendGroupProvider(column);
+						}
+					};
 				}
-			}
-		};
-	} ]);
+			};
+		} ]);
 
 	module.directive("cmCriteria", [ "camelia.core", "$log", "$injector", function(cc, $log, $injector) {
 		return {
@@ -233,8 +246,8 @@
 
 						var criterias = dataColumnController.criterias;
 						try {
-							$injector.invoke([ criteriaName, function(criteriaClass) {
-								var criteria = new criteriaClass($scope, element, attrs);
+							$injector.invoke([ criteriaName, function(CriteriaClass) {
+								var criteria = new CriteriaClass($scope, element, attrs);
 
 								criterias.push(criteria);
 							} ]);

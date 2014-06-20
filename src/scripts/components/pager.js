@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -10,10 +13,10 @@
 	var module = angular.module("camelia.components.pager", [ "camelia.core", "camelia.pagerRegistry" ]);
 
 	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.Pager");
-	module.value("xcm_pager_format", "{bprev} {first} {bnext}");
+	module.value("cm_pager_format", "{bprev} {bpages} {bnext}");
 	module
 			.value(
-					"cm_pager_format",
+					"xcm_pager_format",
 					"'first=' {first} 'last=' {last} 'rowCount=' {rowCount} 'pageCount=' {pageCount} 'pagePos=' {pagePosition} {bprev} {bnext}");
 
 	var anonymousId = 0;
@@ -62,8 +65,7 @@
 				}
 
 				this.targetPromise = targetPromise;
-
-			}
+			};
 
 			PagerBase.prototype = {
 

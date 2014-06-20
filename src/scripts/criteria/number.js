@@ -43,7 +43,7 @@
 				var self = this;
 				return [ {
 					name: this.name,
-					toJSON: function() {
+					toJson: function() {
 						return {
 							value: self._value,
 							reverse: self._false
@@ -54,7 +54,7 @@
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 				var f = this._false;
 
-				if (angular.isNumber(value) == false) {
+				if (!angular.isNumber(value)) {
 					return f;
 				}
 

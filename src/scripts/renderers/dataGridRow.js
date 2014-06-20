@@ -23,6 +23,10 @@
 
 			return {
 				rowRenderer: function(parentElement, rowScope, index, rowIdent, destroyScopeRef) {
+					if (!rowScope) {
+						throw new Error("RowScope is invalid " + rowScope);
+					}
+
 					var doc = parentElement.ownerDocument || document;
 
 					var tr = cc.createElement(parentElement, "tr", {
@@ -105,9 +109,10 @@
 					angular.forEach(this.visibleColumns, function(column) {
 						var tdTag = (column.scope) ? "th" : "td";
 
+						var tdIdx = (anonymousId++);
 						var td = cc.createElement(tr, tdTag, {
-							id: "cm_cell_" + (anonymousId++),
-							"aria-labelledBy": column.titleElement.id,
+							id: "cm_cell_" + tdIdx,
+							"aria-labelledBy": column.labelElement.id + " cm_cell_" + tdIdx,
 							tabIndex: -1,
 							nowrap: "nowrap",
 							role: "gridcell",
@@ -145,6 +150,20 @@
 						classes.push.apply(classes, tr.cm_rowClasses);
 					}
 
+					var ariaState = 0;
+					if (tr._selected) {
+						ariaState |= 0x01;
+					}
+					if (tr.ariaState != ariaState) {
+						tr.ariaState = ariaState;
+
+						if (tr._selected) {
+							tr.setAttribute("aria-selected", tr._selected);
+						} else {
+							tr.removeAttribute("aria-selected");
+						}
+					}
+
 					return cm.MixElementClasses(tr, classes);
 				},
 
@@ -163,13 +182,19 @@
 								}
 							}
 
-							var comp = template.transclude(angular.element(td), rowScope);
+							var comp = template.transclude(td, rowScope);
 
 							destroyScopeRef.value = false;
+
+							if (column.editable === false) {
+								// td.attr("aria-readonly", true);
+							}
 
 							return comp;
 						}
 					}
+
+					// td.attr("aria-readonly", true);
 
 					var label = cc.createElement(td, "label", {
 						className: "cm_dataGrid_clabel"

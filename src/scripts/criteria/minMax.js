@@ -51,7 +51,7 @@
 				var self = this;
 				return [ {
 					name: this.name,
-					toJSON: function() {
+					toJson: function() {
 						return {
 							min: self._min,
 							minEq: self._minEq,
@@ -65,7 +65,7 @@
 			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 				var f = this._false;
 
-				if (angular.isNumber(value) == false) {
+				if (!angular.isNumber(value)) {
 					return f;
 				}
 
