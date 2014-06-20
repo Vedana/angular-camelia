@@ -28,7 +28,8 @@
 				cindex_tooltip: "Current page #{pageIndex}",
 				uindex_label: "...",
 				uindex_tooltip: "Show next page",
-				separator: " "
+				separator: " ",
+				noPages: "No pages"
 			}
 		};
 

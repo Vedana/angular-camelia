@@ -456,6 +456,11 @@
 					var maxRows = $scope.maxRows;
 					var rows = $scope.rows;
 
+					if (!maxRows) {
+						this.renderValue(parent, cc.lang(i18n, "noPages"), "noPages");
+						return;
+					}
+
 					var maxPage = 3 * 2 + 1;
 					var sep = null;
 
@@ -499,7 +504,7 @@
 
 					for (var i = 0; i < showPage; i++) {
 						if (i > 0) {
-							this.renderSpan(parent, sep);
+							this.renderSpan(parent, sep, "sep");
 						}
 
 						var pi = pageOffset + i;
@@ -535,6 +540,10 @@
 				},
 
 				labelStyleUpdate: function(element) {
+					if (element[0]) {
+						element = element[0];
+					}
+
 					return cm.MixElementClasses(element, [ "cm_pager_label" ]);
 				},
 

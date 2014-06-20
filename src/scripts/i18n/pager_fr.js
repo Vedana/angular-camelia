@@ -30,7 +30,8 @@
 					cindex_tooltip: "Page courrante #{pageIndex}",
 					uindex_label: "...",
 					uindex_tooltip: "Voir la page suivante",
-					separator: " "
+					separator: " ",
+					noPages: "Aucune page"
 				}
 			});
 		} ]);
