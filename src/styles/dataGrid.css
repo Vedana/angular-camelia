@@ -340,8 +340,12 @@
 	background-color: #CBE8F6;
 }
 
-.cm_dataGrid_row_focus .cm_dataGrid_cell {
+.cm_dataGrid_row_cursor .cm_dataGrid_cell {
 	border-color: #DEDEDE;
+}
+
+.cm_dataGrid_table_focus .cm_dataGrid_row_cursor .cm_dataGrid_cell {
+	border-color: #26A0DA;
 }
 
 .cm_dataGrid_row_mouseDown .cm_dataGrid_cell {
