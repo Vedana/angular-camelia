@@ -44,6 +44,7 @@
 					id: '@',
 					selection: '=?',
 					cursor: '=?',
+					columnCursor: '=?',
 					first: '=?',
 					rows: '=?',
 					rowCount: '=?rowcount',
@@ -158,8 +159,8 @@
 
 							if ($scope.fieldName) {
 								if (/[^\w]/.test($scope.fieldName)) {
-									throw new Error("Invalid fieldName expression '" + $scope.fieldName + "' use value='{{"
-											+ $scope.fieldName + "}}' instead !");
+									throw new Error("Invalid fieldName expression '" + $scope.fieldName + "' use value='{{" +
+											$scope.fieldName + "}}' instead !");
 								}
 							}
 
