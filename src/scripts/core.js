@@ -76,15 +76,15 @@
 								tagName = arguments[i++];
 								properties = arguments[i++];
 
-								this.Assert(typeof (tagName) == "string", "createElement", "Invalid 'tagName' parameter (" + tagName
-										+ ")");
+								this.Assert(typeof (tagName) == "string", "createElement", "Invalid 'tagName' parameter (" + tagName +
+										")");
 								this.Assert(properties === undefined || typeof (properties) == "object", "createElement",
 										"Invalid properties parameter (" + properties + ")");
 
-								if (this.IsMSIE() <= 6 && tagName.toLowerCase() == "input" && properties && properties.type
-										&& properties.name) {
-									element = doc.createElement("<input name=\"" + properties.name + "\" type=\"" + properties.type
-											+ "\">");
+								if (this.IsMSIE() <= 6 && tagName.toLowerCase() == "input" && properties && properties.type &&
+										properties.name) {
+									element = doc.createElement("<input name=\"" + properties.name + "\" type=\"" + properties.type +
+											"\">");
 									delete properties.name;
 									delete properties.type;
 
@@ -511,15 +511,56 @@
 						},
 
 						getProto: function(type) {
-							return type.__proto__ || Object.getPrototypeOf(type);
+							return (Object.getPrototypeOf && Object.getPrototypeOf(type)) || type.__proto__;
 						},
 
-						inheritRootScope: function(obj) {
-							var prototype = obj.__proto__;
+						inheritScope: function(obj, parentScope, isolate) {
+							var prototype = this.getProto(obj);
 
-							var scope = $rootScope.$new(true);
+							var scope = (parentScope || $rootScope).$new(isolate !== false);
+							if (Object.setPrototypeOf) {
+								Object.setPrototypeOf(obj, scope);
+								Object.setPrototypeOf(scope, prototype);
+								return;
+							}
+
 							obj.__proto__ = scope;
 							scope.__proto__ = prototype;
+						},
+						extend: function(clazz, parentClass, members) {
+							return this.extendProto(clazz, parentClass.prototype, members);
+						},
+						extendProto: function(clazz, parentProto, members) {
+							var proto = Object.create(parentProto);
+							clazz.prototype = proto;
+							angular.extend(proto, members || {});
+
+							proto.constructor = clazz;
+							proto.$super = parentProto;
+
+							return clazz;
+						},
+						on: function(target, type, listener, useCapture, scope) {
+							if (target[0]) {
+								target = target[0];
+							}
+
+							var listenerApply = function(event) {
+								var self = this;
+
+								var ret;
+								(scope || $rootScope).$apply(function() {
+									ret = listener.call(self, event);
+								});
+
+								return ret;
+							};
+
+							target.addEventListener(type, listenerApply, useCapture);
+
+							return function() {
+								target.removeEventListener(type, listenerApply, useCapture);
+							};
 						}
 					};
 				} ]);
