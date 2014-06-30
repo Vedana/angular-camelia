@@ -23,34 +23,32 @@
 			 * ------------------------ SelectionProvider --------------------------
 			 */
 
-			function SelectionProvider() {
-				cc.inheritRootScope(this);
+			function SelectionProvider($parentScope) {
+				cc.inheritScope(this, $parentScope);
 			}
 
-			SelectionProvider.SELECTION_CHANGING_EVENT = "selectionChanging";
-			SelectionProvider.SELECTION_CHANGED_EVENT = "selectionChanged";
-			SelectionProvider.SELECTION_SET_EVENT = "selectionSet";
+			SelectionProvider.SELECTION_CHANGING_EVENT = "cm:selectionChanging";
+			SelectionProvider.SELECTION_CHANGED_EVENT = "cm:selectionChanged";
+			SelectionProvider.SELECTION_SET_EVENT = "cm:selectionSet";
 
-			SelectionProvider.From = function(parameter) {
+			SelectionProvider.From = function(parameter, $parentScope) {
 				var ArraySelectionProvider = $injector.invoke([ "camelia.ArraySelectionProvider",
 					function(ArraySelectionProvider) {
 						return ArraySelectionProvider;
 					} ]);
 
 				if (parameter === undefined) {
-					return new ArraySelectionProvider([]);
+					return new ArraySelectionProvider($parentScope, []);
 				}
 
 				if (angular.isArray(parameter)) {
-					return new ArraySelectionProvider(parameter);
+					return new ArraySelectionProvider($parentScope, parameter);
 				}
 
-				return new ArraySelectionProvider([ parameter ]);
+				return new ArraySelectionProvider($parentScope, [ parameter ]);
 			};
 
-			SelectionProvider.prototype = Object.create(scopeProto);
-			angular.extend(SelectionProvider.prototype, {
-				constructor: SelectionProvider,
+			cc.extendProto(SelectionProvider, scopeProto, {
 
 				_lock: false,
 
@@ -164,11 +162,11 @@
 				},
 
 				_startLock: function() {
-					this.$broadcast("startLock");
+					this.$broadcast("cm:startLock");
 				},
 
 				_endLock: function() {
-					this.$broadcast("endLock");
+					this.$broadcast("cm:endLock");
 				},
 				contains: function(obj) {
 					return false;
@@ -197,8 +195,8 @@
 			 * SelectionProvider for an array of objects
 			 */
 
-			function ArraySelectionProvider(array) {
-				SelectionProvider.prototype.constructor.call(this);
+			function ArraySelectionProvider($parentScope, array) {
+				SelectionProvider.prototype.constructor.call(this, $parentScope);
 
 				this._array = array;
 			}
@@ -270,6 +268,10 @@
 					return (this._added.length - addedLength) + (removedLength - this._removed.length);
 				},
 				_processSet: function(newArray) {
+					if (newArray === this._array) {
+						return 0;
+					}
+
 					return this._processList(function() {
 						// Add old entries to REMOVED
 						// Remove old entries to ADDED
