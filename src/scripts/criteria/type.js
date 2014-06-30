@@ -12,50 +12,51 @@
 
 	var module = angular.module("camelia.criteria");
 
-	module.factory("camelia.criteria.Type", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+	module.factory("camelia.criteria.Type", [ "$log",
+		"camelia.criteria.Criteria",
+		"camelia.core",
+		function($log, Criteria, cc) {
 
-		var Type = function(scope, element, attrs) {
-			Criteria.call(this, scope, element, attrs);
+			var Type = function(scope, element, attrs) {
+				Criteria.call(this, scope, element, attrs);
 
-			this.type = "Type";
+				this.type = "Type";
 
-			var value = attrs.value;
-			if (!value) {
-				throw new Error("You must specify value attribute");
-			}
-
-			this._value = value;
-
-			this._false = (attrs.reverse == "true");
-		};
-
-		Type.prototype = Object.create(Criteria.prototype);
-
-		angular.extend(Type.prototype, {
-			contributeFilters: function(container) {
-				var self = this;
-				return [ {
-					name: this.name,
-					toJson: function() {
-						return {
-							type: self._value,
-							reverse: self._false
-						};
-					}
-				} ];
-			},
-			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
-				var f = this._false;
-
-				if (typeof (value) == this._value) {
-					return !f;
+				var value = attrs.value;
+				if (!value) {
+					throw new Error("You must specify value attribute");
 				}
 
-				return f;
-			}
-		});
+				this._value = value;
 
-		return Type;
-	} ]);
+				this._false = (attrs.reverse == "true");
+			};
+
+			cc.extend(Type, Criteria, {
+				contributeFilters: function(container) {
+					var self = this;
+					return [ {
+						name: this.name,
+						toJson: function() {
+							return {
+								type: self._value,
+								reverse: self._false
+							};
+						}
+					} ];
+				},
+				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+					var f = this._false;
+
+					if (typeof (value) == this._value) {
+						return !f;
+					}
+
+					return f;
+				}
+			});
+
+			return Type;
+		} ]);
 
 })(window, window.angular);

@@ -24,9 +24,7 @@
 				this.type = "Alphabetic";
 			};
 
-			AlphabeticCriteria.prototype = Object.create(Criteria.prototype);
-
-			angular.extend(AlphabeticCriteria.prototype, {
+			cc.extend(AlphabeticCriteria, Criteria, {
 				contributeFilters: function(dataModel) {
 					var c = [];
 

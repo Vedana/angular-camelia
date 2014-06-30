@@ -12,65 +12,67 @@
 
 	var module = angular.module("camelia.criteria");
 
-	module.factory("camelia.criteria.Number", [ "$log", "camelia.criteria.Criteria", function($log, Criteria) {
+	module.factory("camelia.criteria.Number", [ "$log",
+		"camelia.criteria.Criteria",
+		"camelia.core",
+		function($log, Criteria, cc) {
 
-		var NumberCriteria = function(scope, element, attrs) {
-			Criteria.call(this, scope, element, attrs);
+			var NumberCriteria = function(scope, element, attrs) {
+				Criteria.call(this, scope, element, attrs);
 
-			this.type = "Number";
+				this.type = "Number";
 
-			var value = attrs.value;
-			if (!value) {
-				throw new Error("You must specify value attribute");
-			}
+				var value = attrs.value;
+				if (!value) {
+					throw new Error("You must specify value attribute");
+				}
 
-			if (attrs.integer == "true") {
-				this._integer = true;
-				value = parseInt(value, 10);
+				if (attrs.integer == "true") {
+					this._integer = true;
+					value = parseInt(value, 10);
 
-			} else {
-				value = parseFloat(value);
-			}
-			this._value = value;
+				} else {
+					value = parseFloat(value);
+				}
+				this._value = value;
 
-			this._false = (attrs.reverse == "true");
-		};
+				this._false = (attrs.reverse == "true");
+			};
 
-		NumberCriteria.prototype = Object.create(Criteria.prototype);
+			cc.extend(NumberCriteria, Criteria, {
 
-		angular.extend(NumberCriteria.prototype, {
-			contributeFilters: function(container) {
-				var self = this;
-				return [ {
-					name: this.name,
-					toJson: function() {
-						return {
-							value: self._value,
-							reverse: self._false
-						};
+				contributeFilters: function(container) {
+					var self = this;
+					return [ {
+						name: this.name,
+						toJson: function() {
+							return {
+								value: self._value,
+								reverse: self._false
+							};
+						}
+					} ];
+				},
+				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
+					var f = this._false;
+
+					if (!angular.isNumber(value)) {
+						return f;
 					}
-				} ];
-			},
-			filterData: function(enabledFilters, value, rowScope, dataModel, column) {
-				var f = this._false;
 
-				if (!angular.isNumber(value)) {
+					if (this._integer) {
+						value = Math.floor(value);
+					}
+
+					if (this._value === value) {
+						return !f;
+					}
+
 					return f;
 				}
+			});
 
-				if (this._integer) {
-					value = Math.floor(value);
-				}
-
-				if (this._value === value) {
-					return !f;
-				}
-
-				return f;
-			}
-		});
-
-		return NumberCriteria;
-	} ]);
+			return NumberCriteria;
+		} ]);
 
 })(window, window.angular);
