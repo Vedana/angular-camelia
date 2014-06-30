@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -9,94 +12,76 @@
 
 	var module = angular.module("camelia.pagerRegistry", [ "camelia.core" ]);
 
-	module.factory("camelia.pagerRegistry", [ "$log", "$q", "camelia.core",
+	module.factory("camelia.PagerRegistry", [ "$log", "$q", "camelia.core", function($log, $q, cc) {
 
-	function($log, $q, cc) {
+		var doc = angular.element(document);
+		var controller = doc.controller("cmPagerRegistry");
 
-		var waitIds = document._camelia_pagerRegistry;
-		if (!waitIds) {
-			waitIds = {};
-			document._camelia_pagerRegistry = waitIds;
+		if (!controller) {
+			controller = {
+				promisesByTargetId: {}
+			};
+
+			doc.data('$cmPagerRegistryController', controller);
 		}
 
-		function garbagePagerIds() {
-			angular.forEach(waitIds, function(pagers, targetId) {
-				for (var i = 0; i < pagers.length;) {
-					var pager = pagers[i];
+		var promisesByTargetId = controller.promisesByTargetId;
 
-					// Pager still alive ?
-					if (document.getElementById(pager.id)) {
-						i++;
-						continue;
-					}
+		var PagerRegistry = {
+			TARGET_DECLARED: "cm:targetDeclared",
 
-					// No remove it !
-					pager.deferred.reject("Pager garbaged !");
+			RegisterWaitingFor: function($pagerScope, targetId) {
 
-					pagers.splice(i, 1);
+				var pagerDeferredList = promisesByTargetId[targetId];
+				if (pagerDeferredList === true) {
+					return $q.when(target);
 				}
 
-				if (pagers.length) {
+				if (!pagerDeferredList) {
+					pagerDeferredList = [];
+					promisesByTargetId[targetId] = pagerDeferredList;
+				}
+
+				var deferred = $q.defer();
+				pagerDeferredList.push(deferred);
+
+				var off = $pagerScope.$on("$destroy", function() {
+					var idx = pagerDeferredList.indexOf(deferred);
+					if (idx < 0) {
+						off();
+						return;
+					}
+
+					pagerDeferredList.splice(idx, 1);
+
+					deferred.reject("Pager destroyed");
+
+					off();
+				});
+
+				return deferred.promise;
+			},
+
+			DeclareTarget: function(target) {
+				if (target[0]) {
+					target = target[0];
+				}
+
+				var targetId = target.id;
+
+				var ts = promisesByTargetId[targetId];
+				promisesByTargetId[targetId] = true;
+				if (!ts) {
 					return;
 				}
 
-				delete waitIds[targetId];
-			});
-		}
-
-		function waitTarget(pagerId, targetId) {
-			garbagePagerIds();
-
-			var ts = waitIds[targetId];
-			if (!ts) {
-				ts = [];
-				waitIds[targetId] = ts;
+				angular.forEach(ts, function(deferred) {
+					deferred.resolve(target);
+				});
 			}
-
-			var deferred = $q.defer();
-
-			ts.push({
-				id: pagerId,
-				deferred: deferred
-			});
-
-			return deferred.promise;
-		}
-
-		function declare(targetId) {
-			garbagePagerIds();
-
-			if (targetId.nodeType == 1) {
-				targetId = targetId.id;
-			}
-
-			var ts = waitIds[targetId];
-			if (!ts) {
-				return;
-			}
-			delete waitIds[targetId];
-
-			var targetElement = document.getElementById(targetId);
-			if (!targetElement) {
-				return;
-			}
-
-			cc.Assert(targetElement && targetElement.nodeType == 1, "pagerRegistry", "Invalid element type ", targetElement);
-
-			var targetComponent = angular.element(targetElement).data("cm_component");
-			cc.Assert(targetComponent && targetComponent.$scope, "pagerRegistry", "Invalid component ", targetComponent);
-
-			angular.forEach(ts, function(pager) {
-				var deferred = pager.deferred;
-
-				deferred.resolve(targetComponent);
-			});
-		}
-
-		return {
-			waitTarget: waitTarget,
-			declareTarget: declare
 		};
+
+		return PagerRegistry;
 	} ]);
 
 })(window, window.angular);

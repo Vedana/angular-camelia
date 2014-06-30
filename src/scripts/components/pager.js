@@ -26,8 +26,8 @@
 		"$timeout",
 		"$exceptionHandler",
 		"camelia.core",
-		"camelia.pagerRegistry",
-		function($log, $q, $timeout, $exceptionHandler, cc, pagerRegistry) {
+		"camelia.PagerRegistry",
+		function($log, $q, $timeout, $exceptionHandler, cc, PagerRegistry) {
 
 			/*
 			 * ------------------------ PagerBase --------------------------
@@ -35,7 +35,6 @@
 
 			var PagerBase = function($scope, element, defaultRendererProviderName) {
 				this.$scope = $scope;
-				element.data("cm_component", this);
 
 				var rendererProvider = $scope.rendererProvider;
 				if (!rendererProvider) {
@@ -61,7 +60,8 @@
 					targetPromise = $q.when(targetComponent);
 
 				} else if ($scope.forElementId) {
-					targetPromise = pagerRegistry.waitTarget(this.id, $scope.forElementId);
+					targetPromise = PagerRegistry.RegisterWaitingFor($scope, $scope.forElementId);
+
 				}
 
 				this.targetPromise = targetPromise;
@@ -80,16 +80,18 @@
 
 						var self = this;
 
-						return this.targetPromise.then(function(targetComponent) {
-							cc.Assert(targetComponent && targetComponent.$scope, "pager", "Invalid target component ",
-									targetComponent);
+						return this.targetPromise.then(function(targetElement) {
+							cc.Assert(targetElement && angular.element(targetElement).scope(), "pager", "Invalid target component ",
+									targetElement);
+
+							var targetScope = angular.element(targetElement).scope();
 
 							delete self.targetPromise;
-							self.targetComponent = targetComponent;
+							// self.targetComponent = targetComponent;
 
 							var renderContext = {
 								pager: self,
-								target: targetComponent,
+								targetScope: targetScope,
 								$scope: self.$scope
 							};
 
@@ -104,21 +106,20 @@
 					} ],
 
 				constructFromTarget: function(renderContext) {
-					var targetComponent = renderContext.target;
-					var targetScope = targetComponent.$scope;
+					var targetScope = renderContext.targetScope;
 
 					var doc = angular.element(document.createDocumentFragment());
 
 					var nextPositions;
 
 					var self = this;
-					var targetDestroyedCallback = targetScope.$on("destroy", function() {
-						self.targetDestroyed(targetComponent);
+					var targetDestroyedOff = targetScope.$on("$destroy", function() {
+						self.targetDestroyed(targetScope);
 
-						self.targetComponent = undefined;
+						renderContext.targetScope = undefined;
 					});
 
-					var positionsChangedCallback = targetScope.$on("positionsChanged", function(event, positions) {
+					var positionsChangedOff = targetScope.$on("cm:positionsChanged", function(event, positions) {
 						if (!self.element) {
 							nextPositions = positions;
 							return;
@@ -128,9 +129,9 @@
 						self.updatePositions(positions);
 					});
 
-					this.$scope.$on("destroy", function() {
-						positionsChangedCallback();
-						targetDestroyedCallback();
+					this.$scope.$on("$destroy", function() {
+						targetDestroyedOff();
+						positionsChangedOff();
 					});
 
 					var pagerRenderer = new this.rendererProvider(renderContext);
@@ -146,11 +147,13 @@
 						self.constructed = true;
 						self.element = element;
 
+						angular.element(element).data("$scope", self.$scope);
+
 						var positions = nextPositions;
 						nextPositions = undefined;
 
-						if (!positions && targetComponent.getCurrentPositions) {
-							positions = targetComponent.getCurrentPositions();
+						if (!positions && targetScope.getCurrentPositions) {
+							positions = targetScope.getCurrentPositions();
 						}
 						if (positions) {
 							self.updatePositions(positions);
@@ -207,25 +210,16 @@
 
 					var self = this;
 					this.$scope.$watch("format", function(format) {
-						renderContext.format = format;
 
-						var renderer = self.pagerRenderer;
-						if (!renderer) {
-							return;
-						}
+						var targetScope = renderContext.targetScope;
 
-						var targetComponent = renderer.target;
-						if (!targetComponent) {
-							return;
-						}
-
-						var positions = targetComponent.getCurrentPositions();
+						var positions = targetScope.getCurrentPositions();
 
 						if (!angular.isString(format)) {
 							format = cm_pager_format;
 						}
 
-						renderer.format = format;
+						renderContext.format = format;
 
 						self.updatePositions(positions);
 					});
