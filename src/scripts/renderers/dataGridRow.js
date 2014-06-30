@@ -13,11 +13,10 @@
 	var module = angular.module("camelia.renderers.grid");
 
 	module.factory("camelia.renderers.grid.row", [ "$log",
-		"$timeout",
 		"$interpolate",
 		"camelia.core",
 		"camelia.cmTypes",
-		function($log, $timeout, $interpolate, cc, cm) {
+		function($log, $interpolate, cc, cm) {
 
 			var anonymousId = 0;
 
@@ -130,7 +129,7 @@
 						columnIndex++;
 					});
 
-					var td = cc.createElement(tr, "td", {
+					cc.createElement(tr, "td", {
 						"aria-hidden": "true"
 					});
 

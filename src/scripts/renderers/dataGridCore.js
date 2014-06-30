@@ -12,6 +12,8 @@
 
 	var module = angular.module("camelia.renderers.grid");
 
+	module.value("cm_grid_animation_pageChange", "camelia.animations.grid.PageChange");
+
 	var ROW_OR_GROUP = {
 		row: true,
 		group: true
@@ -31,6 +33,7 @@
 		"$exceptionHandler",
 		"camelia.core",
 		"camelia.cmTypes",
+		"camelia.animations.Animation",
 		"cm_grid_className",
 		"cm_grid_rowIndentPx",
 		"camelia.Key",
@@ -38,10 +41,12 @@
 		"camelia.CursorProvider",
 		"camelia.renderers.FiltersPopup",
 		"cm_grid_sizerPx",
-		function($log, $q, $window, $timeout, $exceptionHandler, cc, cm, cm_dataGrid_className, cm_dataGrid_rowIndentPx,
-				Key, SelectionProvider, CursorProvider, FiltersPopupRenderer, cm_grid_sizerPx) {
+		"cm_grid_animation_pageChange",
+		function($log, $q, $window, $timeout, $exceptionHandler, cc, cm, Animation, cm_dataGrid_className,
+				cm_dataGrid_rowIndentPx, Key, SelectionProvider, CursorProvider, FiltersPopupRenderer, cm_grid_sizerPx,
+				cm_grid_animation_pageChange) {
 
-			function SearchElements(node) {
+			function searchElements(node) {
 				var ret = cm.SearchElements({
 					tcell: null,
 					title: null,
@@ -62,7 +67,9 @@
 
 			GridRenderer.prototype = {
 				render: function(parent) {
-					this.$scope.$emit("cm_dataGrid_rendering");
+					var $scope = this.$scope;
+
+					$scope.$broadcast("cm:dataGrid_rendering");
 
 					var container = cc.createElement(parent, "div", {
 						id: this.dataGrid.id,
@@ -70,17 +77,17 @@
 					});
 					this.container = container[0];
 
-					this.$scope.$watch("style", function(style) {
+					$scope.$watch("style", function(style) {
 						style = style || "";
 						container.attr("style", style);
 					});
 
 					var self = this;
-					this.$scope.$watch("className", function() {
+					$scope.$watch("className", function() {
 						self.gridStyleUpdate(container);
 					});
 
-					var tabIndex = this.$scope.tabIndex;
+					var tabIndex = $scope.tabIndex;
 					if (!tabIndex || tabIndex < 0) {
 						tabIndex = 0;
 					}
@@ -89,9 +96,11 @@
 
 					this.setupGroupProviders();
 
-					this.cursorProvider.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
+					$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
 
 						var sourceEvent = self._selectionSourceEvent;
+
+						console.log("SourceEvent=", sourceEvent);
 
 						if (data.oldRow) {
 							// BLUR event update the element
@@ -148,31 +157,19 @@
 					container.on("keydown", this._onKeyPress());
 					// container.on("keypress", OnKeyPress(renderContext));
 
-					this._focusListener = this._onFocus();
-					container[0].addEventListener("focus", this._focusListener, true);
+					this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
+					this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
 
-					this._blurListener = this._onBlur();
-					container[0].addEventListener("blur", this._blurListener, true);
-
-					this.$scope.$on("$destroy", function() {
-						var listener = self._focusListener;
-						if (listener) {
-							self._focusListener = undefined;
-							container[0].removeEventListener("focus", listener, true);
-						}
-
-						listener = self._blurListener;
-						if (listener) {
-							self._blurListener = undefined;
-							container[0].removeEventListener("blur", listener, true);
-						}
+					$scope.$on("$destroy", function() {
+						self._offFocus();
+						self._offBlur();
 
 						self.tableDestroy();
 					});
 
 					container.on("cm_update", this._onGridStyleUpdate());
 
-					this.$scope.$emit("cm_dataGrid_title_rendering");
+					$scope.$broadcast("cm:dataGrid_title_rendering");
 
 					var titlePromise = this.titleRenderer(container);
 					if (!cc.isPromise(titlePromise)) {
@@ -180,11 +177,11 @@
 					}
 
 					return titlePromise.then(function(title) {
-						self.$scope.$emit("cm_dataGrid_title_rendered");
+						$scope.$broadcast("cm:dataGrid_title_rendered");
 
 						self._title = title;
 
-						self.$scope.$emit("cm_dataGrid_body_rendering");
+						$scope.$broadcast("cm:dataGrid_body_rendering");
 
 						self._monitorPositions(function() {
 
@@ -198,18 +195,18 @@
 							bodyPromise.then(function(body) {
 								self._body = body;
 
-								self._hideBody();
+								// self._hideBody(); // TODO Verify
 
 								container.append(fragment);
 
-								self.$scope.$emit("cm_dataGrid_body_rendered");
+								$scope.$broadcast("cm:dataGrid_body_rendered");
 
 								var win = angular.element($window);
 
 								var resizeHandler = self._onResize();
 								win.on("resize", resizeHandler);
 
-								self.$scope.$on("$destroy", function() {
+								$scope.$on("$destroy", function() {
 									win.off("resize", resizeHandler);
 								});
 
@@ -219,16 +216,13 @@
 								}
 
 								layoutPromise.then(function() {
-									self.$scope.$emit("cm_dataGrid_rendered");
+									$scope.$broadcast("cm:dataGrid_rendered");
 
-									var selectionProvider = self.selectionProvider;
-									if (selectionProvider) {
-										selectionProvider.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self._onSelectionChanged());
-									}
+									$scope.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self._onSelectionChanged());
 
 									self._gridReady(container);
 
-									self.$scope.$emit("cm_dataGrid_ready");
+									$scope.$broadcast("cm:dataGrid_ready");
 								});
 							});
 						});
@@ -319,7 +313,7 @@
 					return true;
 				},
 
-				_setCursor: function(element) {
+				_setCursor: function(element, event) {
 
 					// cc.log("SetCursor ", element);
 
@@ -347,7 +341,7 @@
 							var logicalIndex = element.cm_lindex;
 							var column = this.columns[logicalIndex];
 
-							this.cursorProvider.setCursor(cursorValue, column);
+							this.cursorProvider.requestCursor(cursorValue, column, event);
 						}
 					}
 				},
@@ -413,7 +407,7 @@
 					this.gridWidth = cr.width;
 					this.gridHeight = cr.height;
 
-					this.$scope.$emit("cm_dataGrid_layout_begin");
+					this.$scope.$broadcast("cm:dataGrid_layout_begin");
 
 					var $container = angular.element(container);
 
@@ -451,7 +445,7 @@
 
 							self.layoutState = "complete";
 
-							self.$scope.$emit("cm_dataGrid_layout_end");
+							self.$scope.$broadcast("cm:dataGrid_layout_end");
 						});
 					});
 				},
@@ -859,7 +853,7 @@
 					console.log("On resize column mouse up");
 
 					this._onResizeColumnRelease();
-					this.$scope.$emit("cm_dataGrid_resized", column);
+					this.$scope.$broadcast("cm:dataGrid_resized", column);
 
 					event.preventDefault();
 					event.stopPropagation();
@@ -894,7 +888,7 @@
 						});
 					}
 
-					this.$scope.$emit("cm_dataGrid_resizing", column);
+					this.$scope.$broadcast("cm:dataGrid_resizing", column);
 
 					if (this.columnResizing) {
 						this._onResizeColumnRelease();
@@ -922,7 +916,7 @@
 
 				_toggleColumnSort: function(column, event) {
 
-					this.$scope.$emit("cm_dataGrid_sorting");
+					this.$scope.$broadcast("cm:dataGrid_sorting");
 
 					var old = this.sorters;
 
@@ -944,7 +938,7 @@
 							}
 
 							updatedColumns[scol.columnId] = scol;
-						})
+						});
 					}
 
 					var sorters = [];
@@ -978,7 +972,7 @@
 
 					var self = this;
 					return promise.then(function() {
-						self.$scope.$emit("cm_dataGrid_sorted");
+						self.$scope.$broadcast("cm:dataGrid_sorted");
 					});
 				},
 
@@ -1016,14 +1010,14 @@
 							event.firstChanged = true;
 							sendEvent = true;
 
-							$scope.$emit("firstChanged", dataGrid.first);
+							$scope.$broadcast("cm:firstChanged", dataGrid.first);
 						}
 
 						if (oldRows != dataGrid.rows) {
 							event.rowsChanged = true;
 							sendEvent = true;
 
-							$scope.$emit("rowsChanged", dataGrid.rows);
+							$scope.$broadcast("cm:rowsChanged", dataGrid.rows);
 						}
 
 						if (oldRowCount != dataGrid.rowCount) {
@@ -1031,7 +1025,7 @@
 							sendEvent = true;
 							$scope.rowCount = rowCount;
 
-							$scope.$emit("rowCountChanged", dataGrid.rowCount);
+							$scope.$broadcast("cm:rowCountChanged", dataGrid.rowCount);
 						}
 
 						if (oldMaxRows != dataGrid.maxRows) {
@@ -1039,20 +1033,16 @@
 							sendEvent = true;
 							$scope.maxRows = maxRows;
 
-							$scope.$emit("maxRowsChanged", dataGrid.maxRows);
+							$scope.$broadcast("cm:maxRowsChanged", dataGrid.maxRows);
 						}
 
 						if (sendEvent) {
-							$scope.$emit("positionsChanged", event);
+							$scope.$broadcast("cm:positionsChanged", event);
 						}
 					});
 				},
 
-				updateData: function(resetPositions, updateColumnWidths) {
-					/*
-					 * if (resetPositions) { this.first = 0; this.rowCount = -1;
-					 * this.maxRows = -1; this.visibleRows = 0; }
-					 */
+				updateData: function(updateColumnWidths) {
 
 					if (updateColumnWidths === undefined) {
 						updateColumnWidths = true;
@@ -1060,7 +1050,7 @@
 
 					var self = this;
 					this._monitorPositions(function() {
-						return this._refreshRows(updateColumnWidths);
+						return self._refreshRows(updateColumnWidths);
 
 					}).then(function() {
 						// self.gridLayout();
@@ -1083,13 +1073,34 @@
 					ts.visibility = "";
 					$log.debug("Show body");
 				},
+
+				_clearPageAnimation: function() {
+					var animation = this._pageAnimation;
+					if (!animation) {
+						return;
+					}
+					this._pageAnimation = undefined;
+
+					try {
+						animation.cancel();
+
+					} catch (x) {
+						$exceptionHandler(x, "Page Animation cancel() error");
+
+					} finally {
+
+						try {
+							animation.$destroy();
+
+						} catch (x) {
+						}
+					}
+				},
 				/**
 				 * @returns {Promise}
 				 */
 				_refreshRows: function(updateColumnWidths, focus) {
 					$log.debug("Refresh rows");
-
-					this._hideBody();
 
 					if (updateColumnWidths) {
 						this._naturalWidths = undefined;
@@ -1099,33 +1110,40 @@
 						this._alignColumns(false);
 					}
 
-					var container = this.container;
+					this._clearPageAnimation();
 
-					var forceHeight = false;
-					if (!container.style.height || container.style.height.indexOf("px") < 0) {
-						forceHeight = true;
-
-						var cr = container.getBoundingClientRect();
-						container.style.height = cr.height + "px";
+					var dataGrid = this.dataGrid;
+					var first = this.$scope.first;
+					if (!angular.isNumber(first) || first < 0) {
+						first = 0;
 					}
+					dataGrid.first = first;
 
-					this.tableClearRows();
+					var rows = this.$scope.rows;
+					if (!angular.isNumber(rows)) {
+						rows = -1;
+					}
+					dataGrid.rows = rows;
+
+					var animation = Animation.newInstance(cm_grid_animation_pageChange, this.$scope, {
+						first: first,
+						oldFirst: this._renderedFirst,
+						rows: rows,
+						renderer: this
+					});
+					this._pageAnimation = animation;
+					animation.start();
 
 					var promise = this.tableRowsRenderer();
 
 					var self = this;
 
 					function processResult(eventName) {
-						if (forceHeight) {
-							container.style.height = "auto";
-							self.tableViewPort.style.height = "auto";
-						}
+						animation.end();
 
-						self._showBody();
+						self._gridReady(self.container, focus !== false);
 
-						self._gridReady(container, focus !== false);
-
-						self.$scope.$emit(eventName || "cm_dataGrid_refreshed");
+						self.$scope.$broadcast(eventName || "cm:dataGrid_refreshed");
 					}
 
 					if (!cc.isPromise(promise)) {
@@ -1135,8 +1153,8 @@
 					return promise.then(function() {
 
 						var dataGrid = self.dataGrid;
-						console.log("first=" + dataGrid.first + " visibleRows=" + dataGrid.visibleRows + " rows=" + dataGrid.rows
-								+ " maxRows=" + dataGrid.maxRows + " rowCount=" + dataGrid.rowCount);
+						console.log("first=" + dataGrid.first + " visibleRows=" + dataGrid.visibleRows + " rows=" + dataGrid.rows +
+								" maxRows=" + dataGrid.maxRows + " rowCount=" + dataGrid.rowCount);
 
 						if (!dataGrid.visibleRows && dataGrid.first) {
 							var newFirst = 0;
@@ -1173,7 +1191,6 @@
 					var visibleColumns = this.visibleColumns;
 					var beforeColumn = visibleColumns[targetIndex + ((targetIndex > column.visibleIndex) ? 1 : 0)];
 
-					var visibleColumns = this.visibleColumns;
 					this._lastVisibleColumn = visibleColumns[visibleColumns.length - 1];
 
 					visibleColumns.splice(column.visibleIndex, 1);
@@ -1214,9 +1231,13 @@
 
 				_registerSelectionEvent: function(event) {
 
+					console.log("Register event ", event)
+
 					this._selectionSourceEvent = event;
 					var self = this;
 					$timeout(function() {
+						console.log("Unregister event ", event)
+
 						self._selectionSourceEvent = undefined;
 					}, 10, false);
 				},
@@ -1281,7 +1302,7 @@
 
 				_onTitleCellMouseUp: function(tcell, event, column) {
 
-					var elements = SearchElements(event.target);
+					var elements = searchElements(event.target);
 
 					if (!this.titleCellColumnMoving) {
 						if (elements.tcell && elements.tcell.id == tcell.id) {
@@ -1323,16 +1344,15 @@
 
 						return promise.then(function() {
 							self.gridLayout();
-							self.$scope.$emit("cm_dataGrid_filtred");
+							self.$scope.$broadcast("cm_dataGrid_filtred");
 						});
 					});
 
-					var self = this;
-					popup.$scope.$on("cm_popup_opened", function() {
+					popup.$scope.$on("cm:popup_opened", function() {
 						cm.SwitchOnState(self, elements, "openedPopup");
 					});
 
-					popup.$scope.$on("cm_popup_closed", function() {
+					popup.$scope.$on("cm:popup_closed", function() {
 						cm.ClearState(self, elements, "openedPopup");
 					});
 
@@ -1465,7 +1485,7 @@
 							return;
 						}
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOnState(self, elements, "over");
 					};
 				},
@@ -1475,7 +1495,7 @@
 					return function(event) {
 						var target = event.relatedTarget;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOffState(self, elements, "over");
 					};
 				},
@@ -1485,14 +1505,16 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
+
+						self._lastFocusEventData = Date.now();
 
 						// cc.log("Grid.OnFocus ", target, elements);
 
 						cm.SwitchOnState(self, elements, "focus", function(elements) {
 							var cell = elements.cell || elements.groupTitle;
 							if (cell) {
-								self._setCursor(cell);
+								self._setCursor(cell, event);
 							}
 						});
 					};
@@ -1505,7 +1527,7 @@
 
 						// cc.log("BLUR ", target);
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOffState(self, elements, "focus");
 					};
 				},
@@ -1515,7 +1537,7 @@
 
 					return function(event) {
 						var target = event.target;
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						// cc.log("Double click on ", target, " elements=", elements);
 
@@ -1532,7 +1554,7 @@
 						}
 
 						self._emitClick(elements, "RowDoubleClick", event);
-					}
+					};
 				},
 
 				_onSimpleClick: function() {
@@ -1540,12 +1562,38 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						// cc.log("Simple click on ", target, " elements=", elements);
 
+						if (!self._lastFocusEventData && elements.row && elements.cell) {
+							var row = angular.element(elements.row).data("cm_value");
+							self.registerElement(elements.row, row);
+
+							var logicalIndex = elements.cell.cm_lindex;
+							var column = self.columns[logicalIndex];
+
+							var cursorProvider = self.cursorProvider;
+							var cursorRow = cursorProvider.getRow();
+							var cursorColumn = cursorProvider.getColumn();
+
+							if (column === cursorColumn && row === cursorRow) {
+								var selectionProvider = self.selectionProvider;
+
+								if (selectionProvider) {
+									selectionProvider.run(function() {
+										self.selectionStrategy.select(selectionProvider, row, row, event, function(cursorRowId) {
+											return self._computeRowRangeFromCursor(row, cursorRowId);
+										});
+									});
+								}
+							}
+						}
+
+						self._lastFocusEventData = 0;
+
 						self._emitClick(elements, "RowClick", event);
-					}
+					};
 				},
 
 				_onMouseDown: function() {
@@ -1556,7 +1604,7 @@
 
 						// cc.log("Mouse down on ", target);
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOnState(self, elements, "mouseDown", function(elements) {
 
 							var tsizer = elements.tsizer;
@@ -1634,7 +1682,7 @@
 					var self = this;
 
 					return function(event) {
-						var elements = SearchElements();
+						var elements = searchElements();
 						cm.ClearState(self, elements, "mouseDown", function(elements) {
 						});
 					};
@@ -1644,7 +1692,7 @@
 					var self = this;
 					return function(event) {
 						var target = event.target;
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						// cc.log("KeyPress ", target, " event=", event, " elements=",
 						// elements);

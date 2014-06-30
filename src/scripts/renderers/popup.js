@@ -119,7 +119,7 @@
 					}
 					this._addState(PopupRenderer.RENDERING);
 
-					this.$emit("cm_popup_rendering");
+					this.$emit("cm:popup_rendering");
 
 					var parent = angular.element(document.createDocumentFragment());
 
@@ -147,7 +147,7 @@
 
 						self._addState(PopupRenderer.RENDERED);
 
-						self.$emit("cm_popup_rendered");
+						self.$emit("cm:popup_rendered");
 					});
 				},
 
@@ -193,7 +193,7 @@
 							return $timeout(waitLayout, 10, false);
 						}
 
-						self.$emit("cm_popup_DOMReady");
+						self.$emit("cm:popup_DOMReady");
 
 						// If already closed, show it
 						container.style.display = "";
@@ -201,7 +201,7 @@
 						// Update position
 						self._updatePosition(container, position);
 
-						self.$emit("cm_popup_opened");
+						self.$emit("cm:popup_opened");
 
 						self._addState(PopupRenderer.OPENED);
 
@@ -284,7 +284,7 @@
 
 					this._close(angular.element(container));
 
-					this.$emit("cm_popup_closed");
+					this.$emit("cm:popup_closed");
 
 					if (this._closeDestroy) {
 						this.destroy();
@@ -311,7 +311,7 @@
 
 					angular.element(container).remove();
 
-					this.$emit("cm_popup_destroyed");
+					this.$emit("cm:popup_destroyed");
 
 					if (this.$scope && this._releaseScope) {
 						this.$scope.$destroy();

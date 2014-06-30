@@ -17,6 +17,7 @@
 		"camelia.key",
 		"camelia.renderers.popup",
 		"camelia.components.grid",
+		"camelia.animations.grid",
 		"camelia.i18n.grid" ]);
 
 	module.value("cm_grid_rowIndentPx", 16);
