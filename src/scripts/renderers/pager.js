@@ -28,7 +28,7 @@
 
 			var anonymousId = 0;
 
-			function SearchElements(target) {
+			function searchElements(target) {
 				return cm.SearchElements({
 					lpager: null,
 					vpager: null,
@@ -43,6 +43,8 @@
 
 			PagerRenderer.prototype = {
 				render: function(parent) {
+					var $scope = this.$scope;
+
 					var container = cc.createElement(parent, "div", {
 						id: this.pager.id,
 						$cm_type: "pager"
@@ -65,25 +67,13 @@
 					container.on("keydown", this._onKeyPress());
 					// container.on("keypress", OnKeyPress(renderContext));
 
-					this._focusListener = this._onFocus();
-					container[0].addEventListener("focus", this._focusListener, true);
+					this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
+					this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
 
-					this._blurListener = this._onBlur();
-					container[0].addEventListener("blur", this._blurListener, true);
+					$scope.$on("$destroy", function() {
+						self._offFocus();
 
-					var self = this;
-					this.$scope.$on("$destroy", function() {
-						var listener = self._focusListener;
-						if (listener) {
-							self._focusListener = undefined;
-							container[0].removeEventListener("focus", listener, true);
-						}
-
-						listener = self._blurListener;
-						if (listener) {
-							self._blurListener = undefined;
-							container[0].removeEventListener("blur", listener, true);
-						}
+						self._offBlur();
 					});
 
 					container.on("cm_update", this._onStyleUpdate());
@@ -97,7 +87,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOnState(self, elements, "over");
 					};
 				},
@@ -108,7 +98,7 @@
 					return function(event) {
 						var target = event.relatedTarget;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOffState(self, elements, "over");
 					};
 				},
@@ -119,7 +109,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOnState(self, elements, "focus");
 					};
 				},
@@ -130,7 +120,7 @@
 					return function(event) {
 						var target = event.relatedTarget;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOffState(self, elements, "focus");
 					};
 				},
@@ -141,7 +131,7 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 						cm.SwitchOnState(self, elements, "mouseDown");
 					};
 				},
@@ -150,7 +140,7 @@
 					var self = this;
 
 					return function(event) {
-						var elements = SearchElements();
+						var elements = searchElements();
 						cm.ClearState(self, elements, "mouseDown");
 					};
 				},
@@ -160,7 +150,7 @@
 
 					return function(event) {
 						var target = event.target;
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 					};
 				},
 
@@ -170,15 +160,17 @@
 					return function(event) {
 						var target = event.target;
 
-						var elements = SearchElements(target);
+						var elements = searchElements(target);
 
 						// cc.log("Simple click on ", target, " elements=", elements);
 
 						var button = elements.bpager;
 						if (button && button.value) {
-							self.target.setFirst(parseInt(button.value, 10));
+							self.targetScope.first = parseInt(button.value, 10);
+
+							self.targetScope.$digest();
 						}
-					}
+					};
 				},
 
 				_onStyleUpdate: function() {
