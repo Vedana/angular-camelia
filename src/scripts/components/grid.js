@@ -29,16 +29,17 @@
 		"$interpolate",
 		"$q",
 		"$timeout",
+		"$rootScope",
 		"camelia.core",
 		"camelia.SelectionStrategy",
 		"camelia.SelectionProvider",
 		"camelia.CursorProvider",
 		"cm_grid_dataModelProviderName",
 		"cm_grid_rendererProviderName",
-		"camelia.pagerRegistry",
+		"camelia.PagerRegistry",
 		"camelia.DataModel",
-		function($log, $injector, $interpolate, $q, $timeout, cc, SelectionStrategy, SelectionProvider, CursorProvider,
-				cm_dataGrid_dataModelProviderName, cm_dataGrid_rendererProviderName, pagerRegistry, DataModel) {
+		function($log, $injector, $interpolate, $q, $timeout, $rootScope, cc, SelectionStrategy, SelectionProvider,
+				CursorProvider, cm_dataGrid_dataModelProviderName, cm_dataGrid_rendererProviderName, PagerRegistry, DataModel) {
 
 			/*
 			 * ------------------------ DataGrid --------------------------
@@ -47,8 +48,6 @@
 			var DataGrid = function($scope, element, directiveInterpolate) {
 				this.$scope = $scope;
 				this.directiveInterpolate = directiveInterpolate || $interpolate;
-
-				element.data("cm_component", this);
 
 				var id = $scope.id;
 				if (!id) {
@@ -73,87 +72,91 @@
 				}
 				this.dataModelProvider = dataModelProvider;
 				this.$scope.$watchCollection("value", function(newValue) {
-					$scope.$emit("valueChanged", newValue);
+					$scope.$broadcast("cm:valueChanged", newValue);
 				});
 
-				this.cursorProvider = new CursorProvider();
+				this.cursorProvider = new CursorProvider($scope);
 
 				var selectionProvider = $scope.selectionProvider;
 				if (!selectionProvider) {
 					var selectable = cc.toBoolean($scope.selectable) || $scope.selectionCardinality;
 
 					if (selectable) {
-						selectionProvider = SelectionProvider.From($scope.selection);
+						selectionProvider = SelectionProvider.From($scope.selection, $scope);
 
-						$scope.$watch("selection", function() {
-							try {
-								digesterPhase = true;
-								selectionProvider.set($scope.selection);
+						$scope.$watch("selection", function(newSelection, oldSelection) {
 
-							} finally {
-								digesterPhase = false;
-							}
+							cc.log("WATCH selection newSelection=", newSelection, " oldSelection=", oldSelection);
+
+							selectionProvider.set(newSelection);
 						});
 					}
 				}
 				this.selectionProvider = selectionProvider;
 
-				if (selectionProvider) {
-					selectionProvider.$on("selectionSet", function(event, data) {
-						$scope.selection = data.newSelection;
+				$scope.$on(SelectionProvider.SELECTION_SET_EVENT, function(event, data) {
+					cc.log("EVENT selection newSelection=", data.newSelection);
 
-						if (digesterPhase) {
-							return;
-						}
-
-						$scope.$apply();
-					});
-					selectionProvider.$on(SelectionProvider.SELECTION_CHANGED_EVENT, function(event, data) {
-						if (event.targetScope !== $scope) {
-							$scope.$broadcast(SelectionProvider.SELECTION_CHANGED_EVENT, {
-								target: self,
-								selection: data.newSelection,
-								sourceEvent: data
-							});
-						}
-					});
-
-				}
+					$scope.selection = data.newSelection;
+				});
 
 				var selectionStrategy = $scope.selectionStrategy;
 				if (!selectionStrategy && selectionProvider) {
-					selectionStrategy = SelectionStrategy.CreateDefault($scope.selectionCardinality || "*");
+					selectionStrategy = SelectionStrategy.CreateDefault($scope, $scope.selectionCardinality || "*");
 				}
 				this.selectionStrategy = selectionStrategy;
 
+				var self = this;
 				if (this.cursorProvider) {
-					$scope.$watch("cursor", function() {
 
-						if (cursor === undefined || cursor === null) {
-							return;
+					var oldValue = null;
+
+					$scope.$watch(function getValue(scope) {
+
+						if (oldValue && oldValue.cursor === scope.cursor && oldValue.columnCursorId === scope.columnCursorId) {
+							return oldValue;
 						}
 
-						try {
-							digesterPhase = true;
-							var cursor = $scope.cursor;
+						oldValue = {
+							cursor: scope.cursor,
+							columnCursorId: scope.columnCursorId
+						};
 
-							self.cursorProvider.setCursor(cursor);
+						return oldValue;
 
-						} finally {
-							digesterPhase = false;
+					}, function listener(newValue) {
+						var rowCursor = newValue.cursor;
+						var columnCursorId = newValue.columnCursorId;
+
+						// cc.log("WATCH cursor rowCursor=", rowCursor, " columnCursorId=",
+						// columnCursorId);
+
+						if (rowCursor) {
+							var columnCursor;
+							if (columnCursorId) {
+								angular.forEach($scope.columns, function(column) {
+									if (column.id == columnCursorId) {
+										columnCursor = column;
+									}
+								});
+							}
+
+							self.cursorProvider.setCursor(rowCursor, columnCursor);
 						}
 					});
 
-					this.cursorProvider.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
+					$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
+						// cc.log("EVENT cursor newValue=", data.row, " column=",
+						// ((data.column) ? data.column.id : null));
+
 						$scope.cursor = data.row;
-
-						if (digesterPhase) {
-							return;
-						}
-
-						$scope.$apply();
+						$scope.columnCursorId = (data.column) ? data.column.id : null;
 					});
 				}
+
+				$scope.getCurrentPositions = function() {
+					return self.getCurrentPositions();
+				};
 			};
 
 			DataGrid.prototype = {
@@ -208,7 +211,7 @@
 						}
 
 						$timeout(function() {
-							gridRenderer.updateData(false, false);
+							gridRenderer.updateData();
 						}, 10, false);
 					});
 
@@ -221,7 +224,7 @@
 							return;
 						}
 
-						gridRenderer.updateData(false);
+						gridRenderer.updateData();
 					});
 
 					var containerPromise = gridRenderer.render(doc);
@@ -236,10 +239,13 @@
 						self.readyState = "complete";
 						self.element = element;
 
-						pagerRegistry.declareTarget(element);
+						angular.element(element).data('$scope', $scope);
+
+						PagerRegistry.DeclareTarget(element);
 
 						self._updateDataModel(gridRenderer.$scope.value);
-						gridRenderer.$scope.$on("valueChanged", function(event, value) {
+
+						gridRenderer.$scope.$on("cm:valueChanged", function(event, value) {
 							self._updateDataModel(value);
 						});
 
@@ -455,7 +461,7 @@
 				this.collapsedProvider = collapsedProvider;
 
 				if (collapsedProvider) {
-					collapsedProvider.$on("selectionSet", function(event, data) {
+					collapsedProvider.$on(SelectionProvider.SELECTION_SET_EVENT, function(event, data) {
 						$scope.collapsedGroups = data.newSelection;
 
 						if (digesterPhase) {

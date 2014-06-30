@@ -16,26 +16,30 @@
 
 		var scopeProto = cc.getProto($rootScope);
 
-		function CursorProvider(cardinality) {
-			cc.inheritRootScope(this);
+		function CursorProvider($parentScope) {
+			cc.inheritScope(this, $parentScope);
 		}
 
-		CursorProvider.CURSOR_CHANGED = "cursorChanged";
+		CursorProvider.CURSOR_REQUESTED = "cm:cursorRequested";
+		CursorProvider.CURSOR_CHANGED = "cm:cursorChanged";
 
-		CursorProvider.prototype = Object.create(scopeProto);
-		angular.extend(CursorProvider.prototype, {
-			constructor: CursorProvider,
+		cc.extendProto(CursorProvider, scopeProto, {
 
-			getRowCursor: function() {
+			getRow: function() {
 				var rowValue = this._rowCursor;
 
 				return rowValue;
 			},
 
-			setCursor: function(row, column) {
+			getColumn: function() {
+				var column = this._columnCursor;
 
-				// cc.log("SetCursor row=", row, " column=", (column) ? column.id :
-				// null);
+				return column;
+			},
+
+			setCursor: function(row, column, sourceEvent) {
+
+				cc.log("SetCursor row=", row, " column=", (column) ? column.id : null, " event=", sourceEvent);
 
 				if (this._rowCursor === row && this._columnCursor === column) {
 					return;
@@ -51,8 +55,21 @@
 					row: row,
 					column: column,
 					oldRow: oldRow,
-					oldColumn: oldColumn
+					oldColumn: oldColumn,
+					sourceEvent: sourceEvent
 				});
+			},
+
+			requestCursor: function(row, column, event) {
+
+				this.setCursor(row, column, event);
+
+				if (false) {
+					this.$emit(CursorProvider.REQUEST_CURSOR, {
+						row: row,
+						column: column
+					});
+				}
 			}
 		});
 
