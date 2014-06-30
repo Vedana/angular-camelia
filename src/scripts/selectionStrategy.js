@@ -19,13 +19,14 @@
 
 			var scopeProto = cc.getProto($rootScope);
 
-			function SelectionStrategy(cardinality) {
-				cc.inheritRootScope(this);
+			function SelectionStrategy($parentScope, cardinality) {
+				cc.inheritScope(this, $parentScope);
 
 				this._cardinality = SelectionStrategy._GetCardinality(cardinality);
 			}
 
-			SelectionStrategy.BASE_CHANGED_EVENT = "baseChanged";
+			SelectionStrategy.BASE_CHANGED_EVENT = "cm:baseChanged";
+
 			SelectionStrategy.OPTIONAL = "optional";
 			SelectionStrategy.ZEROMANY = "zeroMany";
 			SelectionStrategy.ONE = "one";
@@ -53,16 +54,13 @@
 				throw new Error("Invalid '" + type + "' cardinality");
 			};
 
-			SelectionStrategy.CreateDefault = function(cardinality) {
+			SelectionStrategy.CreateDefault = function($parentScope, cardinality) {
 				return $injector.invoke([ "camelia.WinSelectionStrategy", function(WinSelectionStrategy) {
-					return new WinSelectionStrategy(cardinality);
+					return new WinSelectionStrategy($parentScope, cardinality);
 				} ]);
 			};
 
-			SelectionStrategy.prototype = Object.create(scopeProto);
-			angular.extend(SelectionStrategy.prototype, {
-				constructor: SelectionStrategy,
-
+			cc.extendProto(SelectionStrategy, scopeProto, {
 				getBase: function() {
 					return null;
 				},
@@ -79,73 +77,76 @@
 	 * ------------------------ WinSelectionStrategy --------------------------
 	 */
 
-	module.factory('camelia.WinSelectionStrategy', [ "camelia.SelectionStrategy", function(SelectionStrategy) {
+	module.factory('camelia.WinSelectionStrategy', [ "camelia.SelectionStrategy",
+		'camelia.core',
+		function(SelectionStrategy, cc) {
 
-		var WinSelectionStrategy = function(cardinality) {
-			SelectionStrategy.prototype.constructor.call(this, cardinality);
-		};
+			var WinSelectionStrategy = function($parentScope, cardinality) {
+				SelectionStrategy.prototype.constructor.call(this, $parentScope, cardinality);
+			};
 
-		WinSelectionStrategy.prototype = Object.create(SelectionStrategy.prototype);
-		angular.extend(WinSelectionStrategy.prototype, {
-			constructor: WinSelectionStrategy,
+			cc.extend(WinSelectionStrategy, SelectionStrategy, {
 
-			getBase: function() {
-				return this._base;
-			},
+				getBase: function() {
+					return this._base;
+				},
 
-			select: function(selectionProvider, rowValues, cursorValue, event, computeRangeFunc, activate) {
+				select: function(selectionProvider, rowValues, cursorValue, event, computeRangeFunc, activate) {
 
-				var byKeyPress = (event && event.type && !event.type.indexOf("key"));
+					var byKeyPress = (event && event.type && !event.type.indexOf("key"));
 
-				if (byKeyPress && event.ctrlKey && !activate) {
-					return;
-				}
+					if (byKeyPress && event.ctrlKey && !activate) {
+						return;
+					}
 
-				if (this._cardinality == 0x01) {
+					if (this._cardinality == 0x01) {
+						this._base = cursorValue;
+						this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
+
+						selectionProvider.set(rowValues);
+						return;
+					}
+
+					if (event && event.shiftKey) {
+						var range = computeRangeFunc(this.getBase());
+						if (range) {
+							if (event.ctrlKey) {
+								selectionProvider.add(range);
+								return;
+							}
+
+							selectionProvider.set(range);
+							return;
+						}
+					}
+
+					if (event && event.ctrlKey) {
+						var count = selectionProvider.count();
+						if (selectionProvider.containsAll(rowValues)) {
+							if (this._cardinality == 0x03 && count < 2) {
+								return;
+							}
+							selectionProvider.remove(rowValues);
+							return;
+						}
+
+						if (this._cardinality) {
+							selectionProvider.add(rowValues);
+
+							//this._base = cursorValue;
+							//this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
+							return;
+						}
+					}
+
 					this._base = cursorValue;
 					this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
 
 					selectionProvider.set(rowValues);
-					return;
 				}
+			});
 
-				if (event && event.shiftKey) {
-					var range = computeRangeFunc(this.getBase());
-					if (range) {
-						if (event.ctrlKey) {
-							selectionProvider.add(range);
-							return;
-						}
-
-						selectionProvider.set(range);
-						return;
-					}
-				}
-
-				if (event && event.ctrlKey) {
-					var count = selectionProvider.count();
-					if (selectionProvider.containsAll(rowValues)) {
-						if (this._cardinality == 0x03 && count < 2) {
-							return;
-						}
-						selectionProvider.remove(rowValues);
-						return;
-					}
-
-					if (this._cardinality != 0x00) {
-						selectionProvider.add(rowValues);
-						return;
-					}
-				}
-
-				this._base = cursorValue;
-				this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
-
-				selectionProvider.set(rowValues);
-			}
-		});
-
-		return WinSelectionStrategy;
-	} ]);
+			return WinSelectionStrategy;
+		} ]);
 
 })(window, window.angular);
