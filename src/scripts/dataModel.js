@@ -23,7 +23,7 @@
 			var resourceProto = cc.getProto($resource());
 
 			function DataModel() {
-				cc.inheritRootScope(this);
+				cc.inheritScope(this);
 
 				var self = this;
 				this.$on("$destroy", function() {
@@ -43,9 +43,15 @@
 				});
 			}
 
-			DataModel.DATA_MODEL_CHANGED_EVENT = "dataModelChanged";
+			DataModel.DATA_REQUESTING = "c:dataRequesting";
 
-			DataModel.DATA_MODEL_UPDATED_EVENT = "dataModelUpdated";
+			DataModel.DATA_LOADING = "c:dataLoading";
+
+			DataModel.DATA_LOADED = "c:dataLoaded";
+
+			DataModel.DATA_MODEL_CHANGED_EVENT = "cm:dataModelChanged";
+
+			DataModel.DATA_MODEL_UPDATED_EVENT = "cm:dataModelUpdated";
 
 			DataModel.From = function(parameter) {
 
@@ -69,10 +75,7 @@
 				return new DataModel();
 			};
 
-			DataModel.prototype = Object.create(scopeProto);
-			angular.extend(DataModel.prototype, {
-				constructor: DataModel,
-				$super: scopeProto,
+			cc.extendProto(DataModel, scopeProto, {
 
 				_rowIndex: -1,
 
@@ -121,11 +124,11 @@
 					if (this.$parent == $rootScope) {
 						if (old < 0 && rowIndex >= 0) {
 							// Broadcast START
-							this.$broadcast("begin");
+							this.$broadcast("cm:begin");
 						}
 
 						if (old >= 0 && rowIndex < 0) {
-							this.$broadcast("end");
+							this.$broadcast("cm:end");
 						}
 					}
 				},
@@ -227,19 +230,15 @@
 	 * ------------------------ ArrayDataModel ------------------------------
 	 */
 
-	module.factory('camelia.ArrayDataModel', [ 'camelia.DataModel', function(DataModel) {
+	module.factory('camelia.ArrayDataModel', [ 'camelia.DataModel', 'camelia.core', function(DataModel, cc) {
 
 		function ArrayDataModel(array) {
 			DataModel.prototype.constructor.call(this);
 
 			this.setWrappedData(array);
 		}
-		ArrayDataModel.prototype = Object.create(DataModel.prototype);
 
-		angular.extend(ArrayDataModel.prototype, {
-			constructor: ArrayDataModel,
-			$super: DataModel.prototype,
-
+		cc.extend(ArrayDataModel, DataModel, {
 			installWatcher: function($scope, varName) {
 				var self = this;
 				this._watcherDeRegistration = $scope.$watchCollection(varName, function(newValue, oldValue) {
@@ -318,11 +317,8 @@
 				this.$parent = dataModel;
 
 			}
-			WrappedArrayDataModel.prototype = Object.create(ArrayDataModel.prototype);
 
-			angular.extend(WrappedArrayDataModel.prototype, {
-				constructor: WrappedArrayDataModel,
-				$super: ArrayDataModel.prototype,
+			cc.extend(WrappedArrayDataModel, ArrayDataModel, {
 
 				setSorters: function(sorters) {
 					this.$parent.setSorters(sorters);
@@ -476,125 +472,122 @@
 	 * ------------------------ SortedDataModel ----------------------------
 	 */
 
-	module.factory('camelia.SortedDataModel', [ 'camelia.WrappedArrayDataModel', function(WrappedArrayDataModel) {
+	module.factory('camelia.SortedDataModel', [ 'camelia.WrappedArrayDataModel',
+		'camelia.core',
+		function(WrappedArrayDataModel, cc) {
 
-		function SortedDataModel(dataModel) {
-			WrappedArrayDataModel.call(this, dataModel);
+			function SortedDataModel(dataModel) {
+				WrappedArrayDataModel.call(this, dataModel);
 
-			this.sortSupport = true;
-		}
-		SortedDataModel.prototype = Object.create(WrappedArrayDataModel.prototype);
-
-		angular.extend(SortedDataModel.prototype, {
-			constructor: SortedDataModel,
-			$super: WrappedArrayDataModel.prototype,
-
-			processParentArray: function(array) {
-
-				if (!this._sorters) {
-					return array;
-				}
-
-				var scope = this._dataScope.$new(true);
-				try {
-					angular.forEach(this._sorters, function(sorter) {
-
-						scope.$array = array;
-
-						var expression = sorter.expression;
-						if (expression == "orderBy:" && sorter.column.$scope.fieldName) {
-							expression += "'" + sorter.column.$scope.fieldName + "'";
-						}
-
-						var newArray = scope.$eval("$array | " + expression);
-
-						if (!sorter.ascending) {
-							newArray = newArray.reverse();
-						}
-
-						array = newArray;
-					});
-
-				} finally {
-					scope.$destroy();
-				}
-
-				return array;
-			},
-
-			delegateToParent: function() {
-				return this.$parent.isSortSupport() || !this._sorters;
+				this.sortSupport = true;
 			}
 
-		});
+			cc.extend(SortedDataModel, WrappedArrayDataModel, {
 
-		return SortedDataModel;
-	} ]);
+				processParentArray: function(array) {
+
+					if (!this._sorters) {
+						return array;
+					}
+
+					var scope = this._dataScope.$new(true);
+					try {
+						angular.forEach(this._sorters, function(sorter) {
+
+							scope.$array = array;
+
+							var expression = sorter.expression;
+							if (expression == "orderBy:" && sorter.column.$scope.fieldName) {
+								expression += "'" + sorter.column.$scope.fieldName + "'";
+							}
+
+							var newArray = scope.$eval("$array | " + expression);
+
+							if (!sorter.ascending) {
+								newArray = newArray.reverse();
+							}
+
+							array = newArray;
+						});
+
+					} finally {
+						scope.$destroy();
+					}
+
+					return array;
+				},
+
+				delegateToParent: function() {
+					return this.$parent.isSortSupport() || !this._sorters;
+				}
+
+			});
+
+			return SortedDataModel;
+		} ]);
 
 	/*
 	 * ------------------------ FiltredDataModel ----------------------------
 	 */
 
-	module.factory('camelia.FiltredDataModel', [ 'camelia.WrappedArrayDataModel', function(WrappedArrayDataModel) {
+	module.factory('camelia.FiltredDataModel', [ 'camelia.WrappedArrayDataModel',
+		'camelia.core',
+		function(WrappedArrayDataModel, cc) {
 
-		function FiltredDataModel(dataModel, rowVarName) {
-			WrappedArrayDataModel.call(this, dataModel);
+			function FiltredDataModel(dataModel, rowVarName) {
+				WrappedArrayDataModel.call(this, dataModel);
 
-			this.filterSupport = true;
-			this._rowVarName = rowVarName;
-		}
-		FiltredDataModel.prototype = Object.create(WrappedArrayDataModel.prototype);
-
-		angular.extend(FiltredDataModel.prototype, {
-			constructor: FiltredDataModel,
-			$super: WrappedArrayDataModel.prototype,
-
-			processParentArray: function(array) {
-
-				var filters = this._filters;
-				if (!filters || !filters.length) {
-					return array;
-				}
-
-				var filtersLength = filters.length;
-				var rowVarName = this._rowVarName;
-
-				var newArray = [];
-				var rowScope = this._dataScope.$new(true);
-				var self = this;
-				try {
-					angular.forEach(array, function(rowData) {
-
-						rowScope.$row = rowData;
-						if (rowVarName) {
-							rowScope[rowVarName] = rowData;
-						}
-
-						for (var i = 0; i < filtersLength; i++) {
-							var filter = filters[i];
-
-							if (filter(rowScope, self) === false) {
-								return;
-							}
-						}
-
-						newArray.push(rowData);
-					});
-
-				} finally {
-					rowScope.$destroy();
-				}
-
-				return newArray;
-			},
-
-			delegateToParent: function() {
-				return this.$parent.isFilterSupport() || !this._filters;
+				this.filterSupport = true;
+				this._rowVarName = rowVarName;
 			}
-		});
 
-		return FiltredDataModel;
-	} ]);
+			cc.extend(FiltredDataModel, WrappedArrayDataModel, {
+				processParentArray: function(array) {
+
+					var filters = this._filters;
+					if (!filters || !filters.length) {
+						return array;
+					}
+
+					var filtersLength = filters.length;
+					var rowVarName = this._rowVarName;
+
+					var newArray = [];
+					var rowScope = this._dataScope.$new(true);
+					var self = this;
+					try {
+						angular.forEach(array, function(rowData) {
+
+							rowScope.$row = rowData;
+							if (rowVarName) {
+								rowScope[rowVarName] = rowData;
+							}
+
+							for (var i = 0; i < filtersLength; i++) {
+								var filter = filters[i];
+
+								if (filter(rowScope, self) === false) {
+									return;
+								}
+							}
+
+							newArray.push(rowData);
+						});
+
+					} finally {
+						rowScope.$destroy();
+					}
+
+					return newArray;
+				},
+
+				delegateToParent: function() {
+					return this.$parent.isFilterSupport() || !this._filters;
+				}
+			});
+
+			return FiltredDataModel;
+		} ]);
 
 	/*
 	 * ------------------------ GroupedDataModel ----------------------------
@@ -623,11 +616,8 @@
 					self._groupValues = [];
 				});
 			}
-			GroupedDataModel.prototype = Object.create(WrappedArrayDataModel.prototype);
 
-			angular.extend(GroupedDataModel.prototype, {
-				constructor: GroupedDataModel,
-				$super: WrappedArrayDataModel.prototype,
+			cc.extend(GroupedDataModel, WrappedArrayDataModel, {
 
 				getGroup: function(rowScope, rowData) {
 					var expression = this._groupProvider.$scope.valueRawExpression;
@@ -724,7 +714,7 @@
 	/*
 	 * ------------------------ ProgressDataModel ----------------------------
 	 */
-	module.factory('camelia.ResourceDataModel', [ '$q', 'camelia.DataModel', function($q, DataModel) {
+	module.factory('camelia.ResourceDataModel', [ '$q', 'camelia.DataModel', 'camelia.core', function($q, DataModel, cc) {
 
 		var DEFAULT_VALUES = {
 			pageSize: 20,
@@ -773,11 +763,8 @@
 				self._rowCount = -1;
 			});
 		}
-		ResourceDataModel.prototype = Object.create(DataModel.prototype);
 
-		angular.extend(ResourceDataModel.prototype, {
-			constructor: ResourceDataModel,
-			$super: DataModel.prototype,
+		cc.extend(ResourceDataModel, DataModel, {
 
 			isRowAvailable: function() {
 				this.needRowAvailable = false;
@@ -785,12 +772,12 @@
 
 				var cache = this._cache;
 				if (cache[rowIndex] !== undefined) {
-					console.log("Ask for #" + rowIndex + " => in cache !");
+					// console.log("Ask for #" + rowIndex + " => in cache !");
 					return true;
 				}
 
 				if (this._rowCount >= 0 && rowIndex >= this._rowCount) {
-					console.log("Ask for #" + rowIndex + " => outside of rowCount");
+					// console.log("Ask for #" + rowIndex + " => outside of rowCount");
 					return false;
 				}
 
@@ -891,11 +878,14 @@
 					if (self._sessionId != currentSessionId) {
 						return deferred.reject("Session canceled");
 					}
+					deferred.notify({
+						type: DataModel.DATA_LOADED
+					});
 
 					for (var i = 0; i < response.length; i++) {
 						cache[i + offset] = response[i];
 
-						console.log("Reg#" + (i + offset) + " => " + response[i]);
+						// console.log("Reg#" + (i + offset) + " => " + response[i]);
 					}
 					if (response.length < rows) {
 						if (response.length || !offset) {
@@ -903,7 +893,8 @@
 						}
 					}
 
-					console.log("Ask for #" + rowIndex + " => Deferred " + cache[rowIndex]);
+					// console.log("Ask for #" + rowIndex + " => Deferred " +
+					// cache[rowIndex]);
 
 					deferred.resolve(cache[rowIndex] !== undefined);
 
@@ -913,13 +904,25 @@
 
 				this._requestPromise = ret.$promise;
 
-				console.log("Ask for #" + rowIndex + " => Returns promise");
+				this._requestPromise.then(null, null, function() {
+					if (self._sessionId != currentSessionId) {
+						return;
+					}
+
+					console.log("progress ...");
+
+					deferred.notify({
+						type: DataModel.DATA_LOADING
+					});
+				});
+
+				// console.log("Ask for #" + rowIndex + " => Returns promise");
 
 				return deferred.promise;
 			},
 
 			setRowIndex: function(index) {
-				console.log("Set rowIndex=" + index);
+				// console.log("Set rowIndex=" + index);
 				ResourceDataModel.prototype.$super.setRowIndex.call(this, index);
 				this.needRowAvailable = true;
 			},
@@ -932,7 +935,7 @@
 
 				var ret = this._cache[rowIndex];
 
-				console.log("#" + rowIndex + " => " + ret + " " + typeof (rowIndex));
+				// console.log("#" + rowIndex + " => " + ret + " " + typeof (rowIndex));
 
 				if (ret === undefined) {
 					debugger;
