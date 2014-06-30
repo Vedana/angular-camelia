@@ -71,6 +71,10 @@
 					extensions.push("_collapsed");
 				}
 
+				if (element._cursor) {
+					extensions.push("_cursor");
+				}
+
 				if (element._descending) {
 					extensions.push("_descending");
 				}
