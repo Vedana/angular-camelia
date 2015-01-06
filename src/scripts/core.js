@@ -100,6 +100,7 @@
 
 										switch (name.toLowerCase()) {
 										case "classname":
+										case "styleclass":
 										case "class":
 											if (angular.isArray(value)) {
 												value = value.join(" ");

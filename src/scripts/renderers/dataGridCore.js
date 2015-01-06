@@ -96,6 +96,8 @@
 
 					this.setupGroupProviders();
 
+					this.tableInstallWatchs();
+
 					$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
 
 						var sourceEvent = self._selectionSourceEvent;
@@ -187,14 +189,18 @@
 
 							var fragment = angular.element(document.createDocumentFragment());
 
-							var bodyPromise = self.tableRenderer(fragment);
-							if (!cc.isPromise(bodyPromise)) {
-								bodyPromise = $q.when(bodyPromise);
+							var bodyContainer = cc.createElement(fragment, "div", {
+								styleClass: "cm_dataGrid_bcontainer"
+							});
+							self.bodyContainer = bodyContainer[0];
+
+							var tablePromise = self.tableRenderer(bodyContainer);
+							if (!cc.isPromise(tablePromise)) {
+								tablePromise = $q.when(tablePromise);
 							}
 
-							bodyPromise.then(function(body) {
-								self._body = body;
-
+							tablePromise.then(function(body) {
+								// self._body = body;
 								// self._hideBody(); // TODO Verify
 
 								container.append(fragment);
@@ -277,19 +283,14 @@
 					}
 
 					if (!row) {
-						var tbody = this.tableTBody;
-						if (!tbody) {
-							return false;
-						}
-
-						var row = cm.GetNextType(tbody.firstChild, "row"); // Not a group
+						row = this.getFirstRow();
 						if (!row) {
 							return false;
 						}
 					}
 
 					if (!cell) {
-						var cell = cm.GetNextType(row.firstChild, CELL_OR_GROUPTITLE);
+						cell = cm.GetNextType(row.firstChild, CELL_OR_GROUPTITLE);
 						if (!cell) {
 							return false;
 						}
@@ -315,7 +316,7 @@
 
 				_setCursor: function(element, event) {
 
-					// cc.log("SetCursor ", element);
+					cc.log("SetCursor ", element);
 
 					var cid = this.focusCellId;
 					if (cid && (!element || element.id != cid)) {
@@ -373,7 +374,7 @@
 
 								var ts = this.tableViewPort.style;
 								ts.width = dr.width + "px";
-								ts.height = (dr.height - hr.height) + "px";
+								// ts.height = (dr.height - hr.height) + "px";
 							}
 						} else {
 							this._containerSizeSetted = true;
@@ -451,7 +452,7 @@
 				},
 
 				_hasData: function() {
-					var tbody = this.tableTBody;
+					var tbody = this.getTableBody();
 
 					return tbody && tbody.firstChild;
 				},
@@ -511,7 +512,12 @@
 
 					var ret = [];
 
-					var r = this.tableTBody.firstChild;
+					var tbody = this.getTableBody();
+					if (!tbody) {
+						return null;
+					}
+
+					var r = tbody.firstChild;
 					for (; r; r = r.nextSibling) {
 						if (r.nodeType != 1) {
 							continue;
@@ -1062,14 +1068,14 @@
 					ts.width = "auto";
 					// ts.height = "auto";
 					ts.visibility = "hidden";
-					this.tableElement.style.tableLayout = "";
+					// this.tableElement.style.tableLayout = "";
 
 					$log.debug("Hide body");
 				},
 				_showBody: function() {
 					var ts = this.tableViewPort.style;
 
-					this.tableElement.style.tableLayout = "fixed";
+					// this.tableElement.style.tableLayout = "fixed";
 					ts.visibility = "";
 					$log.debug("Show body");
 				},
@@ -1107,7 +1113,7 @@
 						this._containerSizeSetted = undefined;
 						this.gridWidth = -1;
 
-						this._alignColumns(false);
+						// this._alignColumns(false); // TODO sans animation !
 					}
 
 					this._clearPageAnimation();
@@ -1231,12 +1237,12 @@
 
 				_registerSelectionEvent: function(event) {
 
-					console.log("Register event ", event)
+					console.log("Register event ", event);
 
 					this._selectionSourceEvent = event;
 					var self = this;
 					$timeout(function() {
-						console.log("Unregister event ", event)
+						console.log("Unregister event ", event);
 
 						self._selectionSourceEvent = undefined;
 					}, 10, false);

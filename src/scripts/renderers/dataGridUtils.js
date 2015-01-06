@@ -1,6 +1,9 @@
 /**
  * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
@@ -17,8 +20,17 @@
 
 			return {
 
+				getTableBody: function() {
+					var table = this.tableElement;
+					if (!table) {
+						return;
+					}
+
+					return table.tBodies[0];
+				},
+
 				getFirstRow: function() {
-					var tbody = this.tableTBody;
+					var tbody = this.getTableBody();
 					if (!tbody) {
 						return null;
 					}
@@ -28,7 +40,7 @@
 
 				forEachBodyElement: function(type, func) {
 
-					var tbody = this.tableTBody;
+					var tbody = this.getTableBody();
 					if (!tbody) {
 						return;
 					}

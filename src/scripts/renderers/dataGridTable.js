@@ -38,6 +38,44 @@
 			}
 
 			return {
+				tableInstallWatchs: function() {
+					var self = this;
+
+					this.$scope.$watch('caption', function(newText) {
+						var table = self.tableElement;
+						if (!table) {
+							return;
+						}
+
+						var caption = table.getElementsByTagName("caption")[0];
+
+						if (!caption) {
+							if (!newText) {
+								return;
+							}
+
+							caption = cc.createElement(table, "caption", {
+								className: "cm_dataGrid_caption"
+							});
+						}
+
+						caption.text(angular.isString(newText) ? newText : "");
+					});
+
+					var visibleColumns = this.visibleColumns;
+					angular.forEach(visibleColumns, function(column) {
+						column.$scope.$watch("title", function(newValue) {
+
+							var th = column.bodyTitleElement;
+							if (!th) {
+								return;
+							}
+
+							angular.element(th).text(newValue ? newValue : "");
+						});
+					});
+				},
+
 				tableRenderer: function(parent) {
 
 					var viewPort = cc.createElement(parent, "div", {
@@ -59,20 +97,14 @@
 					});
 					this.tableElement = table[0];
 
-					var caption = null;
-					this.$scope.$watch('caption', function(newText) {
-						if (!caption) {
-							if (!newText) {
-								return;
-							}
+					var captionText = this.$scope.caption;
+					if (captionText) {
+						var caption = cc.createElement(table, "caption", {
+							className: "cm_dataGrid_caption"
+						});
 
-							caption = cc.createElement(table, "caption", {
-								className: "cm_dataGrid_caption"
-							});
-						}
-
-						caption.text(angular.isString(newText) ? newText : "");
-					});
+						caption.text(angular.isString(captionText) ? captionText : "");
+					}
 
 					var rowIndent = this.rowIndent;
 					if (rowIndent) {
@@ -98,21 +130,23 @@
 						var col = cc.createElement(colgroup, "col", {
 							className: "cm_dataGrid_col"
 						});
-						col.data("cm_column", column);
+						// col.data("cm_column", column);
 						column.bodyColElement = col[0];
 					});
 
 					if (this.hasResizableColumnVisible) {
-						this.rightColElement = cc.createElement(colgroup, "col", {
+						var col = cc.createElement(colgroup, "col", {
 							"aria-hidden": true,
 							className: "cm_dataGrid_colSizer"
-						})[0];
+						});
+
+						this.rightColElement = col[0];
 					}
 
 					var thead = cc.createElement(table, "thead", {
 						className: "cm_dataGrid_thead"
 					});
-					this.tableTHead = thead[0];
+					// this.tableTHead = thead[0];
 
 					var titleRow = cc.createElement(thead, "tr");
 
@@ -138,9 +172,6 @@
 						if (title) {
 							th.text(title);
 						}
-						column.$scope.$watch("title", function(newValue) {
-							th.text(newValue ? newValue : "");
-						});
 					});
 
 					this.tableStyleUpdate(viewPort);
@@ -465,25 +496,46 @@
 					if (!dataModel) {
 						return $q.when(false);
 					}
-					var dataGrid = this.dataGrid;
-
-					var varName = this.$scope.varName;
 
 					var self = this;
 
 					var fragment = angular.element(document.createDocumentFragment());
 
-					var tbody = cc.createElement(fragment, "tbody", {
+					var oldTableViewPort = this.tableViewPort;
+
+					var tablePromise = this.tableRenderer(fragment);
+					if (!cc.isPromise(tablePromise)) {
+						tablePromise = $q.when(tablePromise);
+					}
+
+					return tablePromise.then(function() {
+
+						return self._tableRowsRenderer1(self.tableViewPort, oldTableViewPort, fragment);
+					});
+				},
+
+				_tableRowsRenderer1: function(tableViewPort, oldTableViewPort, fragment) {
+					var self = this;
+					var table = this.tableElement;
+
+					var dataGrid = this.dataGrid;
+
+					var tbody = cc.createElement(table, "tbody", {
 						className: "cm_dataGrid_tbody",
 						id: "cm_tbody_" + (anonymousId++)
 					});
 
+					this._alignColumns(true);
+
 					this.$scope.$broadcast("cm:pageCreated", {
-						tbody: fragment
+						tableViewPort: tableViewPort,
+						oldTableViewPort: oldTableViewPort,
+						fragment: fragment
 					});
 
 					this.tablePrepareColumns();
 
+					var dataModel = this.dataModel;
 					dataModel = this.tablePrepareDataModel(dataModel);
 
 					var groupDataModel = dataModel.getGroup && dataModel;
@@ -542,6 +594,8 @@
 
 						dataGrid.visibleRows = visibleIndex;
 					}
+
+					var varName = this.$scope.varName;
 
 					function availablePromise(available) {
 						if (!available) {

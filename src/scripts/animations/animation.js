@@ -29,6 +29,11 @@
 				var self = this;
 				this.$on("$destroy", function() {
 					self._params = undefined;
+
+					var showTimerPromise = self._showTimerPromise;
+					if (showTimerPromise) {
+						$timeout.cancel(showTimerPromise);
+					}
 				});
 			};
 
