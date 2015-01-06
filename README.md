@@ -3,6 +3,8 @@ Camelia
 
 Powerfull Angular components library
 
+Some examples of Camelia usage can be found at https://github.com/Vedana/camelia-samples .
+
 
 ## Author
 
