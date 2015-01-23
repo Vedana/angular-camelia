@@ -17,7 +17,8 @@
 				"$log",
 				"$exceptionHandler",
 				"$injector",
-				function($q, $rootScope, $log, $exceptionHandler, $injector) {
+				"$timeout",
+				function($q, $rootScope, $log, $exceptionHandler, $injector, $timeout) {
 
 					var cmTypeMatchRegexp = /cm_([a-z]*)_.*/i;
 
@@ -308,6 +309,10 @@
 										sp.push("<<PROMISE>>");
 										return;
 									}
+									if (self.isWindow(arg)) {
+										sp.push("<<WINDOW>>");
+										return;
+									}
 
 									if (angular.isObject(arg)) {
 										for (var i = 0; i < cycles.length; i++) {
@@ -391,6 +396,13 @@
 						isPromise: function(object) {
 							return object && angular.isFunction(object.then);
 						},
+						isWindow: function(obj) {
+						  return obj && obj.document && obj.location && obj.alert && obj.setInterval;
+						},
+						isScope: function(obj) {
+						  return obj && obj.$evalAsync && obj.$watch;
+						},
+
 						toBoolean: function(value, defaultValue) {
 							if (value === true) {
 								return value;
@@ -541,7 +553,7 @@
 
 							return clazz;
 						},
-						on: function(target, type, listener, useCapture, scope) {
+						on: function(target, type, listener, useCapture, scope, async) {
 							if (target[0]) {
 								target = target[0];
 							}
@@ -549,12 +561,26 @@
 							var listenerApply = function(event) {
 								var self = this;
 
-								var ret;
-								(scope || $rootScope).$apply(function() {
-									ret = listener.call(self, event);
-								});
+								try {
+									if (async!==false) {
+										return $timeout(function() {
+											
+											listener.call(self, event);
+											
+											(scope || $rootScope).$apply();
+											
+										}, 0, false);
+									}
+									
+									var ret;
+									(scope || $rootScope).$apply(function() {
+										ret = listener.call(self, event);
+									});
 
-								return ret;
+									return ret;
+								} catch (x) {
+									console.log(x);
+								}
 							};
 
 							target.addEventListener(type, listenerApply, useCapture);
