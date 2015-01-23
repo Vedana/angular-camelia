@@ -158,6 +158,9 @@
 				setGrouped: function(grouped) {
 					this._grouped = !!grouped;
 				},
+				isGrouped: function() {
+					return this._grouped;
+				},
 				setDataScope: function(scope) {
 					this._dataScope = scope;
 				},
@@ -519,8 +522,10 @@
 
 				delegateToParent: function() {
 					return this.$parent.isSortSupport() || !this._sorters;
+				},
+				getRowCount: function() {
+					return this.$parent.getRowCount();
 				}
-
 			});
 
 			return SortedDataModel;
@@ -601,6 +606,7 @@
 
 				this.groupSupport = true;
 
+				this._groupInitialized = false;
 				this._groupProvider = groupProvider;
 				this._rowVarName = rowVarName;
 				this._groups = [];
@@ -648,7 +654,32 @@
 					return this._groupValues[idx];
 				},
 
+				xxxisRowAvailable: function() {
+					var ret = WrappedArrayDataModel.prototype.isRowAvailable.call(this);
+					if (!ret || cc.isPromise(ret)) {
+						return ret;
+					}
+
+					var array = this.toArray();
+					if (cc.isPromise(array)) {
+						var self = this;
+						return array.then(function(array) {
+							self.processParentArray(array);
+
+							return ret;
+						});
+					}
+
+					this.processParentArray(array);
+					return ret;
+				},
+
 				processParentArray: function(array) {
+					if (this._groupInitialized) {
+						return array;
+					}
+
+					this._groupInitialized = true;
 					if (!this._grouped) {
 						return array;
 					}
@@ -706,6 +737,9 @@
 
 				delegateToParent: function() {
 					return this.$parent.isGroupSupport() || !this._grouped;
+				},
+				getRowCount: function() {
+					return this.$parent.getRowCount();
 				}
 			});
 
