@@ -403,6 +403,7 @@
 							dataModel = $injector.invoke([ "camelia.GroupedDataModel", function(GroupedDataModel) {
 								return new GroupedDataModel(dataModel, groupProvider, varName);
 							} ]);
+							dataModelGrouped = true;
 						}
 						dataModel.setGrouped(dataModelGrouped);
 					}
@@ -509,7 +510,6 @@
 					}
 
 					return tablePromise.then(function() {
-
 						return self._tableRowsRenderer1(self.tableViewPort, oldTableViewPort, fragment);
 					});
 				},
@@ -538,7 +538,10 @@
 					var dataModel = this.dataModel;
 					dataModel = this.tablePrepareDataModel(dataModel);
 
-					var groupDataModel = dataModel.getGroup && dataModel;
+					var groupDataModel;
+					if (dataModel.isGrouped && dataModel.isGrouped()) {
+						groupDataModel = dataModel;
+					}
 
 					var rowIndent = (groupDataModel) ? 1 : 0;
 					var first = dataGrid.first;
@@ -596,6 +599,7 @@
 					}
 
 					var varName = this.$scope.varName;
+					var groupProvider = this.selectedGroupProvider;
 
 					function availablePromise(available) {
 						if (!available) {
