@@ -317,7 +317,7 @@
 
 						_setCursor: function(element, event) {
 
-							cc.log("SetCursor ", element);
+							//cc.log("SetCursor ", element);
 
 							var cid = this.focusCellId;
 							if (cid && (!element || element.id != cid)) {
