@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.components.template' ]);
+	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.directives.template' ]);
 
 	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
 
@@ -205,7 +205,7 @@
 							Template.markContainer(element, $scope);
 						},
 						post: function($scope, element, attrs, dataGridController) {
-							var column = new dataGridController.componentProvider.DataGroup($scope, datagridController
+							var column = new dataGridController.componentProvider.DataGroup($scope, dataGridController
 									.getProviderIndex() + 1);
 
 							dataGridController.appendGroupProvider(column);
