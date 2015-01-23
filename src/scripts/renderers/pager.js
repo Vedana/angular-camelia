@@ -269,7 +269,7 @@
 
 						if (c == "\'") {
 							if (!span) {
-								span = new Array;
+								span = new Array();
 							}
 							for (var j = i;;) {
 								var end = message.indexOf("'", j);
@@ -293,7 +293,7 @@
 						}
 
 						if (!span) {
-							span = new Array;
+							span = new Array();
 						}
 						span.push(c);
 					}
