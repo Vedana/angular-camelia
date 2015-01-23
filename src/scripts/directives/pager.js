@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.pager', [ 'camelia.core', 'camelia.components.template' ]);
+	var module = angular.module('camelia.directives.pager', [ 'camelia.core', 'camelia.directives.template' ]);
 
 	module.value("cm_pager_componentProviderName", "camelia.components.pager:camelia.components.Pager");
 
