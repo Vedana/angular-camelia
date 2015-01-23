@@ -39,7 +39,7 @@
 
 			setCursor: function(row, column, sourceEvent) {
 
-				cc.log("SetCursor row=", row, " column=", (column) ? column.id : null, " event=", sourceEvent);
+				//cc.log("SetCursor row=", row, " column=", (column) ? column.id : null, " event=", sourceEvent);
 
 				if (this._rowCursor === row && this._columnCursor === column) {
 					return;
