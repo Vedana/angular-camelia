@@ -303,11 +303,14 @@
 	border-color: transparent;
 	border-right-color: #E8F1FB;
 	border-width: 1px 0;
+	color: #6D6D6D;
 }
 
 .cm_dataGrid_cfirst {
 	border-left-width: 1px;
 	padding-left: 2px;
+	border-right-color: #E8F1FB;
+	color: black;
 }
 
 .cm_dataGrid_clast {
