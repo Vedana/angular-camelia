@@ -397,10 +397,10 @@
 							return object && angular.isFunction(object.then);
 						},
 						isWindow: function(obj) {
-						  return obj && obj.document && obj.location && obj.alert && obj.setInterval;
+							return obj && obj.document && obj.location && obj.alert && obj.setInterval;
 						},
 						isScope: function(obj) {
-						  return obj && obj.$evalAsync && obj.$watch;
+							return obj && obj.$evalAsync && obj.$watch;
 						},
 
 						toBoolean: function(value, defaultValue) {
@@ -444,6 +444,9 @@
 						},
 
 						setFocus: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
 
 							// this.log("SetFocus ", element);
 
@@ -562,16 +565,16 @@
 								var self = this;
 
 								try {
-									if (async!==false) {
+									if (async !== false) {
 										return $timeout(function() {
-											
+
 											listener.call(self, event);
-											
+
 											(scope || $rootScope).$apply();
-											
+
 										}, 0, false);
 									}
-									
+
 									var ret;
 									(scope || $rootScope).$apply(function() {
 										ret = listener.call(self, event);
