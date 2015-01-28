@@ -10,17 +10,16 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selectionStrategy', [ "camelia.core" ]);
+	var module = angular.module('camelia.selectionStrategy', [ "camelia.core", "camelia.scopedObject" ]);
 
 	module.factory('camelia.SelectionStrategy', [ "$rootScope",
 		"$injector",
 		"camelia.core",
-		function($rootScope, $injector, cc) {
-
-			var scopeProto = cc.getProto($rootScope);
+		"camelia.ScopedObject",
+		function($rootScope, $injector, cc, ScopedObject) {
 
 			function SelectionStrategy($parentScope, cardinality) {
-				cc.inheritScope(this, $parentScope);
+				ScopedObject.call(this, $parentScope);
 
 				this._cardinality = SelectionStrategy._GetCardinality(cardinality);
 			}
@@ -60,7 +59,7 @@
 				} ]);
 			};
 
-			cc.extendProto(SelectionStrategy, scopeProto, {
+			cc.extend(SelectionStrategy, ScopedObject, {
 				getBase: function() {
 					return null;
 				},
@@ -133,8 +132,8 @@
 						if (this._cardinality) {
 							selectionProvider.add(rowValues);
 
-							//this._base = cursorValue;
-							//this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
+							// this._base = cursorValue;
+							// this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
 							return;
 						}
 					}

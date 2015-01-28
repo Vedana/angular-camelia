@@ -18,8 +18,10 @@
 			require: "^cmTemplateContainer",
 			restrict: "E",
 			scope: {
-				name: '@'
-				//enabled: '@'
+				name: '@',
+				id: '@',
+				refId: '@'
+			// enabled: '@'
 			},
 			transclude: true,
 

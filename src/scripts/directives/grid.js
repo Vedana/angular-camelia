@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.directives.template' ]);
+	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.templateRegistry' ]);
 
 	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
 
@@ -20,8 +20,8 @@
 		"$q",
 		"camelia.core",
 		"cm_grid_componentProviderName",
-		"camelia.components.Template",
-		function($injector, $interpolate, $log, $q, cc, cm_grid_componentProviderName, Template) {
+		"camelia.TemplateRegistry",
+		function($injector, $interpolate, $log, $q, cc, cm_grid_componentProviderName, TemplateRegistry) {
 
 			return {
 				restrict: "E",
@@ -90,9 +90,11 @@
 							var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
 							controller.dataGrid = dataGrid;
 
-							Template.markContainer(element, $scope);
+							TemplateRegistry.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, controller) {
+							TemplateRegistry.RegisterTemplates($scope);
+
 							var dataGrid = controller.dataGrid;
 
 							var promise = $injector.invoke(dataGrid.construct, dataGrid);
@@ -116,9 +118,9 @@
 		} ]);
 
 	module.directive("cmDatacolumn", [ "camelia.core",
-		"camelia.components.Template",
+		"camelia.TemplateRegistry",
 
-		function(cc, Template) {
+		function(cc, TemplateRegistry) {
 			return {
 				require: "^cmDatagrid",
 				restrict: "E",
@@ -153,9 +155,10 @@
 						pre: function($scope, element, attrs) {
 							$scope.valueRawExpression = element.attr("text") || element.attr("value");
 
-							Template.markContainer(element, $scope);
+							TemplateRegistry.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, datagridController) {
+							TemplateRegistry.RegisterTemplates($scope);
 
 							if ($scope.fieldName) {
 								if (/[^\w]/.test($scope.fieldName)) {
@@ -181,8 +184,8 @@
 		} ]);
 
 	module.directive("cmDatagroup", [ "camelia.core",
-		"camelia.components.Template",
-		function(cc, Template) {
+		"camelia.TemplateRegistry",
+		function(cc, TemplateRegistry) {
 			return {
 				require: "^cmDatagrid",
 				restrict: "E",
@@ -202,9 +205,11 @@
 							$scope.titleClassRawExpression = element.attr("titleclass");
 							$scope.valueRawExpression = element.attr("value");
 
-							Template.markContainer(element, $scope);
+							TemplateRegistry.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, dataGridController) {
+							TemplateRegistry.RegisterTemplates($scope);
+
 							var column = new dataGridController.componentProvider.DataGroup($scope, dataGridController
 									.getProviderIndex() + 1);
 
@@ -215,51 +220,58 @@
 			};
 		} ]);
 
-	module.directive("cmCriteria", [ "camelia.core", "$log", "$injector", function(cc, $log, $injector) {
-		return {
-			require: "^cmDatacolumn",
-			restrict: "E",
-			scope: {
-				type: '@'
-			},
-			compile: function() {
-				return {
-					pre: function($scope, element, attrs) {
+	module.directive("cmCriteria", [ "camelia.core",
+		"$log",
+		"$injector",
+		"camelia.TemplateRegistry",
+		function(cc, $log, $injector, TemplateRegistry) {
+			return {
+				require: "^cmDatacolumn",
+				restrict: "E",
+				scope: {
+					type: '@'
+				},
+				compile: function() {
+					return {
+						pre: function($scope, element, attrs) {
 
-						// console.log("PRE Criteria " + attrs.name);
-					},
-					post: function($scope, element, attrs, dataColumnController) {
-						var type = $scope.type;
-						if (!angular.isString(type) || !type.length) {
-							throw new Error("Invalid criteria type (" + type + ")");
+							// console.log("PRE Criteria " + attrs.name);
+							TemplateRegistry.MarkTemplateContainer($scope, element);
+						},
+						post: function($scope, element, attrs, dataColumnController) {
+							TemplateRegistry.RegisterTemplates($scope);
+
+							var type = $scope.type;
+							if (!angular.isString(type) || !type.length) {
+								throw new Error("Invalid criteria type (" + type + ")");
+							}
+
+							var criteriaName;
+							var idx = type.indexOf('.');
+							if (idx >= 0) {
+								criteriaName = type;
+
+							} else {
+								criteriaName = "camelia.criteria." + type;
+							}
+
+							// console.log("POST Criteria " + attrs.name);
+
+							var criterias = dataColumnController.criterias;
+							try {
+								$injector.invoke([ criteriaName, function(CriteriaClass) {
+									var criteria = new CriteriaClass($scope, element, attrs);
+
+									criterias.push(criteria);
+								} ]);
+
+							} catch (x) {
+								$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
+							}
 						}
-
-						var criteriaName;
-						var idx = type.indexOf('.');
-						if (idx >= 0) {
-							criteriaName = type;
-
-						} else {
-							criteriaName = "camelia.criteria." + type;
-						}
-
-						// console.log("POST Criteria " + attrs.name);
-
-						var criterias = dataColumnController.criterias;
-						try {
-							$injector.invoke([ criteriaName, function(CriteriaClass) {
-								var criteria = new CriteriaClass($scope, element, attrs);
-
-								criterias.push(criteria);
-							} ]);
-
-						} catch (x) {
-							$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
-						}
-					}
-				};
-			}
-		};
-	} ]);
+					};
+				}
+			};
+		} ]);
 
 })(window, window.angular);

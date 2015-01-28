@@ -403,6 +403,9 @@
 							return obj && obj.$evalAsync && obj.$watch;
 						},
 
+						ensurePromise: function(object) {
+							return this.isPromise(object) ? object : $q.when(object);
+						},
 						toBoolean: function(value, defaultValue) {
 							if (value === true) {
 								return value;
@@ -528,20 +531,6 @@
 
 						getProto: function(type) {
 							return (Object.getPrototypeOf && Object.getPrototypeOf(type)) || type.__proto__;
-						},
-
-						inheritScope: function(obj, parentScope, isolate) {
-							var prototype = this.getProto(obj);
-
-							var scope = (parentScope || $rootScope).$new(isolate !== false);
-							if (Object.setPrototypeOf) {
-								Object.setPrototypeOf(obj, scope);
-								Object.setPrototypeOf(scope, prototype);
-								return;
-							}
-
-							obj.__proto__ = scope;
-							scope.__proto__ = prototype;
 						},
 						extend: function(clazz, parentClass, members) {
 							return this.extendProto(clazz, parentClass.prototype, members);

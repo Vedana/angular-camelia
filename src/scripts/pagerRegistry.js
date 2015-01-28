@@ -28,12 +28,21 @@
 		var promisesByTargetId = controller.promisesByTargetId;
 
 		var PagerRegistry = {
-			TARGET_DECLARED: "cm:targetDeclared",
 
 			RegisterWaitingFor: function($pagerScope, targetId) {
 
 				var pagerDeferredList = promisesByTargetId[targetId];
-				if (pagerDeferredList === true) {
+
+				var target = document.getElementById(targetId);
+				if (target && target.cmPagerRegistred) {
+					delete promisesByTargetId[targetId];
+
+					if (pagerDeferredList) {
+						angular.forEach(pagerDeferredList, function(deferred) {
+							deferred.resolve(target);
+						});
+					}
+
 					return $q.when(target);
 				}
 
@@ -52,7 +61,12 @@
 						return;
 					}
 
-					pagerDeferredList.splice(idx, 1);
+					if (pagerDeferredList.length > 1) {
+						pagerDeferredList.splice(idx, 1);
+
+					} else {
+						delete promisesByTargetId[targetId];
+					}
 
 					deferred.reject("Pager destroyed");
 
@@ -67,10 +81,11 @@
 					target = target[0];
 				}
 
+				target.cmPagerRegistred = true;
 				var targetId = target.id;
 
 				var ts = promisesByTargetId[targetId];
-				promisesByTargetId[targetId] = true;
+				delete promisesByTargetId[targetId];
 				if (!ts) {
 					return;
 				}

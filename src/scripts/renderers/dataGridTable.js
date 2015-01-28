@@ -26,8 +26,9 @@
 		"camelia.cmTypes",
 		"cm_grid_rowIndentPx",
 		"cm_grid_group_animation",
+		"camelia.TemplateRegistry",
 		function($log, $q, $timeout, $injector, $interpolate, $exceptionHandler, cc, cm, cm_dataGrid_rowIndentPx,
-				cm_dataGrid_group_animation) {
+				cm_dataGrid_group_animation, TemplateRegistry) {
 
 			var anonymousId = 0;
 
@@ -76,17 +77,17 @@
 					});
 				},
 
-				tableRenderer: function(parent) {
+				tableViewPortRenderer: function(parent) {
 
 					var viewPort = cc.createElement(parent, "div", {
 						id: "cm_table_" + (anonymousId++),
 						className: "cm_dataGrid_table"
 					});
-					this.tableViewPort = viewPort[0];
+					var tableViewPort = viewPort[0];
 
 					var self = this;
 					viewPort.on("scroll", function(event) {
-						self.titleViewPort.scrollLeft = self.tableViewPort.scrollLeft;
+						self.titleViewPort.scrollLeft = tableViewPort.scrollLeft;
 					});
 
 					var table = cc.createElement(viewPort, "table", {
@@ -176,7 +177,7 @@
 
 					this.tableStyleUpdate(viewPort);
 
-					return viewPort;
+					return tableViewPort;
 				},
 				tableDestroy: function() {
 					this.lastDataModel = undefined;
@@ -460,34 +461,10 @@
 							column.valueExpression = valueExpression;
 						}
 
-						var templates = column.templates;
+						var templates = column.cellTemplates;
 						if (templates === undefined) {
-							templates = [];
-
-							var ts = column.$scope.templates;
-							if (ts) {
-								var templatesIE = {};
-								column.templatesIE = templatesIE;
-
-								angular.forEach(ts, function(t) {
-									if (t.$scope.name != "cell") {
-										return;
-									}
-
-									var enabledE = t.$scope.enabledExpresion;
-									if (enabledE) {
-										if (enabledE === "false") {
-											return;
-										}
-
-										templatesIE[t.id] = self.$interpolate(enabledE);
-									}
-
-									templates.push(t);
-								});
-							}
-
-							column.templates = (templates.length) ? templates : false;
+							column.cellTemplates = TemplateRegistry.PrepareTemplates(column.$scope.templates, self.$interpolate,
+									"cell");
 						}
 					});
 				},
@@ -504,17 +481,48 @@
 
 					var oldTableViewPort = this.tableViewPort;
 
-					var tablePromise = this.tableRenderer(fragment);
-					if (!cc.isPromise(tablePromise)) {
-						tablePromise = $q.when(tablePromise);
-					}
+					var tableViewPortPromise = this.tableViewPortRenderer(fragment);
+					tableViewPortPromise = cc.ensurePromise(tableViewPortPromise);
 
-					return tablePromise.then(function() {
-						return self._tableRowsRenderer1(self.tableViewPort, oldTableViewPort, fragment);
+					return tableViewPortPromise.then(function(newTableViewPort) {
+						self.tableViewPort = newTableViewPort;
+
+						self.$scope.$broadcast("cm:tableViewPortCreated", {
+							tableViewPort: self.tableViewPort,
+							oldTableViewPort: oldTableViewPort,
+							fragment: fragment
+						});
+
+						return self._tableRowsRenderer1(fragment).then(function processSuccess(result) {
+
+							$log.debug("Receive promise success ", result);
+
+							self.$scope.$broadcast("cm:pageRendered", {
+								tableViewPort: self.tableViewPort,
+								result: result
+							});
+
+							return result;
+						},
+
+						function processError(error) {
+							$log.debug("Receive promise error ", error);
+							self.$scope.$broadcast("cm:pageError", {
+								error: error
+							});
+
+							return error;
+
+						}, function processNotification(notification) {
+							$log.debug("Receive promise notification ", notification);
+							self.$scope.$broadcast(notification.type, notification);
+
+							return notification;
+						});
 					});
 				},
 
-				_tableRowsRenderer1: function(tableViewPort, oldTableViewPort, fragment) {
+				_tableRowsRenderer1: function(fragment) {
 					var self = this;
 					var table = this.tableElement;
 
@@ -526,12 +534,6 @@
 					});
 
 					this._alignColumns(true);
-
-					this.$scope.$broadcast("cm:pageCreated", {
-						tableViewPort: tableViewPort,
-						oldTableViewPort: oldTableViewPort,
-						fragment: fragment
-					});
 
 					this.tablePrepareColumns();
 
@@ -573,7 +575,7 @@
 					var currentGroup = null;
 					var groupIndex = -1;
 
-					var progressDefer = null;
+					var progressDefer = $q.defer();
 					var progressDate = 0;
 
 					function setupDataGrid(lastRowReached) {
@@ -603,6 +605,12 @@
 
 					function availablePromise(available) {
 						if (!available) {
+
+							progressDefer.notify({
+								type: "rowRendered",
+								count: visibleIndex
+							});
+
 							dataModel.setRowIndex(-1);
 
 							if (rowScope) {
@@ -627,6 +635,7 @@
 									progressDate = now + PROGRESS_DELAY_MS;
 
 									progressDefer.notify({
+										type: "rowRendering",
 										count: visibleIndex,
 										rows: rows
 									});
@@ -736,13 +745,21 @@
 							}
 
 							if (cc.isPromise(nextAvailable)) {
-								return nextAvailable.then(availablePromise);
+								return nextAvailable.then(function(result) {
+									return availablePromise(result);
+
+								});
 							}
 
 							if (nextAvailable !== true) {
 								break;
 							}
 						}
+
+						progressDefer.notify({
+							type: "rowRendered",
+							rows: rows
+						});
 
 						dataModel.setRowIndex(-1);
 						if (rowScope) {
@@ -754,7 +771,7 @@
 
 						setupDataGrid(rows > 0 && visibleIndex < rows);
 
-						return $q.when(false);
+						return progressDefer.resolve(visibleIndex);
 					}
 
 					var nextAvailable;
@@ -773,16 +790,25 @@
 						dataGrid.maxRows = -1;
 						dataGrid.visibleRows = visibleIndex;
 
-						throw x;
+						return progressDefer.reject(x);
 					}
 
-					if (!cc.isPromise(nextAvailable)) {
-						return availablePromise(nextAvailable);
-					}
+					nextAvailable = cc.ensurePromise(nextAvailable);
 
-					progressDefer = null;
+					nextAvailable.then(function(result) {
+						// $log.debug("First: success ", result);
+						return availablePromise(result);
 
-					return nextAvailable.then(availablePromise);
+					}, function(reason) {
+						// $log.debug("First: error ", reason);
+						return progressDefer.reject(reason);
+
+					}, function(progress) {
+						// $log.debug("First: Progress notification ", progress);
+						return progressDefer.notify(progress);
+					});
+
+					return progressDefer.promise;
 				},
 
 				tableStyleUpdate: function(body) {

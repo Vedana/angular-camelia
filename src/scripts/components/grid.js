@@ -232,7 +232,7 @@
 						containerPromise = $q.when(containerPromise);
 					}
 
-					return containerPromise.then(function(element) {
+					return containerPromise.then(function onSuccess(element) {
 						if (element[0]) {
 							element = element[0];
 						}
@@ -251,7 +251,7 @@
 
 						return doc;
 
-					}, function(reason) {
+					}, function onError(reason) {
 						self.readyState = "error";
 
 						return doc;
@@ -274,7 +274,7 @@
 
 					var self = this;
 
-					dataModelPromise.then(function(dataModel) {
+					dataModelPromise.then(function onSuccess(dataModel) {
 						gridRenderer.dataErrored = false;
 						gridRenderer.dataModel = dataModel;
 
@@ -294,7 +294,7 @@
 						gridRenderer.updateData();
 						// }
 
-					}, function(error) {
+					}, function onError(reason) {
 						gridRenderer.dataErrored = true;
 						gridRenderer.dataModel = null;
 						gridRenderer.updateData();

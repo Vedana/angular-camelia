@@ -169,14 +169,16 @@
 				cellRenderer: function(td, rowScope, index, column, columnIndex, destroyScopeRef) {
 					var value;
 
-					var templates = column.templates;
-					if (templates) {
+					var cellTemplates = column.cellTemplates;
+					if (cellTemplates) {
+						var templates = cellTemplates.templates;
+
 						for (var i = 0; i < templates.length; i++) {
 							var template = templates[i];
 
-							var templateIE = column.templatesIE[template.id];
-							if (templateIE) {
-								if (rowScope.$eval(templateIE) === false) {
+							var enabledExpression = cellTemplates.enabledExpressions[template.id];
+							if (enabledExpression) {
+								if (rowScope.$eval(enabledExpression) === false) {
 									continue;
 								}
 							}

@@ -88,18 +88,14 @@
 					this._addState(PopupRenderer.INITIALIZING);
 
 					var promise = this._initialize.apply(this, arguments);
-					if (!cc.isPromise(promise)) {
-						promise = $q.when(promise);
-					}
+					promise = cc.ensurePromise(promise);
 
 					var self = this;
 					return promise.then(function() {
 						self._addState(PopupRenderer.INITIALIZED);
 
 						var renderPromise = self.render();
-						if (!cc.isPromise(renderPromise)) {
-							renderPromise = $q.when(renderPromise);
-						}
+						renderPromise = cc.ensurePromise(renderPromise);
 
 						return renderPromise;
 					});
@@ -137,9 +133,7 @@
 					container.data("$isolateScope", this.$scope);
 
 					var promise = this._render(angular.element(this.container));
-					if (!cc.isPromise(promise)) {
-						promise = $q.when(promise);
-					}
+					promise = cc.ensurePromise(promise);
 
 					var self = this;
 					return promise.then(function() {
@@ -168,9 +162,7 @@
 					if (!this.containsState(PopupRenderer.RENDERED)) {
 						if (!this.containsState(PopupRenderer.INITIALIZING)) {
 							var promise = this.initialize();
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
+							promise = cc.ensurePromise(promise);
 
 							return promise.then(function() {
 								return self.open(position);

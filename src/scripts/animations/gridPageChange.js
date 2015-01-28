@@ -12,32 +12,39 @@
 
 	var module = angular.module("camelia.animations.grid");
 
-	module.factory("camelia.animations.grid.PageChange", [ "$log", "$timeout", 'camelia.animations.Animation',
+	module.factory("camelia.animations.grid.PageChange", [ "$log",
+		"$timeout",
+		'camelia.animations.Animation',
 		'camelia.core',
 		function($log, $timeout, Animation, cc) {
+
+			var anonymousId = 0;
 
 			var PageChange = function($scope, params) {
 				Animation.call(this, $scope, params);
 
-				this.renderer = params.renderer;
 				var self = this;
-				var off = $scope.$on("cm:pageCreated", function(event, args) {
+				var off = this.$on("cm:tableViewPortCreated", function(event, args) {
 					self._args = args;
 
 					off();
+				});
+
+				var off2 = this.$on("cm:pageError", function(event, args) {
+					self._showPageError();
+
+					off2();
 				});
 			};
 
 			cc.extend(PageChange, Animation, {
 
 				_processStart: function() {
-					this._hideBody();
-
-					var renderer = this.renderer;
+					var renderer = this._params.renderer;
 					var container = renderer.container;
 
 					var cHeight = container.style.height;
-					if (!cHeight || cHeight == "auto") {
+					if (!cHeight || cHeight === "auto") {
 						this._forceHeight = true;
 
 						var containerBCR = container.getBoundingClientRect();
@@ -47,17 +54,69 @@
 					var viewPort = renderer.tableViewPort;
 					if (viewPort) {
 						this._oldTableViewPort = viewPort;
-						
-						viewPort.style.visible="hidden";
+
+						viewPort.style.visibility = "hidden";
 					}
+
+					var self = this;
+					this._showLoadingPagePromise = $timeout(function onTimer() {
+						if (!self._args) {
+							return $timeout(onTimer, 1000, false);
+						}
+
+						self._showWaitingPage();
+
+					}, 1000, false);
+				},
+
+				_showWaitingPage: function() {
+
+					var fragment = angular.element(document.createDocumentFragment());
+
+					this._renderWaitingPage(fragment);
+
+					this._waitingPage = fragment[0].firstChild;
+
+					var renderer = this._params.renderer;
+					angular.element(renderer.bodyContainer).append(fragment);
+				},
+
+				_renderWaitingPage: function(container) {
+					$log.debug("Show waiting page !!!!");
+
+					var waitingDiv = cc.createElement(container, "div", {
+						id: "cm_table_waitingPage_" + (anonymousId++),
+						className: "cm_dataGrid_waitingPage"
+					});
+
+					var label = cc.createElement(waitingDiv, "label", {
+						textnode: "Page en cours de chargement"
+					});
+
+					this.$on("cm:dataLoaded", function(event, data) {
+						angular.element(label).text(data.count + " lignes chargées");
+					});
 				},
 
 				_processEnd: function() {
+					var showLoadingPagePromise = this._showLoadingPagePromise;
+					if (showLoadingPagePromise) {
+						this._showLoadingPagePromise = undefined;
+
+						$timeout.cancel(showLoadingPagePromise);
+					}
+
 					var tableViewPort = this._args.tableViewPort;
 					var oldTableViewPort = this._oldTableViewPort;
 					var fragment = this._args.fragment || tableViewPort;
 
-					var renderer = this.renderer;
+					var renderer = this._params.renderer;
+
+					var waitingPage = this._waitingPage;
+					if (waitingPage) {
+						this._waitingPage = undefined;
+						angular.element(waitingPage).remove();
+					}
 
 					angular.element(renderer.bodyContainer).append(fragment);
 					renderer.tableElement.style.tableLayout = "fixed";
@@ -83,29 +142,8 @@
 
 					}, 10, false);
 
-					this._showBody();
-				},
-
-				_hideBody: function() {
-					var renderer = this.renderer;
-
-					var ts = renderer.tableViewPort.style;
-					// ts.width = "auto";
-					// ts.height = "auto";
-					// ts.visibility = "hidden";
-					// renderer.tableElement.style.tableLayout = "";
-
-					$log.debug("GridPageChange.Hide body");
-				},
-				_showBody: function() {
-					var renderer = this.renderer;
-
-					var ts = renderer.tableViewPort.style;
-					// renderer.tableElement.style.tableLayout = "fixed";
-					// ts.visibility = "";
-					$log.debug("GridPageChange.Show body");
-				},
-
+					return Animation.prototype._processEnd.call(this);
+				}
 			});
 
 			return PageChange;

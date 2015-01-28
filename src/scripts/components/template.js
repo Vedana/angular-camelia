@@ -28,7 +28,7 @@
 			var Template = function($scope, element, containerScope, transcludeFunc) {
 				this.$scope = $scope;
 				this._transcludeFunc = transcludeFunc;
-				this.id = "template_" + (anonymousId++);
+				this.id = $scope.id || ("template_" + (anonymousId++));
 				// element.data("cm_component", this);
 
 				if (!containerScope.templates) {
@@ -37,11 +37,7 @@
 
 				containerScope.templates.push(this);
 			};
-
-			Template.markContainer = function(element, $scope) {
-				element.data('$cmTemplateContainerController', $scope);
-			};
-
+	
 			Template.prototype = {
 
 				/**

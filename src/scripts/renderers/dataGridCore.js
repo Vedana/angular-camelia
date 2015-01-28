@@ -168,23 +168,30 @@
 								self._offBlur();
 
 								self.tableDestroy();
+
+								var dr = self._deferredRefresh;
+								if (dr) {
+									self._deferredRefresh = null;
+									dr.reject({
+										code: "DESTROYED",
+										message: "Component is destroyed"
+									});
+								}
 							});
 
 							container.on("cm_update", this._onGridStyleUpdate());
 
-							$scope.$broadcast("cm:dataGrid_title_rendering");
+							$scope.$broadcast("cm:gridTitleRendering");
 
 							var titlePromise = this.titleRenderer(container);
-							if (!cc.isPromise(titlePromise)) {
-								titlePromise = $q.when(titlePromise);
-							}
+							titlePromise = cc.ensurePromise(titlePromise);
 
-							return titlePromise.then(function(title) {
-								$scope.$broadcast("cm:dataGrid_title_rendered");
+							return titlePromise.then(function onSuccess(title) {
+								$scope.$broadcast("cm:gridTitleRendered");
 
 								self._title = title;
 
-								$scope.$broadcast("cm:dataGrid_body_rendering");
+								$scope.$broadcast("cm:gridBodyRendering");
 
 								self._monitorPositions(function() {
 
@@ -195,18 +202,17 @@
 									});
 									self.bodyContainer = bodyContainer[0];
 
-									var tablePromise = self.tableRenderer(bodyContainer);
-									if (!cc.isPromise(tablePromise)) {
-										tablePromise = $q.when(tablePromise);
-									}
+									var tablePromise = self.tableViewPortRenderer(bodyContainer);
+									tablePromise = cc.ensurePromise(tablePromise);
 
-									tablePromise.then(function(body) {
+									tablePromise.then(function onSuccess(tableViewPort) {
 										// self._body = body;
 										// self._hideBody(); // TODO Verify
+										self.tableViewPort = tableViewPort;
 
 										container.append(fragment);
 
-										$scope.$broadcast("cm:dataGrid_body_rendered");
+										$scope.$broadcast("cm:gridBodyRendered");
 
 										var win = angular.element($window);
 
@@ -218,18 +224,19 @@
 										});
 
 										var layoutPromise = self.gridLayout();
-										if (!cc.isPromise(layoutPromise)) {
-											layoutPromise = $q.when(layoutPromise);
-										}
+										layoutPromise = cc.ensurePromise(layoutPromise);
 
-										layoutPromise.then(function() {
-											$scope.$broadcast("cm:dataGrid_rendered");
+										layoutPromise.then(function onSuccess() {
+											$scope.$broadcast("cm:gridRendered");
 
 											$scope.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self._onSelectionChanged());
 
-											self._gridReady(container);
+											self._gridReady(container).then(function onSuccess() {
+												$scope.$broadcast("cm:gridReady");
 
-											$scope.$broadcast("cm:dataGrid_ready");
+											}, function onError(reason) {
+												$log.error("GridReady error ", reason);
+											});
 										});
 									});
 								});
@@ -264,6 +271,9 @@
 
 						},
 
+						/**
+						 * @returns {Promise}
+						 */
 						_gridReady: function(element, focusFirstCell) {
 
 							var row;
@@ -286,38 +296,45 @@
 							if (!row) {
 								row = this.getFirstRow();
 								if (!row) {
-									return false;
+									return $q.when(false);
 								}
 							}
 
 							if (!cell) {
 								cell = cm.GetNextType(row.firstChild, CELL_OR_GROUPTITLE);
 								if (!cell) {
-									return false;
+									return $q.when(false);
 								}
 							}
 
 							if (!focusFirstCell) {
 								this._setCursor(cell);
-								return true;
+								return $q.when(true);
 							}
 
-							// Sometime, it is not yet drawn !
-							if (cell.getBoundingClientRect().width) {
+							var cnt = 10;
+							return $timeout(function onTimer() {
+
+								// Sometime, it is not yet drawn !
+								if (!cell.getBoundingClientRect().width) {
+									if (--cnt > 0) {
+										return $timeout(onTimer, 100, false);
+									}
+
+									return $q.reject({
+										code: "COMPONENT_NOT_DRAWN",
+										message: "The specified component is not drawn"
+									});
+								}
+
 								cc.setFocus(cell);
 								return true;
-							}
-
-							$timeout(function() {
-								cc.setFocus(cell);
-							}, 50, false);
-
-							return true;
+							}, 100, false);
 						},
 
 						_setCursor: function(element, event) {
 
-							//cc.log("SetCursor ", element);
+							// cc.log("SetCursor ", element);
 
 							var cid = this.focusCellId;
 							if (cid && (!element || element.id != cid)) {
@@ -359,8 +376,12 @@
 							return cm.MixElementClasses(element, classes);
 						},
 
+						/**
+						 * @returns {Promise}
+						 */
 						gridLayout: function() {
 							var container = this.container;
+							var oldLayoutState = this.layoutState;
 							this.layoutState = "uninitialized";
 
 							$log.debug("GridLayout beginning (containerSize=" + this._containerSizeSetted + ")");
@@ -387,10 +408,13 @@
 							var cr = this.tableViewPort.getBoundingClientRect();
 							if (!cr || (cr.width < 1 && cr.height < 1)) {
 								$log.debug("No bounding client rect ", cr, "  => timeout 10ms");
-								this._hideBody();
+
+								if (oldLayoutState !== "uninitialized") {
+									this._hideBody();
+								}
 
 								return $timeout(function() {
-									self.gridLayout();
+									return self.gridLayout();
 								}, 10, false);
 							}
 
@@ -402,8 +426,9 @@
 								self._showBody();
 
 								this.layoutState = "complete";
-								return true;
+								return $q.when(true);
 							}
+
 							$log.debug("Begin layout to " + cr.width + "," + cr.height);
 
 							this.gridWidth = cr.width;
@@ -414,20 +439,15 @@
 							var $container = angular.element(container);
 
 							var promise = this.titleLayout($container, cr.width);
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
+							promise = cc.ensurePromise(promise);
 
 							return promise.then(function() {
 								self.layoutState = "titleDone";
 
 								var promise2 = self.tableLayout($container, cr.width, cr.height);
+								promise2 = cc.ensurePromise(promise2);
 
-								if (!cc.isPromise(promise2)) {
-									promise2 = $q.when(promise2);
-								}
-
-								promise2.then(function() {
+								return promise2.then(function() {
 									self.layoutState = "bodyDone";
 
 									self._alignColumns(true);
@@ -437,8 +457,9 @@
 									var cursor = self._cursor;
 									if (cursor) {
 										var p = cursor.parentNode;
-										for (; p && p.nodeType == 1; p = p.parentNode)
-											;
+										for (; p && p.nodeType == 1; p = p.parentNode) {
+										}
+
 										if (!p || p.nodeType != 9) {
 											cursor = null;
 											self._cursor = null;
@@ -447,7 +468,9 @@
 
 									self.layoutState = "complete";
 
-									self.$scope.$broadcast("cm:dataGrid_layout_end");
+									self.$scope.$broadcast("cm:gridLayoutEnd");
+
+									return $q.when(true);
 								});
 							});
 						},
@@ -490,7 +513,7 @@
 
 							});
 
-							$log.debug("GridWidth=" + this.gridWidth + " total=" + total);
+							$log.debug("GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
 
 							if (invalidLayout) {
 								this.tableElement.style.width = "auto";
@@ -997,8 +1020,11 @@
 							var promise = this._refreshRows();
 
 							var self = this;
-							return promise.then(function() {
-								self.$scope.$broadcast("cm:dataGrid_sorted");
+							return promise.then(function onSuccess() {
+								self.$scope.$broadcast("cm:gridSorted", true);
+
+							}, function onError(reason) {
+								self.$scope.$broadcast("cm:gridSorted", false, reason);
 							});
 						},
 
@@ -1010,9 +1036,7 @@
 							var oldMaxRows = this.dataGrid.maxRows;
 
 							var promise = func.call(this);
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
+							promise = cc.ensurePromise(promise);
 
 							var self = this;
 							return promise.then(function() {
@@ -1068,6 +1092,9 @@
 							});
 						},
 
+						/**
+						 * Called when first, rows, dataModel changed
+						 */
 						updateData: function(updateColumnWidths) {
 
 							if (updateColumnWidths === undefined) {
@@ -1075,15 +1102,21 @@
 							}
 
 							var self = this;
-							this._monitorPositions(function() {
-								return self._refreshRows(updateColumnWidths);
 
-							}).then(function() {
-								// self.gridLayout();
+							return this._monitorPositions(function() {
+								return self._refreshRows(updateColumnWidths).then(null, function onError(reason) {
+									$log.error("UpdateData failed ", reason);
+
+									return reason;
+								});
 							});
 						},
 
 						_hideBody: function() {
+							if (!this.tableViewPort) {
+								return;
+							}
+
 							var ts = this.tableViewPort.style;
 							ts.width = "auto";
 							// ts.height = "auto";
@@ -1093,11 +1126,15 @@
 							$log.debug("DatagridRenderer.Hide body");
 						},
 						_showBody: function() {
+							if (!this.tableViewPort) {
+								return;
+							}
+
 							var ts = this.tableViewPort.style;
 
 							// this.tableElement.style.tableLayout = "fixed";
 							ts.visibility = "";
-							$log.debug("Show body");
+							$log.debug("DatagridRenderer.Show body");
 						},
 
 						_clearPageAnimation: function() {
@@ -1122,11 +1159,41 @@
 								}
 							}
 						},
+
+						/**
+						 * @returns {Promise}
+						 */
+						runPromise: function(fct) {
+							if (!this._refreshing) {
+								try {
+									var ret = fct();
+									return cc.ensurePromise(ret);
+
+								} catch (x) {
+									return $q.reject(x);
+								}
+							}
+
+							if (this._deferredRefresh) {
+								return this._deferredRefresh;
+							}
+
+							this._deferredRefresh = $q.defer();
+							return this._deferredRefresh;
+						},
 						/**
 						 * @returns {Promise}
 						 */
 						_refreshRows: function(updateColumnWidths, focus) {
 							$log.debug("Refresh rows");
+
+							if (this.$scope.refreshing) {
+								return $q.reject({
+									code: "ALREADY_REFRESHING",
+									message: "Already refreshing"
+								});
+							}
+							this.$scope.refreshing = true;
 
 							if (updateColumnWidths) {
 								this._naturalWidths = undefined;
@@ -1157,58 +1224,77 @@
 								rows: rows,
 								renderer: this
 							});
-							this._pageAnimation = animation;
-							animation.start();
-
-							var promise = this.tableRowsRenderer();
 
 							var self = this;
 
-							function processResult(eventName) {
-								animation.end();
+							this._pageAnimation = animation;
 
-								self._gridReady(self.container, focus !== false);
+							var startPromise = animation.start();
+							startPromise = cc.ensurePromise(startPromise);
 
-								self.$scope.$broadcast(eventName || "cm:dataGrid_refreshed");
-							}
+							return startPromise.then(function onSuccess() {
 
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
+								function processResult(eventName, param) {
+									animation.end().then(function onSuccess(result) {
+										var p = self._gridReady(self.container, focus !== false);
 
-							return promise.then(function() {
+										self.$scope.$broadcast(eventName || "cm:gridRefreshed", param);
 
-								var dataGrid = self.dataGrid;
-								console.log("first=" + dataGrid.first + " visibleRows=" + dataGrid.visibleRows + " rows=" +
-										dataGrid.rows + " maxRows=" + dataGrid.maxRows + " rowCount=" + dataGrid.rowCount);
-
-								if (!dataGrid.visibleRows && dataGrid.first) {
-									var newFirst = 0;
-									if (dataGrid.maxRows > 0) {
-										newFirst = Math.floor((dataGrid.maxRows - 1) / dataGrid.rows) * dataGrid.rows;
-										if (newFirst < 0) {
-											newFirst = 0;
-										}
-									}
-
-									$timeout(function() {
-										console.log("Change first to " + newFirst);
-										self.$scope.first = newFirst;
-
-										self.$scope.$digest();
-									}, 10, false);
+										return p;
+									});
 								}
 
-								return processResult();
+								var promise = self.tableRowsRenderer();
+								promise = cc.ensurePromise(promise);
 
-							}, function(msg) {
-								// Failed
-								console.error("Catch process failed message " + msg);
+								return promise.then(function onSuccess() {
 
-								return processResult("cm_dataGrid_errored");
+									var dataGrid = self.dataGrid;
+									$log.debug("first=" + dataGrid.first + " visibleRows=" + dataGrid.visibleRows + " rows=" +
+											dataGrid.rows + " maxRows=" + dataGrid.maxRows + " rowCount=" + dataGrid.rowCount);
 
-							}, function(update) {
-								// $log.debug("Update", update);
+									if (!dataGrid.visibleRows && dataGrid.first) {
+										var newFirst = 0;
+										if (dataGrid.maxRows > 0) {
+											newFirst = Math.floor((dataGrid.maxRows - 1) / dataGrid.rows) * dataGrid.rows;
+											if (newFirst < 0) {
+												newFirst = 0;
+											}
+										}
+
+										$timeout(function() {
+											$log.debug("Change first to " + newFirst);
+											self.$scope.first = newFirst;
+
+											self.$scope.$digest();
+										}, 10, false);
+									}
+
+									return processResult();
+
+								}, function onError(reason) {
+									// Failed
+									$log.error("Catch process failed message ", reason);
+
+									return processResult("cm:gridErrored", reason);
+
+								}, function onNotification(notification) {
+									// $log.debug("Update", update);
+									return notification;
+
+								})['finally'](function onFinally() {
+									$log.debug("Refresh: finally ...");
+									self.$scope.refreshing = false;
+
+									var df = self._deferredRefresh;
+									if (df) {
+										self._deferredRefresh = undefined;
+
+										$timeout(function() {
+											df.resolve(true);
+										});
+									}
+								});
 							});
 						},
 
@@ -1229,19 +1315,15 @@
 							});
 
 							var titlePromise = this.moveColumnTitle(column, beforeColumn);
-							if (!cc.isPromise(titlePromise)) {
-								titlePromise = $q.when(titlePromise);
-							}
+							titlePromise = cc.ensurePromise(titlePromise);
 
 							var self = this;
-							titlePromise.then(function() {
+							titlePromise.then(function onSuccess() {
 
 								var tablePromise = self.moveColumnTable(column, beforeColumn);
-								if (!cc.isPromise(tablePromise)) {
-									tablePromise = $q.when(tablePromise);
-								}
+								tablePromise = cc.ensurePromise(tablePromise);
 
-								tablePromise.then(function() {
+								tablePromise.then(function onSuccess() {
 									self._lastVisibleColumn = undefined;
 
 									if (!column.beforeMovingVisibleIndex || !column.visibleIndex) {
@@ -1257,12 +1339,12 @@
 
 						_registerSelectionEvent: function(event) {
 
-							console.log("Register event ", event);
+							$log.debug("Register event ", event);
 
 							this._selectionSourceEvent = event;
 							var self = this;
 							$timeout(function() {
-								console.log("Unregister event ", event);
+								$log.debug("Unregister event ", event);
 
 								self._selectionSourceEvent = undefined;
 							}, 10, false);
@@ -1367,9 +1449,13 @@
 									return self._refreshRows(false, false);
 								});
 
-								return promise.then(function() {
+								return promise.then(function onSuccess() {
 									self.gridLayout();
-									self.$scope.$broadcast("cm_dataGrid_filtred");
+									self.$scope.$broadcast("cm:gridFiltred", true);
+
+								}, function onError(reason) {
+									$log.error("Can not refreshRows failed ", reason);
+									self.$scope.$broadcast("cm:gridFiltred", false, reason);
 								});
 							});
 

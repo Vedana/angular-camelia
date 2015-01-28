@@ -10,43 +10,43 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations", [ "camelia.core" ]);
+	var module = angular.module("camelia.animations", [ "camelia.core", "camelia.scopedObject" ]);
 
 	module.factory("camelia.animations.Animation", [ "$log",
 		"$timeout",
 		"$rootScope",
+		"$q",
 		"camelia.core",
-		function($log, $timeout, $rootScope, cc) {
+		"camelia.ScopedObject",
+		function($log, $timeout, $rootScope, $q, cc, ScopedObject) {
 
-			var scopeProto = cc.getProto($rootScope);
+			function Animation($scope, params) {
 
-			var Animation = function($scope, params) {
-
-				cc.inheritScope(this, $scope);
+				ScopedObject.call(this, $scope);
 
 				this._params = params;
 
 				var self = this;
 				this.$on("$destroy", function() {
-					self._params = undefined;
-
-					var showTimerPromise = self._showTimerPromise;
-					if (showTimerPromise) {
-						$timeout.cancel(showTimerPromise);
+					if (self._destroyed) {
+						return;
 					}
+
+					self._destroyed = true;
+					self._processDestroy();
 				});
-			};
+			}
 
 			Animation.newInstance = function(animationName, $scope, params) {
 				var AnimationProvider = cc.LoadProvider(animationName);
 				if (!AnimationProvider) {
-					throw new Error("Can not animation '" + animationName + "'");
+					throw new Error("Can not find animation '" + animationName + "'");
 				}
 
 				return new AnimationProvider($scope, params);
 			};
 
-			cc.extendProto(Animation, scopeProto, {
+			cc.extend(Animation, ScopedObject, {
 
 				start: function() {
 
@@ -59,10 +59,17 @@
 						}, this._timeout, false);
 					}
 
-					this._processStart();
+					var ret = this._processStart();
+					if (cc.isPromise(ret)) {
+						return ret;
+					}
+
+					return $q.when(ret);
 				},
 
 				_processStart: function() {
+
+					return $q.when(false);
 				},
 
 				cancel: function() {
@@ -99,18 +106,45 @@
 						$timeout.cancel(showTimerPromise);
 					}
 
-					this._processEnd(raison);
+					var ret = this._processEnd(raison);
+					if (cc.isPromise(ret)) {
+						return ret;
+					}
+
+					return $q.when(ret);
 				},
 
 				_processEnd: function(raison) {
 					this._destroy();
+
+					return $q.when(false);
 				},
 
 				_destroy: function() {
+					this._params = undefined;
+
+					var showTimerPromise = this._showTimerPromise;
+					if (showTimerPromise) {
+						$timeout.cancel(showTimerPromise);
+					}
+
 					var self = this;
 					$timeout(function() {
 						self.$destroy();
 					}, 0, false);
+				},
+
+				_processDestroy: function() {
+					this._params = undefined;
+
+					var showTimerPromise = this._showTimerPromise;
+					if (showTimerPromise) {
+						$timeout.cancel(showTimerPromise);
+					}
+				},
+
+				toString: function() {
+					return "[Animation $id=" + this.$id + "]";
 				}
 			});
 

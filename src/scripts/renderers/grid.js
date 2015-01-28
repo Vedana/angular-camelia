@@ -14,6 +14,7 @@
 		"camelia.selectionProvider",
 		"camelia.cursorProvider",
 		"camelia.selectionStrategy",
+		"camelia.templateRegistry",
 		"camelia.key",
 		"camelia.renderers.popup",
 		"camelia.components.grid",

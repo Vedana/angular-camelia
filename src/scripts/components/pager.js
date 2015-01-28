@@ -114,7 +114,8 @@
 
 					var self = this;
 					var targetDestroyedOff = targetScope.$on("$destroy", function() {
-						self.targetDestroyed(targetScope);
+
+						self._targetDestroyed(targetScope);
 
 						renderContext.targetScope = undefined;
 					});
@@ -130,8 +131,15 @@
 					});
 
 					this.$scope.$on("$destroy", function() {
-						targetDestroyedOff();
-						positionsChangedOff();
+						if (targetDestroyedOff) {
+							targetDestroyedOff();
+							targetDestroyedOff = null;
+						}
+
+						if (positionsChangedOff) {
+							positionsChangedOff();
+							positionsChangedOff = null;
+						}
 					});
 
 					var pagerRenderer = new this.rendererProvider(renderContext);

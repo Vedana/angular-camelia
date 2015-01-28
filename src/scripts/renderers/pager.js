@@ -366,7 +366,18 @@
 							return element;
 						},
 
-						renderButton: function(parent, value, type, langParams) {
+						renderButton: function(parent, value, type, langParams, scope) {
+
+							if (this._templates) {
+								var template = this._templates[type];
+								if (template) {
+
+									var comp = template.transclude(td, scope);
+
+									return comp;
+								}
+							}
+
 							var text = cc.lang(i18n, type + "_label", langParams);
 							var tooltip = cc.lang(i18n, type + "_tooltip", langParams);
 
@@ -548,6 +559,8 @@
 								sep = cc.lang(i18n, "separator");
 							}
 
+							var butScope = this.$scope.$parent.$new();
+
 							for (var i = 0; i < showPage; i++) {
 								if (i > 0) {
 									this.renderSpan(parent, sep, "sep");
@@ -569,7 +582,11 @@
 									pageIndex: pi + 1
 								};
 
-								var but = this.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams);
+								butScope.$index = i;
+								butScope.$pageIndex = pi;
+								butScope.$rowIndex = pi * rows;
+
+								var but = this.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams, butScope);
 
 								if (type === "index") {
 									components["index:p" + (pi * rows)] = but;
@@ -579,6 +596,8 @@
 									components[type] = but;
 								}
 							}
+							
+							butScope.$destroy();
 
 						},
 

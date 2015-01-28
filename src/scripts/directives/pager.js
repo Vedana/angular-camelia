@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.pager', [ 'camelia.core', 'camelia.directives.template' ]);
+	var module = angular.module('camelia.directives.pager', [ 'camelia.core', 'camelia.templateRegistry' ]);
 
 	module.value("cm_pager_componentProviderName", "camelia.components.pager:camelia.components.Pager");
 
@@ -20,8 +20,8 @@
 		"$q",
 		"camelia.core",
 		"cm_pager_componentProviderName",
-		"camelia.components.Template",
-		function($injector, $interpolate, $log, $q, cc, cm_pager_componentProviderName, Template) {
+		"camelia.TemplateRegistry",
+		function($injector, $interpolate, $log, $q, cc, cm_pager_componentProviderName, TemplateRegistry, Template) {
 
 			return {
 				restrict: "E",
@@ -48,9 +48,10 @@
 				compile: function() {
 					return {
 						pre: function($scope, element, attrs, controller) {
-							Template.markContainer(element, $scope);
+							TemplateRegistry.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, controller, transludeFunc) {
+							TemplateRegistry.RegisterTemplates($scope);
 
 							var pager = new controller.componentProvider($scope, element);
 
