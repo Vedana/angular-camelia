@@ -3,7 +3,23 @@ Camelia
 
 Powerfull Angular components library
 
+```html
+
+<cm:dataGrid value="dataModel" id="myGrid" style="width: 800px; height:400px" rows="20">
+	<cm:dataColumn id="TOWN" title="Town" width="150px"></cm:dataColumn>
+	<cm:dataColumn title="Postal code" width="60px" fieldName="pc"></cm:dataColumn>
+	<cm:dataColumn title="Info 1" value="{{$row.name1}}" width="150px"></cm:dataColumn>
+	<cm:dataColumn title="Info 2" value="Before {{$row.name2|upper}} after" width="150px"></cm:dataColumn>
+</cm:dataGrid>
+
+<cm:pager for="myGrid"></cm:pager>
+```
+
 Some examples of Camelia usage can be found at https://github.com/Vedana/camelia-samples .
+
+
+
+## <a name="installing"></a> Installing Build (Distribution Files)
 
 #### Bower 
 
