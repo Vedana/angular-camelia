@@ -3,7 +3,7 @@ Camelia
 
 Powerfull Angular components library
 
-#### Samples
+#### About
 
 Declare the grid component in the page :
 ```html
@@ -17,7 +17,7 @@ Declare the grid component in the page :
 
 <cm:pager for="myGrid"></cm:pager>
 ```
-More complex sample generate :
+More complex sample HTML generation :
 ![sample](https://cdn.rawgit.com/Vedana/camelia/master/readme/grid-sample1.png)
 
 
