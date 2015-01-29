@@ -3,6 +3,9 @@ Camelia
 
 Powerfull Angular components library
 
+#### Samples
+
+Declare the grid component in the page :
 ```html
 
 <cm:dataGrid value="dataModel" id="myGrid" style="width: 800px; height:400px" rows="20">
@@ -14,6 +17,9 @@ Powerfull Angular components library
 
 <cm:pager for="myGrid"></cm:pager>
 ```
+More complex sample generate :
+![sample](https://cdn.rawgit.com/Vedana/camelia/master/readme/grid-sample1.png)
+
 
 Some examples of Camelia usage can be found at https://github.com/Vedana/camelia-samples .
 
