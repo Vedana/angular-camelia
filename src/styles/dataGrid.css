@@ -501,3 +501,50 @@
 	background-color: #CCC;
 	position: absolute;
 }
+
+.cm_grid_waitingPage, .cm_grid_errorPage {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	justify-content: center;
+	align-items: center;
+}
+
+.cm_grid_waitingPage IMG, .cm_grid_errorPage IMG {
+	background: transparent url('gridWaiting.gif');
+	background-size: 32px 32px;
+	height: 32px;
+	width: 32px;
+}
+
+.cm_grid_waitingPage LABEL, .cm_grid_errorPage LABEL {
+	font: 8pt Tahoma, Verdana, Arial, Helvetica, sans-serif;
+	color: #4C607A;
+	padding-left: 16px;
+}
+
+.cm_grid_waitingPage {
+	opacity: 0;
+	transition: opacity 1s linear;
+	background: transparent url('gridBgWaiting.png') no-repeat;
+	background-size: cover;
+	background-position: left bottom;
+}
+
+.cm_grid_waitingPage:hover,
+.cm_grid_waitingPage_shown {
+	opacity: 0.8;
+}
+
+.cm_grid_errorPage {
+	background: transparent url('gridBgError.png') repeat;
+}
+
+.cm_grid_errorPage IMG {
+	background-image: url('gridError.png');
+}
+
+.cm_grid_errorPage LABEL {
+	color: #AC506A;
+	font-weight: bold;
+}

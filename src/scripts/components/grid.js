@@ -274,7 +274,7 @@
 
 					var self = this;
 
-					dataModelPromise.then(function onSuccess(dataModel) {
+					return dataModelPromise.then(function onSuccess(dataModel) {
 						gridRenderer.dataErrored = false;
 						gridRenderer.dataModel = dataModel;
 
@@ -294,10 +294,14 @@
 						gridRenderer.updateData();
 						// }
 
+						return dataModel;
+
 					}, function onError(reason) {
 						gridRenderer.dataErrored = true;
 						gridRenderer.dataModel = null;
 						gridRenderer.updateData();
+
+						return $q.reject(reason);
 					});
 				},
 

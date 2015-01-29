@@ -10,22 +10,23 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.dataModel', [ 'camelia.core', 'camelia.scopedObject', 'ngResource' ]);
+	var module = angular.module('camelia.dataModel', [ 'camelia.core', 'camelia.scopeWrapper', 'ngResource' ]);
 
-	var SLOW_LOADING_SIMULATION = true;
+	var SLOW_LOADING_SIMULATION = false;
+	var ERROR_LOADING_SIMULATION = 0;
 
 	module.factory('camelia.DataModel', [ "$q",
 		"$rootScope",
 		"$injector",
 		"$resource",
 		"camelia.core",
-		"camelia.ScopedObject",
-		function($q, $rootScope, $injector, $resource, cc, ScopedObject) {
+		"camelia.ScopeWrapper",
+		function($q, $rootScope, $injector, $resource, cc, ScopeWrapper) {
 
 			var resourceProto = cc.getProto($resource());
 
 			function DataModel() {
-				ScopedObject.call(this);
+				ScopeWrapper.call(this, $rootScope.$new(true));
 
 				var self = this;
 				this.$on("$destroy", function() {
@@ -77,7 +78,7 @@
 				return new DataModel();
 			};
 
-			cc.extend(DataModel, ScopedObject, {
+			cc.extend(DataModel, ScopeWrapper, {
 
 				_rowIndex: -1,
 
@@ -915,37 +916,66 @@
 
 					var self = this;
 					var ret = this.$resource[actionName].call(this.$resource, params, function(response, responseHeaders) {
-						self._requestPromise = undefined;
-						if (self._sessionId != currentSessionId) {
-							return deferred.reject("Session canceled");
-						}
-						deferred.notify({
-							type: DataModel.DATA_LOADED,
-							count: response.length
-						});
-
-						for (var i = 0; i < response.length; i++) {
-							cache[i + offset] = response[i];
-							// console.log("Reg#" + (i + offset) + " => " + response[i]);
-						}
-						if (response.length < rows) {
-							if (response.length || !offset) {
-								self._rowCount = offset + response.length;
+						try {
+							self._requestPromise = undefined;
+							if (self._sessionId != currentSessionId) {
+								return deferred.reject("Session canceled");
 							}
-						}
+							if (ERROR_LOADING_SIMULATION === 2) {
+								deferred.reject({
+									type: "RESOURCE_ERROR",
+									error: "Simulation 2"
+								});
+								return;
+							}
+							if (ERROR_LOADING_SIMULATION === 3) {
+								throw new Error({
+									type: "RESOURCE_ERROR",
+									error: "Simulation 3"
+								});
+							}
+							if (SLOW_LOADING_SIMULATION) {
+								$timeout(function() {
+									deferred.notify({
+										type: DataModel.DATA_LOADED,
+										count: response.length
+									});
+								}, 1000 * 4);
+							} else {
+								deferred.notify({
+									type: DataModel.DATA_LOADED,
+									count: response.length
+								});
+							}
 
-						// console.log("Ask for #" + rowIndex + " => Deferred " +
-						// cache[rowIndex]);
+							for (var i = 0; i < response.length; i++) {
+								cache[i + offset] = response[i];
+								// console.log("Reg#" + (i + offset) + " => " + response[i]);
+							}
+							if (response.length < rows) {
+								if (response.length || !offset) {
+									self._rowCount = offset + response.length;
+								}
+							}
 
-						if (SLOW_LOADING_SIMULATION) {
-							$timeout(function() {
+							// console.log("Ask for #" + rowIndex + " => Deferred " +
+							// cache[rowIndex]);
+
+							if (SLOW_LOADING_SIMULATION) {
+								$timeout(function() {
+									deferred.resolve(cache[rowIndex] !== undefined);
+								}, 1000 * 6);
+							} else {
 								deferred.resolve(cache[rowIndex] !== undefined);
-							}, 1000 * 10);
-						} else {
-							deferred.resolve(cache[rowIndex] !== undefined);
+							}
+						} catch (x) {
+							deferred.reject({
+								type: "RESOURCE_ERROR",
+								error: x
+							});
 						}
-
 					}, function(error) {
+						$log.error("Resource got error ", error);
 						return deferred.reject({
 							type: "RESOURCE_ERROR",
 							error: error
@@ -972,12 +1002,19 @@
 						});
 					}, 0);
 
+					if (ERROR_LOADING_SIMULATION === 1) {
+						throw new Error({
+							type: "RESOURCE_ERROR",
+							error: "Simulation 1"
+						});
+					}
+
 					if (SLOW_LOADING_SIMULATION) {
 						$timeout(function() {
 							deferred.notify({
 								type: DataModel.DATA_LOADING
 							});
-						}, 3000);
+						}, 1000 * 2);
 					}
 
 					// console.log("Ask for #" + rowIndex + " => Returns promise");

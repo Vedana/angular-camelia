@@ -29,6 +29,8 @@
 					var msie;
 
 					return {
+						EMPTY_IMAGE_SRC: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+						
 						Assert: function(arg, name /* , message */) {
 							if (arg) {
 								return;

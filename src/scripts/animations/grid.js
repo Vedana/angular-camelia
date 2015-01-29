@@ -10,6 +10,6 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations.grid", [ "camelia.animations" ]);
+	var module = angular.module("camelia.animations.grid", [ "camelia.animations",	"camelia.i18n.grid"]);
 
 })(window, window.angular);

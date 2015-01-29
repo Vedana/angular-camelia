@@ -10,19 +10,19 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations", [ "camelia.core", "camelia.scopedObject" ]);
+	var module = angular.module("camelia.animations", [ "camelia.core", "camelia.scopeWrapper" ]);
 
 	module.factory("camelia.animations.Animation", [ "$log",
 		"$timeout",
 		"$rootScope",
 		"$q",
 		"camelia.core",
-		"camelia.ScopedObject",
-		function($log, $timeout, $rootScope, $q, cc, ScopedObject) {
+		"camelia.ScopeWrapper",
+		function($log, $timeout, $rootScope, $q, cc, ScopeWrapper) {
 
 			function Animation($scope, params) {
 
-				ScopedObject.call(this, $scope);
+				ScopeWrapper.call(this, $scope.$new(true));
 
 				this._params = params;
 
@@ -46,7 +46,7 @@
 				return new AnimationProvider($scope, params);
 			};
 
-			cc.extend(Animation, ScopedObject, {
+			cc.extend(Animation, ScopeWrapper, {
 
 				start: function() {
 
@@ -144,7 +144,7 @@
 				},
 
 				toString: function() {
-					return "[Animation $id=" + this.$id + "]";
+					return "[Animation $id=" + this.$scope.$id + "]";
 				}
 			});
 

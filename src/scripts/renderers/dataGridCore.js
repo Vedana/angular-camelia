@@ -226,16 +226,22 @@
 										var layoutPromise = self.gridLayout();
 										layoutPromise = cc.ensurePromise(layoutPromise);
 
-										layoutPromise.then(function onSuccess() {
+										layoutPromise.then(function onSuccess(result) {
 											$scope.$broadcast("cm:gridRendered");
 
 											$scope.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self._onSelectionChanged());
 
 											self._gridReady(container).then(function onSuccess() {
-												$scope.$broadcast("cm:gridReady");
+												$scope.$broadcast("cm:gridReady", true);
+
+												return $q.when(true);
 
 											}, function onError(reason) {
+												$scope.$broadcast("cm:gridReady", false, reason);
+
 												$log.error("GridReady error ", reason);
+
+												return $q.reject(reason);
 											});
 										});
 									});
@@ -386,6 +392,12 @@
 
 							$log.debug("GridLayout beginning (containerSize=" + this._containerSizeSetted + ")");
 
+							if (!this.tableViewPort) {
+								$log.error("Table view port is NULL");
+								// TODO Align columns to default values
+								return $q.when(false);
+							}
+
 							if (!this._containerSizeSetted) {
 								var containerStyle = this.container.style;
 								if (containerStyle.width || containerStyle.height) {
@@ -509,8 +521,8 @@
 								column.bodyColElement.style.width = (columnConstraints) ? (bodyWidth + "px") : "auto";
 								total += width;
 
-								$log.debug("GridWidth[" + column.id + "] width=" + width + " total=" + total);
-
+								// $log.debug("GridWidth[" + column.id + "] width=" + width + "
+								// total=" + total);
 							});
 
 							$log.debug("GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
@@ -1023,8 +1035,12 @@
 							return promise.then(function onSuccess() {
 								self.$scope.$broadcast("cm:gridSorted", true);
 
+								return true;
+
 							}, function onError(reason) {
 								self.$scope.$broadcast("cm:gridSorted", false, reason);
+
+								return $q.reject(reason);
 							});
 						},
 
@@ -1107,7 +1123,7 @@
 								return self._refreshRows(updateColumnWidths).then(null, function onError(reason) {
 									$log.error("UpdateData failed ", reason);
 
-									return reason;
+									return $q.reject(reason);
 								});
 							});
 						},
@@ -1218,11 +1234,19 @@
 							}
 							dataGrid.rows = rows;
 
+							var oldTableViewPort = this.tableViewPort;
+							this.tableViewPort = null;
+
+							var oldErrorPage = this.errorPage;
+							this.errorPage = null;
+
 							var animation = Animation.newInstance(cm_grid_animation_pageChange, this.$scope, {
 								first: first,
 								oldFirst: this._renderedFirst,
 								rows: rows,
-								renderer: this
+								renderer: this,
+								oldTableViewPort: oldTableViewPort,
+								oldErrorPage: oldErrorPage
 							});
 
 							var self = this;
@@ -1235,19 +1259,27 @@
 							return startPromise.then(function onSuccess() {
 
 								function processResult(eventName, param) {
-									animation.end().then(function onSuccess(result) {
-										var p = self._gridReady(self.container, focus !== false);
+									animation.end().then(function onSuccess(newTableViewPort) {
+										self.tableViewPort = newTableViewPort;
 
-										self.$scope.$broadcast(eventName || "cm:gridRefreshed", param);
+										return self.gridLayout().then(function onSuccess(result) {
 
-										return p;
+											var p = self._gridReady(self.container, focus !== false);
+
+											self.$scope.$broadcast(eventName || "cm:gridRefreshed", param);
+
+											return p;
+										});
 									});
 								}
 
 								var promise = self.tableRowsRenderer();
 								promise = cc.ensurePromise(promise);
 
-								return promise.then(function onSuccess() {
+								return promise.then(function onSuccess(newTableViewPort) {
+									if (newTableViewPort[0]) {
+										newTableViewPort = newTableViewPort[0];
+									}
 
 									var dataGrid = self.dataGrid;
 									$log.debug("first=" + dataGrid.first + " visibleRows=" + dataGrid.visibleRows + " rows=" +
@@ -1276,7 +1308,22 @@
 									// Failed
 									$log.error("Catch process failed message ", reason);
 
-									return processResult("cm:gridErrored", reason);
+									// Show error page
+									animation.showErrorPage(reason).then(function onSuccess(errorPage) {
+										if (errorPage[0]) {
+											errorPage = errorPage[0];
+										}
+										self.errorPage = errorPage;
+
+										return self.gridLayout().then(function onSuccess(result) {
+
+											var p = self._gridReady(self.container, focus !== false);
+
+											self.$scope.$broadcast("cm:gridErrored", reason);
+
+											return p;
+										});
+									});
 
 								}, function onNotification(notification) {
 									// $log.debug("Update", update);
@@ -1450,12 +1497,17 @@
 								});
 
 								return promise.then(function onSuccess() {
-									self.gridLayout();
-									self.$scope.$broadcast("cm:gridFiltred", true);
+									return self.gridLayout().then(function onSuccess(result) {
+										self.$scope.$broadcast("cm:gridFiltred", true);
+
+										return result;
+									});
 
 								}, function onError(reason) {
 									$log.error("Can not refreshRows failed ", reason);
 									self.$scope.$broadcast("cm:gridFiltred", false, reason);
+
+									return $q.reject(reason);
 								});
 							});
 
@@ -1467,7 +1519,7 @@
 								cm.ClearState(self, elements, "openedPopup");
 							});
 
-							popup.open({
+							return popup.open({
 								reference: filterButton,
 								valign: "bottom",
 								deltaY: 2
@@ -1841,6 +1893,9 @@
 								var target = event.relatedTarget;
 
 								var type = cm.GetCMType(target);
+
+								$log.debug("Type of ", target, " => ", type);
+
 								if (!type) {
 									return;
 								}

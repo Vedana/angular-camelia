@@ -5,7 +5,15 @@ Powerfull Angular components library
 
 #### About
 
-Declare the grid component in the page :
+Camelia provides angular complex components: grid, pager, suggest, tree.
+
+Some examples of Camelia usage can be found at https://github.com/Vedana/camelia-samples .
+
+#### Components
+
+Grid and pager components :
+
+Declaration of a grid and pager components in a page :
 ```html
 
 <cm:dataGrid value="dataModel" id="myGrid" style="width: 800px; height:400px" rows="20">
@@ -17,11 +25,8 @@ Declare the grid component in the page :
 
 <cm:pager for="myGrid"></cm:pager>
 ```
-More complex sample HTML generation :
-![sample](https://cdn.rawgit.com/Vedana/camelia/master/readme/grid-sample1.png)
 
-
-Some examples of Camelia usage can be found at https://github.com/Vedana/camelia-samples .
+![Grid and pager components](https://cdn.rawgit.com/Vedana/camelia/master/readme/grid-sample1.png)
 
 
 

@@ -10,20 +10,20 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selectionProvider', [ "camelia.core", "camelia.scopedObject" ]);
+	var module = angular.module('camelia.selectionProvider', [ "camelia.core", "camelia.scopeWrapper" ]);
 
 	module.factory('camelia.SelectionProvider', [ "$rootScope",
 		"$injector",
 		"camelia.core",
-		"camelia.ScopedObject",
-		function($rootScope, $injector, cc, ScopedObject) {
+		"camelia.ScopeWrapper",
+		function($rootScope, $injector, cc, ScopeWrapper) {
 
 			/*
 			 * ------------------------ SelectionProvider --------------------------
 			 */
 
 			function SelectionProvider($parentScope) {
-				ScopedObject.call(this, $parentScope);
+				ScopeWrapper.call(this, $parentScope.$new(true));
 			}
 
 			SelectionProvider.SELECTION_CHANGING_EVENT = "cm:selectionChanging";
@@ -47,7 +47,7 @@
 				return new ArraySelectionProvider($parentScope, [ parameter ]);
 			};
 
-			cc.extend(SelectionProvider, ScopedObject, {
+			cc.extend(SelectionProvider, ScopeWrapper, {
 
 				_lock: false,
 

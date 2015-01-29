@@ -10,16 +10,16 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selectionStrategy', [ "camelia.core", "camelia.scopedObject" ]);
+	var module = angular.module('camelia.selectionStrategy', [ "camelia.core", "camelia.scopeWrapper" ]);
 
 	module.factory('camelia.SelectionStrategy', [ "$rootScope",
 		"$injector",
 		"camelia.core",
-		"camelia.ScopedObject",
-		function($rootScope, $injector, cc, ScopedObject) {
+		"camelia.ScopeWrapper",
+		function($rootScope, $injector, cc, ScopeWrapper) {
 
 			function SelectionStrategy($parentScope, cardinality) {
-				ScopedObject.call(this, $parentScope);
+				ScopeWrapper.call(this, $parentScope.$new(true));
 
 				this._cardinality = SelectionStrategy._GetCardinality(cardinality);
 			}
@@ -59,7 +59,7 @@
 				} ]);
 			};
 
-			cc.extend(SelectionStrategy, ScopedObject, {
+			cc.extend(SelectionStrategy, ScopeWrapper, {
 				getBase: function() {
 					return null;
 				},

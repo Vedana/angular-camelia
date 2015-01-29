@@ -79,6 +79,10 @@
 					extensions.push("_descending");
 				}
 
+				if (element._error) {
+					extensions.push("_error");
+				}
+
 				if (element._filtreable) {
 					extensions.push("_filtreable");
 				}

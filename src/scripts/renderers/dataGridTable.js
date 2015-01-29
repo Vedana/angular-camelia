@@ -479,39 +479,27 @@
 
 					var fragment = angular.element(document.createDocumentFragment());
 
-					var oldTableViewPort = this.tableViewPort;
-
 					var tableViewPortPromise = this.tableViewPortRenderer(fragment);
 					tableViewPortPromise = cc.ensurePromise(tableViewPortPromise);
 
 					return tableViewPortPromise.then(function(newTableViewPort) {
-						self.tableViewPort = newTableViewPort;
-
 						self.$scope.$broadcast("cm:tableViewPortCreated", {
-							tableViewPort: self.tableViewPort,
-							oldTableViewPort: oldTableViewPort,
-							fragment: fragment
+							newTableViewPort: newTableViewPort
 						});
 
 						return self._tableRowsRenderer1(fragment).then(function processSuccess(result) {
 
 							$log.debug("Receive promise success ", result);
 
-							self.$scope.$broadcast("cm:pageRendered", {
-								tableViewPort: self.tableViewPort,
-								result: result
-							});
+							return newTableViewPort;
 
-							return result;
-						},
-
-						function processError(error) {
+						}, function processError(error) {
 							$log.debug("Receive promise error ", error);
 							self.$scope.$broadcast("cm:pageError", {
 								error: error
 							});
 
-							return error;
+							return $q.reject(error);
 
 						}, function processNotification(notification) {
 							$log.debug("Receive promise notification ", notification);
@@ -741,6 +729,8 @@
 									groupScope.$destroy();
 								}
 
+								$log.error("isRowAvailable() returns error ", x);
+
 								throw x;
 							}
 
@@ -790,7 +780,7 @@
 						dataGrid.maxRows = -1;
 						dataGrid.visibleRows = visibleIndex;
 
-						return progressDefer.reject(x);
+						return $q.reject(x);
 					}
 
 					nextAvailable = cc.ensurePromise(nextAvailable);
@@ -800,7 +790,7 @@
 						return availablePromise(result);
 
 					}, function(reason) {
-						// $log.debug("First: error ", reason);
+						$log.debug("First: error ", reason);
 						return progressDefer.reject(reason);
 
 					}, function(progress) {

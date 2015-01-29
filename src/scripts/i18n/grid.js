@@ -20,7 +20,10 @@
 				ascending: "(Sorted order ascending)",
 				descending: "(Sorted order descending)",
 				filtreableColumn: "",
-				filtredColumn: "(Filtred)"
+				filtredColumn: "(Filtred)",
+				loadingData: "Loading data ...",
+				receivingData: "{count} rows received ...",
+				loadingError: "Loading error"
 			}
 		};
 

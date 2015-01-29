@@ -10,21 +10,21 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.cursorProvider', [ "camelia.core", "camelia.scopedObject" ]);
+	var module = angular.module('camelia.cursorProvider', [ "camelia.core", "camelia.scopeWrapper" ]);
 
 	module.factory('camelia.CursorProvider', [ "$rootScope",
 		"camelia.core",
-		"camelia.ScopedObject",
-		function($rootScope, cc, ScopedObject) {
+		"camelia.ScopeWrapper",
+		function($rootScope, cc, ScopeWrapper) {
 
 			function CursorProvider($parentScope) {
-				ScopedObject.call(this, $parentScope);
+				ScopeWrapper.call(this, $parentScope.$new(true));
 			}
 
 			CursorProvider.CURSOR_REQUESTED = "cm:cursorRequested";
 			CursorProvider.CURSOR_CHANGED = "cm:cursorChanged";
 
-			cc.extend(CursorProvider, ScopedObject, {
+			cc.extend(CursorProvider, ScopeWrapper, {
 
 				getRow: function() {
 					var rowValue = this._rowCursor;

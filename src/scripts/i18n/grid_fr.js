@@ -22,7 +22,10 @@
 					ascending: "(Trié ordre croissant)",
 					descending: "(Trié ordre decroissant)",
 					filtreableColumn: "",
-					filtredColumn: "(Filtrée)"
+					filtredColumn: "(Filtrée)",
+					loadingData: "Chargement des données ...",
+					receivingData: "{count} lignes reçues ...",
+					loadingError: "Erreur de chargement"
 				}
 			});
 		} ]);
