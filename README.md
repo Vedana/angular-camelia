@@ -1,4 +1,4 @@
-Camelia
+Camelia [![Build Status](https://travis-ci.org/Vedana/camelia.svg)](https://travis-ci.org/Vedana/camelia)
 =========
 
 Powerfull Angular components library
