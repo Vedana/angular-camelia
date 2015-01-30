@@ -7,7 +7,7 @@
  * @author olivier.oeuillot@vedana.com
  */
 
-/* jshint shadow: false */
+/* jshint shadow: true */
 
 (function(window, angular, undefined) {
 	"use strict";
