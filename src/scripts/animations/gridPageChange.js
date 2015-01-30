@@ -249,7 +249,7 @@
 
 					var newTableViewPort = this._newTableViewPort;
 					var fragment = newTableViewPort;
-					if (fragment.nodeType === 11) {/* FRAGMENT_NODE_TYPE */
+					if (fragment.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
 						newTableViewPort = fragment.firstChild;
 					}
 
@@ -259,17 +259,29 @@
 					renderer.tableElement.style.tableLayout = "fixed";
 					newTableViewPort.style.visibility = "hidden";
 
+					var cnt = 20;
 					return $timeout(function waitSize() {
 						var tableViewPortBCR = newTableViewPort.getBoundingClientRect();
-						if (!tableViewPortBCR.height) {
-							return $timeout(waitSize, 10, false);
+						if (!tableViewPortBCR.width) {
+							if (--cnt > 0) {
+								return $timeout(waitSize, 50, false);
+							}
+							$log.error("Timeout when getting size of newTableViewPort");
 						}
 
-						var titleViewPortBCR = renderer.titleViewPort.getBoundingClientRect();
+						if (self._forceHeight) {
+							renderer.container.style.height = "auto";
+							renderer.bodyContainer.style.height = "auto";
 
-						var h = titleViewPortBCR.height + tableViewPortBCR.height;
-						renderer.container.style.height = h + "px";
-						renderer.bodyContainer.style.height = tableViewPortBCR.height + "px";
+						} else {
+							var titleViewPortBCR = renderer.titleViewPort.getBoundingClientRect();
+							var containerBCR = renderer.container.getBoundingClientRect();
+
+							var h2 = (containerBCR.height - titleViewPortBCR.height);
+
+							newTableViewPort.style.height = h2 + "px";
+							renderer.bodyContainer.style.height = h2 + "px";
+						}
 
 						newTableViewPort.style.visibility = "visible";
 

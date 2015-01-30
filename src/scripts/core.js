@@ -30,7 +30,7 @@
 
 					return {
 						EMPTY_IMAGE_SRC: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
-						
+
 						Assert: function(arg, name /* , message */) {
 							if (arg) {
 								return;
@@ -65,7 +65,7 @@
 							}
 
 							var doc;
-							if (parent.nodeType == 9) {
+							if (parent.nodeType == Node.DOCUMENT_NODE) {
 								doc = parent;
 								parent = doc.body.parentNode;
 
@@ -247,7 +247,7 @@
 
 							var params = [ event ];
 
-							for (; element && element.nodeType == 1 && !event.stop; element = element.parentNode) {
+							for (; element && element.nodeType === Node.ELEMENT_NODE && !event.stop; element = element.parentNode) {
 
 								var expandoId = element[expando];
 								if (!expandoId) {

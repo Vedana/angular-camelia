@@ -62,9 +62,10 @@
 						return ret;
 					}
 
-					var GridRenderer = function(renderContext) {
+					function GridRenderer(renderContext) {
 						angular.extend(this, renderContext);
-					};
+					}
+					;
 
 					GridRenderer.prototype = {
 						render: function(parent) {
@@ -392,10 +393,27 @@
 
 							$log.debug("GridLayout beginning (containerSize=" + this._containerSizeSetted + ")");
 
+							var self = this;
+
 							if (!this.tableViewPort) {
 								$log.error("Table view port is NULL");
 								// TODO Align columns to default values
-								return $q.when(false);
+
+								var cr = this.bodyContainer.getBoundingClientRect();
+
+								var promise = this.titleLayout($container, cr.width);
+								promise = cc.ensurePromise(promise);
+
+								return promise.then(function() {
+									self.layoutState = "bodyDone";
+
+									self._alignColumns(true);
+
+									self._showBody();
+
+									self.layoutState = "complete";
+									return $q.when(true);
+								});
 							}
 
 							if (!this._containerSizeSetted) {
@@ -414,8 +432,6 @@
 									this._containerSizeSetted = true;
 								}
 							}
-
-							var self = this;
 
 							var cr = this.tableViewPort.getBoundingClientRect();
 							if (!cr || (cr.width < 1 && cr.height < 1)) {
@@ -469,10 +485,10 @@
 									var cursor = self._cursor;
 									if (cursor) {
 										var p = cursor.parentNode;
-										for (; p && p.nodeType == 1; p = p.parentNode) {
+										for (; p && p.nodeType == Node.ELEMENT_NODE; p = p.parentNode) {
 										}
 
-										if (!p || p.nodeType != 9) {
+										if (!p || p.nodeType != Node.DOCUMENT_NODE) {
 											cursor = null;
 											self._cursor = null;
 										}
@@ -518,7 +534,9 @@
 								titleStyle.width = width + "px";
 								// titleStyle.position = "static";
 
-								column.bodyColElement.style.width = (columnConstraints) ? (bodyWidth + "px") : "auto";
+								if (self.tableViewPort) {
+									column.bodyColElement.style.width = (columnConstraints) ? (bodyWidth + "px") : "auto";
+								}
 								total += width;
 
 								// $log.debug("GridWidth[" + column.id + "] width=" + width + "
@@ -572,7 +590,7 @@
 
 							var r = tbody.firstChild;
 							for (; r; r = r.nextSibling) {
-								if (r.nodeType != 1) {
+								if (r.nodeType != Node.ELEMENT_NODE) {
 									continue;
 								}
 
@@ -1268,6 +1286,16 @@
 
 											self.$scope.$broadcast(eventName || "cm:gridRefreshed", param);
 
+											if (self.container._errored) {
+												self.container._errored = false;
+												cc.BubbleEvent(self.container, "cm_update");
+
+												self.$scope.$emit("cm:error", {
+													source: self.dataGrid,
+													error: false
+												});
+											}
+
 											return p;
 										});
 									});
@@ -1321,7 +1349,17 @@
 
 											self.$scope.$broadcast("cm:gridErrored", reason);
 
-											return p;
+											if (!self.container._errored) {
+												self.container._errored = true;
+												cc.BubbleEvent(self.container, "cm_update");
+
+												self.$scope.$emit("cm:error", {
+													source: self.dataGrid,
+													error: false
+												});
+											}
+
+											return $q.reject(reason);
 										});
 									});
 
@@ -1894,7 +1932,7 @@
 
 								var type = cm.GetCMType(target);
 
-								$log.debug("Type of ", target, " => ", type);
+								//$log.debug("Type of ", target, " => ", type);
 
 								if (!type) {
 									return;

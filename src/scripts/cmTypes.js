@@ -17,7 +17,7 @@
 
 		return {
 			GetCMType: function(node) {
-				if (!node || node.nodeType != 1) {
+				if (!node || node.nodeType != Node.ELEMENT_NODE) {
 					return null;
 				}
 
@@ -79,7 +79,7 @@
 					extensions.push("_descending");
 				}
 
-				if (element._error) {
+				if (element._errored) {
 					extensions.push("_error");
 				}
 
@@ -179,7 +179,7 @@
 				var map = !angular.isString(type);
 
 				for (; child; child = child.previousSibling) {
-					if (child.nodeType != 1) {
+					if (child.nodeType != Node.ELEMENT_NODE) {
 						continue;
 					}
 
@@ -241,7 +241,7 @@
 				var map = !angular.isString(type);
 
 				for (; child; child = child.nextSibling) {
-					if (child.nodeType != 1) {
+					if (child.nodeType != Node.ELEMENT_NODE) {
 						continue;
 					}
 
