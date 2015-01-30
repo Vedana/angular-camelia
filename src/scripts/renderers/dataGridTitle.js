@@ -245,7 +245,7 @@
 							messageSorter = "sortDescending";
 						}
 					}
-					if (reset || column._ariaSorter != newAriaSorter) {
+					if (reset || column._ariaSorter !== newAriaSorter) {
 						column._ariaSorter = newAriaSorter;
 
 						cc.setAudioDescription(column.buttonElement, messageSorter && cc.lang(i18n, messageSorter), "sorter");
@@ -389,7 +389,7 @@
 									nw = column.maxWidth;
 								}
 
-								if (nw == column.width) {
+								if (nw === column.width) {
 									column.layoutFinished = true;
 									return;
 								}
@@ -422,15 +422,16 @@
 
 					var visibleColumns = this.visibleColumns;
 					var i = 0;
+					var resizeable;
 					for (; i < visibleColumns.length; i++) {
 						var sizerElement = visibleColumns[i].sizerElement;
 
-						var resizeable = (i && cc.toBoolean(visibleColumns[i - 1].$scope.resizeable));
+						resizeable = (i && cc.toBoolean(visibleColumns[i - 1].$scope.resizeable));
 						sizerElement.style.display = (resizeable) ? "block" : "none";
 					}
 
 					if (this.lastSizerElement) {
-						var resizeable = cc.toBoolean(visibleColumns[i - 1].$scope.resizeable);
+						resizeable = cc.toBoolean(visibleColumns[i - 1].$scope.resizeable);
 
 						this.lastSizerElement.style.display = (resizeable) ? "block" : "none";
 					}

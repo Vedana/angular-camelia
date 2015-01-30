@@ -86,7 +86,7 @@
 								var etype = cm.GetCMType(elt);
 
 								if (angular.isString(type)) {
-									if (etype != type) {
+									if (etype !== type) {
 										return null;
 									}
 

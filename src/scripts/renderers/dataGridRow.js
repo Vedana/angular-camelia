@@ -254,7 +254,7 @@
 					}
 
 					if (cell.cm_cellClasses) {
-						classes.push.apply(classes, tr.cm_cellClasses);
+						classes.push.apply(classes, cell.cm_cellClasses);
 					}
 
 					return cm.MixElementClasses(cell, classes, cts);

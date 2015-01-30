@@ -305,7 +305,7 @@
 
 						var filtredState = !!count;
 						var titleElement = column.titleElement;
-						if (titleElement._filtred != filtredState) {
+						if (titleElement._filtred !== filtredState) {
 							titleElement._filtred = filtredState;
 
 							cc.BubbleEvent(titleElement, "cm_update");
@@ -369,7 +369,7 @@
 					}
 
 					var parametersKey = angular.toJson(key);
-					if (this.lastDataModel === dataModel && this.lastParametersKey == parametersKey) {
+					if (this.lastDataModel === dataModel && this.lastParametersKey === parametersKey) {
 						return this.lastDecoratedDataModel;
 					}
 					this.lastDataModel = dataModel;
@@ -837,7 +837,7 @@
 						var next = e.nextSibling;
 						var type = cm.GetCMType(e);
 
-						if (type == "group") {
+						if (type === "group") {
 							break;
 						}
 

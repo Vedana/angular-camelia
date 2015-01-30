@@ -23,7 +23,7 @@
 		"camelia.cmTypes",
 		"cm_popup_className",
 		"camelia.Key",
-		function($log, $q, $exceptionHandler, $timeout, $rootScope, cc, cm, cm_popup_className, Key) {
+		function($log, $q, $exceptionHandler, $timeout, $rootScope, cc, cm, cmPopupClassName, Key) {
 
 			var anonymousId = 0;
 
@@ -50,7 +50,7 @@
 
 					var newState = (this._state & (~mask)) | (state || 0);
 
-					if (this._state == newState) {
+					if (this._state === newState) {
 						return;
 					}
 
@@ -119,7 +119,7 @@
 
 					var parent = angular.element(document.createDocumentFragment());
 
-					var className = cm_popup_className;
+					var className = cmPopupClassName;
 					if (this.configuration.className) {
 						className += " " + this.configuration.className;
 					}

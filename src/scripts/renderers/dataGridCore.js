@@ -65,7 +65,6 @@
 					function GridRenderer(renderContext) {
 						angular.extend(this, renderContext);
 					}
-					;
 
 					GridRenderer.prototype = {
 						render: function(parent) {
@@ -344,7 +343,7 @@
 							// cc.log("SetCursor ", element);
 
 							var cid = this.focusCellId;
-							if (cid && (!element || element.id != cid)) {
+							if (cid && (!element || element.id !== cid)) {
 								this.focusCellId = null;
 
 								var oldCursor = document.getElementById(cid);
@@ -446,7 +445,7 @@
 								}, 10, false);
 							}
 
-							if (this.gridWidth == cr.width && this.gridHeight == cr.height) {
+							if (this.gridWidth === cr.width && this.gridHeight === cr.height) {
 								$log.debug("Begin layout : Already done");
 
 								self._alignColumns(true);
@@ -665,7 +664,7 @@
 
 							var dataGrid = this.dataGrid;
 							function prevPage() {
-								if ((!next || next.id == row.id) && dataGrid.rows > 0) {
+								if ((!next || next.id === row.id) && dataGrid.rows > 0) {
 									var nextFirst = dataGrid.first - dataGrid.rows;
 									if (nextFirst < 0) {
 										nextFirst = 0;
@@ -679,7 +678,7 @@
 							}
 
 							function nextPage() {
-								if ((!next || next.id == row.id) && dataGrid.rows > 0) {
+								if ((!next || next.id === row.id) && dataGrid.rows > 0) {
 									var nextFirst = dataGrid.first + dataGrid.rows;
 									if (dataGrid.rowCount < 0 || nextFirst < dataGrid.rowCount) {
 										dataGrid.setFirst(nextFirst);
@@ -802,7 +801,7 @@
 								}
 							}
 
-							if (next && next.id != row.id) {
+							if (next && next.id !== row.id) {
 								this.registerElement(next);
 
 								focusCell = true;
@@ -813,7 +812,7 @@
 									if (c.cm_lindex === undefined || columnLogicalIndex === undefined) {
 										return true;
 									}
-									return c.cm_lindex == columnLogicalIndex;
+									return c.cm_lindex === columnLogicalIndex;
 								});
 
 								if (cell) {

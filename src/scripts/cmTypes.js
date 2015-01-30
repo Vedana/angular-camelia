@@ -26,7 +26,6 @@
 				if (type) {
 					return type;
 				}
-				/*jshint camelcase: true */
 
 				var id = node.id;
 				if (!id) {

@@ -101,7 +101,7 @@
 							self.constructing = false;
 							self.constructed = false;
 
-							return doc;
+							return $q.reject(reason);
 						});
 					} ],
 
