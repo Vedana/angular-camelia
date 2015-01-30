@@ -149,7 +149,7 @@
 				if (viewPort[0]) {
 					viewPort = viewPort[0];
 				}
-				if (viewPort.offsetHeight == viewPort.scrollHeight) {
+				if (viewPort.offsetHeight === viewPort.scrollHeight) {
 					return this.GetPreviousType(child, type, func);
 				}
 
@@ -211,12 +211,12 @@
 				if (viewPort[0]) {
 					viewPort = viewPort[0];
 				}
-				if (viewPort.offsetHeight == viewPort.scrollHeight) {
+				if (viewPort.offsetHeight === viewPort.scrollHeight) {
 					return this.GetNextType(child, type, func);
 				}
 
 				var scrollTop = viewPort.scrollTop;
-				//var clientHeight = viewPort.clientHeight;
+				// var clientHeight = viewPort.clientHeight;
 
 				var last = null;
 				this.GetNextType(child, type, function(child, ctype) {
@@ -241,7 +241,7 @@
 				var map = !angular.isString(type);
 
 				for (; child; child = child.nextSibling) {
-					if (child.nodeType != Node.ELEMENT_NODE) {
+					if (child.nodeType !== Node.ELEMENT_NODE) {
 						continue;
 					}
 

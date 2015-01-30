@@ -19,7 +19,7 @@
   "trailing": true,
   "quotmark": false,
   "smarttabs": true,
-  "unparam": false,
+  "unused": false,
   "proto": true,
   "debug": true,
   "loopfunc": true,
