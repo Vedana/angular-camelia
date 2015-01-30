@@ -9,7 +9,7 @@
   	 "jshint": "^2.6.0"
   },
   "scripts": {
-    "test": "./node_modules/jshint/bin/jshint src/scripts/*.js"
+    "test": "./node_modules/jshint/bin/jshint src/**/*.js"
   },
   "engines": {
     "node": ">=0.10.0"
