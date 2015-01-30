@@ -27,7 +27,7 @@
 					throw new Error("You must specify value attribute");
 				}
 
-				if (attrs.integer == "true") {
+				if (attrs.integer === "true") {
 					this._integer = true;
 					value = parseInt(value, 10);
 
@@ -36,7 +36,7 @@
 				}
 				this._value = value;
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(NumberCriteria, Criteria, {

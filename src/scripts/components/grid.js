@@ -135,7 +135,7 @@
 							var columnCursor;
 							if (columnCursorId) {
 								angular.forEach($scope.columns, function(column) {
-									if (column.id == columnCursorId) {
+									if (column.id === columnCursorId) {
 										columnCursor = column;
 									}
 								});
@@ -202,11 +202,11 @@
 					this.gridRenderer = gridRenderer;
 
 					$scope.$watch("first", function(newValue, oldValue) {
-						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
+						if (!angular.isNumber(newValue) || newValue === oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
-						if (self.readyState != "complete") {
+						if (self.readyState !== "complete") {
 							return;
 						}
 
@@ -216,11 +216,11 @@
 					});
 
 					$scope.$watch("rows", function(newValue, oldValue) {
-						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
+						if (!angular.isNumber(newValue) || newValue === oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
-						if (self.readyState != "complete") {
+						if (self.readyState !== "complete") {
 							return;
 						}
 

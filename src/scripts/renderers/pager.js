@@ -71,6 +71,7 @@
 							this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
 							this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
 
+							var self = this;
 							$scope.$on("$destroy", function() {
 								self._offFocus();
 
@@ -282,7 +283,7 @@
 							var span = null;
 							for (var i = 0; i < message.length;) {
 								var c = message.charAt(i++);
-								if (c == "{") {
+								if (c === "{") {
 									var end = message.indexOf("}", i);
 									var varName = message.substring(i, end).toLowerCase();
 									i = end + 1;
@@ -298,7 +299,7 @@
 										var parameter = varName.substring(pvar + 1);
 										varName = varName.substring(0, pvar);
 
-										parameters = new Object();
+										parameters = {};
 
 										var ss = parameter.split(';');
 										for (var j = 0; j < ss.length; j++) {
@@ -321,7 +322,7 @@
 
 								if (c == "\'") {
 									if (!span) {
-										span = new Array();
+										span = [];
 									}
 									for (var j = i;;) {
 										var end = message.indexOf("'", j);
@@ -345,7 +346,7 @@
 								}
 
 								if (!span) {
-									span = new Array();
+									span = [];
 								}
 								span.push(c);
 							}
@@ -371,8 +372,7 @@
 							if (this._templates) {
 								var template = this._templates[type];
 								if (template) {
-
-									var comp = template.transclude(td, scope);
+									var comp = template.transclude(parent, scope);
 
 									return comp;
 								}
@@ -586,7 +586,8 @@
 								butScope.$pageIndex = pi;
 								butScope.$rowIndex = pi * rows;
 
-								var but = this.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams, butScope);
+								var but = this
+										.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams, butScope);
 
 								if (type === "index") {
 									components["index:p" + (pi * rows)] = but;
@@ -596,7 +597,7 @@
 									components[type] = but;
 								}
 							}
-							
+
 							butScope.$destroy();
 
 						},

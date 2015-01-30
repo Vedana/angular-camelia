@@ -28,7 +28,7 @@
 				}
 
 				var modifiers = "";
-				if (attrs.ignoreCase == "true") {
+				if (attrs.ignoreCase === "true") {
 					modifiers += "i";
 					this._ignoreCase = true;
 				}
@@ -36,7 +36,7 @@
 				this._value = value;
 				this._regExp = new RegExp("^[" + value + "]", modifiers);
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(StartsWith, Criteria, {
@@ -57,7 +57,7 @@
 					var f = this._false;
 
 					var regExp = this._regExp;
-					if (rexExp.test(value)) {
+					if (regExp.test(value)) {
 						return !f;
 					}
 

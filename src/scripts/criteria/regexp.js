@@ -35,7 +35,7 @@
 					modifiers += "g";
 				}
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 
 				this._regexp = new RegExp(value, modifiers);
 			};
@@ -56,7 +56,7 @@
 				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 					var f = this._false;
 
-					if (typeof (value) != "string") {
+					if (typeof (value) !== "string") {
 						return f;
 					}
 

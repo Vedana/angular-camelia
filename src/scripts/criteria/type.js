@@ -29,7 +29,7 @@
 
 				this._value = value;
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(Type, Criteria, {
@@ -48,7 +48,7 @@
 				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 					var f = this._false;
 
-					if (typeof (value) == this._value) {
+					if (typeof (value) === this._value) {
 						return !f;
 					}
 

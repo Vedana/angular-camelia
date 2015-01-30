@@ -118,7 +118,7 @@
 							});
 
 							if (filter.contributeDOM) {
-								filter.contributeDOM(ul, fContext, criteria, column);
+								filter.contributeDOM(ul, fContext, criteria, self._column);
 							}
 
 							self._labelStyleUpdate(right);
@@ -437,9 +437,9 @@
 					}
 
 					if (next) {
-						var input = next.querySelector(".cm_filtersPopup_input");
-						if (input) {
-							cc.setFocus(input);
+						var filterInput = next.querySelector(".cm_filtersPopup_input");
+						if (filterInput) {
+							cc.setFocus(filterInput);
 						}
 					}
 

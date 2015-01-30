@@ -60,7 +60,7 @@
 				filterData: function(filterContexts, value, rowScope, dataModel, column) {
 					var f = false;
 
-					if (typeof (value) != "string") {
+					if (typeof (value) !== "string") {
 						return f;
 					}
 

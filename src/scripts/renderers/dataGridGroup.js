@@ -45,7 +45,7 @@
 							groupClassMode = 1;
 							groupClassExpression = this.$interpolate(expression);
 
-						} else if (expression.charAt(0) == '{' && expression.charAt(expression.length - 1) == '}') {
+						} else if (expression.charAt(0) === '{' && expression.charAt(expression.length - 1) === '}') {
 							// ng-class expression !
 							groupClassMode = 2;
 						}
@@ -58,7 +58,7 @@
 
 				if (groupClassMode) {
 					var obj = groupProvider.titleClassExpression;
-					if (groupClassMode != 3) {
+					if (groupClassMode !== 3) {
 						obj = groupScope.$eval(obj);
 					}
 
@@ -112,7 +112,6 @@
 					className: "cm_dataGrid_glabel"
 				});
 
-				var value = null;
 				var interpolatedExpression = groupProvider.interpolatedTitleExpression;
 				if (!interpolatedExpression) {
 					var expression = groupProvider.$scope.titleRawExpression;
