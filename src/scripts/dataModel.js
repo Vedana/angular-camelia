@@ -19,10 +19,9 @@
 		'$rootScope',
 		'$injector',
 		'$resource',
-		'$log',
 		'camelia.core',
 		'camelia.ScopeWrapper',
-		function($q, $rootScope, $injector, $resource, $log, cc, ScopeWrapper) {
+		function($q, $rootScope, $injector, $resource, cc, ScopeWrapper) {
 
 			var resourceProto = cc.getProto($resource());
 
@@ -754,9 +753,10 @@
 	 */
 	module.factory('camelia.ResourceDataModel', [ '$q',
 		'$timeout',
+		'$log',
 		'camelia.DataModel',
 		'camelia.core',
-		function($q, $timeout, DataModel, cc) {
+		function($q, $timeout, $log, DataModel, cc) {
 
 			var DEFAULT_VALUES = {
 				pageSize: 20,

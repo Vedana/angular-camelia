@@ -84,7 +84,7 @@
 								this.Assert(properties === undefined || typeof (properties) === "object", "createElement",
 										"Invalid properties parameter (" + properties + ")");
 
-								if (this.IsMSIE() <= 6 && tagName.toLowerCase() == "input" && properties && properties.type &&
+								if (this.IsMSIE() <= 6 && tagName.toLowerCase() === "input" && properties && properties.type &&
 										properties.name) {
 									element = doc.createElement("<input name=\"" + properties.name + "\" type=\"" + properties.type +
 											"\">");
