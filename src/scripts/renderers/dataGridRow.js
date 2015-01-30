@@ -52,7 +52,7 @@
 								rowClassMode = 1;
 								rowClassExpression = this.$interpolate(expression);
 
-							} else if (expression.charAt(0) == '{' && expression.charAt(expression.length - 1) == '}') {
+							} else if (expression.charAt(0) === '{' && expression.charAt(expression.length - 1) === '}') {
 								// ng-class expression !
 								rowClassMode = 2;
 							}
@@ -65,7 +65,7 @@
 
 					if (rowClassMode) {
 						var obj = this.rowClassExpression;
-						if (rowClassMode != 3) {
+						if (rowClassMode !== 3) {
 							obj = rowScope.$eval(obj);
 						}
 
@@ -153,7 +153,7 @@
 					if (tr._selected) {
 						ariaState |= 0x01;
 					}
-					if (tr.ariaState != ariaState) {
+					if (tr.ariaState !== ariaState) {
 						tr.ariaState = ariaState;
 
 						if (tr._selected) {
@@ -210,7 +210,7 @@
 						destroyScopeRef.value = false;
 
 						rowScope.$watch(column.interpolatedExpression, function(newText) {
-							label.text((newText == undefined) ? '' : newText);
+							label.text((newText === undefined) ? '' : newText);
 						});
 
 					} else {
@@ -241,7 +241,7 @@
 						classes.push("cm_dataGrid_cfirst");
 
 					}
-					if (column.visibleIndex == this.visibleColumns.length - 1) {
+					if (column.visibleIndex === this.visibleColumns.length - 1) {
 						classes.push("cm_dataGrid_clast");
 					}
 
@@ -302,15 +302,15 @@
 						this.cellStyleUpdate(cell);
 
 						var firstCell = cells[rowIdent];
-						if (!beforeColumn || firstCell.id != beforeColumn.id) {
+						if (!beforeColumn || firstCell.id !== beforeColumn.id) {
 							this.cellStyleUpdate(firstCell);
 						}
 
-					} else if (column.visibleIndex == visibleColumns.length - 1) {
+					} else if (column.visibleIndex === visibleColumns.length - 1) {
 						this.cellStyleUpdate(cell);
 
 						var lastCell = cells[rowIdent + visibleColumns.length - 1];
-						if (!beforeColumn || lastCell.id != beforeColumn.id) {
+						if (!beforeColumn || lastCell.id !== beforeColumn.id) {
 							this.cellStyleUpdate(lastCell);
 						}
 					}

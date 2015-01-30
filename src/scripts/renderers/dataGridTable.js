@@ -78,7 +78,7 @@
 				},
 
 				tableViewPortRenderer: function(parent) {
-
+					var i;
 					var viewPort = cc.createElement(parent, "div", {
 						id: "cm_table_" + (anonymousId++),
 						className: "cm_dataGrid_table"
@@ -114,7 +114,7 @@
 							"aria-hidden": "true"
 						});
 
-						for (var i = 0; i < rowIndent; i++) {
+						for (i = 0; i < rowIndent; i++) {
 							var co = cc.createElement(colgroupIndent, "col", {
 								className: "cm_dataGrid_colIndent"
 							});
@@ -151,7 +151,7 @@
 
 					var titleRow = cc.createElement(thead, "tr");
 
-					for (var i = 0; i < rowIndent; i++) {
+					for (i = 0; i < rowIndent; i++) {
 						cc.createElement(titleRow, "th", {
 							className: "cm_dataGrid_thIndent",
 							"aria-hidden": "true"

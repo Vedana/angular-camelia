@@ -393,12 +393,15 @@
 							$log.debug("GridLayout beginning (containerSize=" + this._containerSizeSetted + ")");
 
 							var self = this;
+							var cr;
+
+							var $container = angular.element(container);
 
 							if (!this.tableViewPort) {
 								$log.error("Table view port is NULL");
 								// TODO Align columns to default values
 
-								var cr = this.bodyContainer.getBoundingClientRect();
+								cr = this.bodyContainer.getBoundingClientRect();
 
 								var promise = this.titleLayout($container, cr.width);
 								promise = cc.ensurePromise(promise);
@@ -432,7 +435,7 @@
 								}
 							}
 
-							var cr = this.tableViewPort.getBoundingClientRect();
+							cr = this.tableViewPort.getBoundingClientRect();
 							if (!cr || (cr.width < 1 && cr.height < 1)) {
 								$log.debug("No bounding client rect ", cr, "  => timeout 10ms");
 
@@ -463,8 +466,6 @@
 
 							this.$scope.$broadcast("cm:dataGrid_layout_begin");
 
-							var $container = angular.element(container);
-
 							var promise = this.titleLayout($container, cr.width);
 							promise = cc.ensurePromise(promise);
 
@@ -484,7 +485,7 @@
 									var cursor = self._cursor;
 									if (cursor) {
 										var p = cursor.parentNode;
-										for (; p && p.nodeType == Node.ELEMENT_NODE; p = p.parentNode) {
+										for (; p && p.nodeType === Node.ELEMENT_NODE; p = p.parentNode) {
 										}
 
 										if (!p || p.nodeType != Node.DOCUMENT_NODE) {
@@ -698,7 +699,7 @@
 							case Key.VK_PAGE_DOWN:
 								cancel = true;
 								next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
-								if (next && next.id == row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
+								if (next && next.id === row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
 									viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
 
 									next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
@@ -721,7 +722,7 @@
 							case Key.VK_PAGE_UP:
 								cancel = true;
 								next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
-								if (next && next.id == row.id) {
+								if (next && next.id === row.id) {
 									viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
 
 									next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
@@ -917,7 +918,7 @@
 								newWidth = column.maxWidth;
 							}
 
-							if (newWidth != column.width) {
+							if (newWidth !== column.width) {
 								column.width = newWidth;
 								column.specifiedWidthPx = newWidth + "px";
 								this._alignColumns(true);
@@ -1089,14 +1090,14 @@
 								};
 								var sendEvent = false;
 
-								if (oldFirst != dataGrid.first) {
+								if (oldFirst !== dataGrid.first) {
 									event.firstChanged = true;
 									sendEvent = true;
 
 									$scope.$broadcast("cm:firstChanged", dataGrid.first);
 								}
 
-								if (oldRows != dataGrid.rows) {
+								if (oldRows !== dataGrid.rows) {
 									event.rowsChanged = true;
 									sendEvent = true;
 
@@ -1111,7 +1112,7 @@
 									$scope.$broadcast("cm:rowCountChanged", dataGrid.rowCount);
 								}
 
-								if (oldMaxRows != dataGrid.maxRows) {
+								if (oldMaxRows !== dataGrid.maxRows) {
 									event.maxRowsChanged = true;
 									sendEvent = true;
 									$scope.maxRows = maxRows;
@@ -1496,7 +1497,7 @@
 							var elements = searchElements(event.target);
 
 							if (!this.titleCellColumnMoving) {
-								if (elements.tcell && elements.tcell.id == tcell.id) {
+								if (elements.tcell && elements.tcell.id === tcell.id) {
 									if (elements.tparams) {
 										this._showFilterPopup(column, elements.tparams, event, elements);
 
@@ -1931,7 +1932,7 @@
 
 								var type = cm.GetCMType(target);
 
-								//$log.debug("Type of ", target, " => ", type);
+								// $log.debug("Type of ", target, " => ", type);
 
 								if (!type) {
 									return;

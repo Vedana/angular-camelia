@@ -262,7 +262,7 @@
 							messageFiltred = "filtredColumn";
 						}
 					}
-					if (reset || column._ariaFiltred != newAriaFiltred) {
+					if (reset || column._ariaFiltred !== newAriaFiltred) {
 						column._ariaFiltred = newAriaFiltred;
 
 						cc.setAudioDescription(column.buttonElement, messageFiltred && cc.lang(i18n, messageFiltred), "filtred");
@@ -480,7 +480,7 @@
 					var self = this;
 					angular.forEach(this.visibleColumns, function(col) {
 						var titleElement = col.titleElement;
-						if (titleElement.id == column.titleElement.id) {
+						if (titleElement.id === column.titleElement.id) {
 							return;
 						}
 

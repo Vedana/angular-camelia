@@ -33,7 +33,7 @@
 						return;
 					}
 
-					if (v.charAt(0) == '=') {
+					if (v.charAt(0) === '=') {
 						v = v.substring(1);
 						self["_" + name + "Eq"] = true;
 					}
@@ -44,7 +44,7 @@
 				processNumber("min");
 				processNumber("max");
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(MinMax, Criteria, {

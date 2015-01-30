@@ -332,7 +332,7 @@
 											break;
 										}
 
-										if (message.charAt(end + 1) == "\'") {
+										if (message.charAt(end + 1) === "\'") {
 											span.push(message.substring(j, end), "'");
 											j = end + 2;
 											continue;
@@ -586,8 +586,8 @@
 								butScope.$pageIndex = pi;
 								butScope.$rowIndex = pi * rows;
 
-								var but = this
-										.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams, butScope);
+								var but = this.renderButton(parent, (pi === selectedPage) ? -1 : (pi * rows), type, langParams,
+										butScope);
 
 								if (type === "index") {
 									components["index:p" + (pi * rows)] = but;

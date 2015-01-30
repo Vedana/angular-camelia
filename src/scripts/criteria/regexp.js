@@ -28,10 +28,10 @@
 				}
 
 				var modifiers = attrs.modifiers || "";
-				if (attrs.ignoreCase == "true") {
+				if (attrs.ignoreCase === "true") {
 					modifiers += "i";
 				}
-				if (attrs.global == "true") {
+				if (attrs.global === "true") {
 					modifiers += "g";
 				}
 

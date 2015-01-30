@@ -382,7 +382,7 @@
 					case Key.VK_DOWN:
 						cancel = true;
 
-						var next = cm.GetNextType(row.nextSibling, ROW_TYPE);
+						next = cm.GetNextType(row.nextSibling, ROW_TYPE);
 						if (!next) {
 							next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
 						}
@@ -391,7 +391,7 @@
 					case Key.VK_PAGE_DOWN:
 						cancel = true;
 						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
-						if (next && next.id == row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
+						if (next && next.id === row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
 							viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
 
 							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
@@ -406,7 +406,7 @@
 					case Key.VK_UP:
 						cancel = true;
 
-						var next = cm.GetPreviousType(row.previousSibling, ROW_TYPE);
+						next = cm.GetPreviousType(row.previousSibling, ROW_TYPE);
 						if (!next) {
 							next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
 						}
@@ -415,7 +415,7 @@
 					case Key.VK_PAGE_UP:
 						cancel = true;
 						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
-						if (next && next.id == row.id) {
+						if (next && next.id === row.id) {
 							viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
 
 							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
