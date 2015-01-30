@@ -15,13 +15,14 @@
 	var SLOW_LOADING_SIMULATION = false;
 	var ERROR_LOADING_SIMULATION = 0;
 
-	module.factory('camelia.DataModel', [ "$q",
-		"$rootScope",
-		"$injector",
-		"$resource",
-		"camelia.core",
-		"camelia.ScopeWrapper",
-		function($q, $rootScope, $injector, $resource, cc, ScopeWrapper) {
+	module.factory('camelia.DataModel', [ '$q',
+		'$rootScope',
+		'$injector',
+		'$resource',
+		'$log',
+		'camelia.core',
+		'camelia.ScopeWrapper',
+		function($q, $rootScope, $injector, $resource, $log, cc, ScopeWrapper) {
 
 			var resourceProto = cc.getProto($resource());
 
@@ -124,7 +125,7 @@
 
 					this._rowIndex = rowIndex;
 
-					if (this.$parent == $rootScope) {
+					if (this.$parent === $rootScope) {
 						if (old < 0 && rowIndex >= 0) {
 							// Broadcast START
 							this.$broadcast("cm:begin");
@@ -503,7 +504,7 @@
 							scope.$array = array;
 
 							var expression = sorter.expression;
-							if (expression == "orderBy:" && sorter.column.$scope.fieldName) {
+							if (expression === "orderBy:" && sorter.column.$scope.fieldName) {
 								expression += "'" + sorter.column.$scope.fieldName + "'";
 							}
 
@@ -918,7 +919,7 @@
 					var ret = this.$resource[actionName].call(this.$resource, params, function(response, responseHeaders) {
 						try {
 							self._requestPromise = undefined;
-							if (self._sessionId != currentSessionId) {
+							if (self._sessionId !== currentSessionId) {
 								return deferred.reject("Session canceled");
 							}
 							if (ERROR_LOADING_SIMULATION === 2) {
@@ -985,7 +986,7 @@
 					this._requestPromise = ret.$promise;
 
 					this._requestPromise.then(null, null, function() {
-						if (self._sessionId != currentSessionId) {
+						if (self._sessionId !== currentSessionId) {
 							return;
 						}
 

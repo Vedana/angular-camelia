@@ -65,7 +65,7 @@
 							}
 
 							var doc;
-							if (parent.nodeType == Node.DOCUMENT_NODE) {
+							if (parent.nodeType === Node.DOCUMENT_NODE) {
 								doc = parent;
 								parent = doc.body.parentNode;
 
@@ -79,9 +79,9 @@
 								tagName = arguments[i++];
 								properties = arguments[i++];
 
-								this.Assert(typeof (tagName) == "string", "createElement", "Invalid 'tagName' parameter (" + tagName +
+								this.Assert(typeof (tagName) === "string", "createElement", "Invalid 'tagName' parameter (" + tagName +
 										")");
-								this.Assert(properties === undefined || typeof (properties) == "object", "createElement",
+								this.Assert(properties === undefined || typeof (properties) === "object", "createElement",
 										"Invalid properties parameter (" + properties + ")");
 
 								if (this.IsMSIE() <= 6 && tagName.toLowerCase() == "input" && properties && properties.type &&
@@ -151,7 +151,7 @@
 												break;
 
 											default:
-												if (name.charAt(0) != "$") {
+												if (name.charAt(0) !== "$") {
 													element.setAttribute(name, value);
 												} else {
 													element[name.substring(1)] = value;
@@ -214,7 +214,7 @@
 							}
 
 							var className = classes.join(" ");
-							if (element.className == className) {
+							if (element.className === className) {
 								return false;
 							}
 
@@ -415,7 +415,7 @@
 
 							if (value && value.length) {
 								var v = value.toLowerCase();
-								return !(v == "f" || v == "0" || v == "false" || v == "no" || v == "n" || v == "[]");
+								return !(v === "f" || v === "0" || v === "false" || v === "no" || v === "n" || v === "[]");
 							}
 
 							return !!defaultValue;
@@ -509,7 +509,7 @@
 							for (var i = 0; i < qs.length; i++) {
 								var ad = qs[i];
 
-								if (ad.type != type) {
+								if (ad.type !== type) {
 									continue;
 								}
 

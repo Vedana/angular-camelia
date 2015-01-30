@@ -21,10 +21,12 @@
 					return null;
 				}
 
+				/*jshint camelcase: false */
 				var type = node.cm_type;
 				if (type) {
 					return type;
 				}
+				/*jshint camelcase: true */
 
 				var id = node.id;
 				if (!id) {
