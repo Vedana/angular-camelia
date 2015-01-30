@@ -7,6 +7,8 @@
  * @author olivier.oeuillot@vedana.com
  */
 
+/*jshint dot-notation:false */
+
 (function(window, angular, undefined) {
 	"use strict";
 
@@ -320,7 +322,7 @@
 									continue;
 								}
 
-								if (c == "\'") {
+								if (c === "\'") {
 									if (!span) {
 										span = [];
 									}

@@ -488,7 +488,7 @@
 										for (; p && p.nodeType === Node.ELEMENT_NODE; p = p.parentNode) {
 										}
 
-										if (!p || p.nodeType != Node.DOCUMENT_NODE) {
+										if (!p || p.nodeType !== Node.DOCUMENT_NODE) {
 											cursor = null;
 											self._cursor = null;
 										}
@@ -590,7 +590,7 @@
 
 							var r = tbody.firstChild;
 							for (; r; r = r.nextSibling) {
-								if (r.nodeType != Node.ELEMENT_NODE) {
+								if (r.nodeType !== Node.ELEMENT_NODE) {
 									continue;
 								}
 
@@ -1104,7 +1104,7 @@
 									$scope.$broadcast("cm:rowsChanged", dataGrid.rows);
 								}
 
-								if (oldRowCount != dataGrid.rowCount) {
+								if (oldRowCount !== dataGrid.rowCount) {
 									event.rowCountChanged = true;
 									sendEvent = true;
 									$scope.rowCount = rowCount;
@@ -1653,7 +1653,7 @@
 								break;
 							}
 
-							if (next && next.id != tcell.id) {
+							if (next && next.id !== tcell.id) {
 								var column = angular.element(next).data("cm_column");
 								column.buttonElement.focus();
 							}
