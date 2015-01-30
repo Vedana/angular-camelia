@@ -1,0 +1,17 @@
+{
+  "name": "Camelia",
+  "version": "0.0.12",
+  "dependencies": {},
+  "repository": {
+    "url": "git://github.com/Vedana/camelia.git"
+  },
+  "devDependencies": {
+  	 "jshint": "^2.6.0"
+  },
+  "scripts": {
+    "test": "./node_modules/jshint/bin/jshint src/scripts/*.js"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  }
+}

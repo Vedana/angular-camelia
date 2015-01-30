@@ -7,16 +7,3 @@ env:
 branches:
   only:
     - master
-    
-before_script:
-  - export DISPLAY=:99.0 # firefox virtual screen
-  - sh -e /etc/init.d/xvfb start # firefox virtual screen
-  - npm install -g bower
-  - bower install
-  - git config --global user.email "camelia@vedana.com"
-  - git config --global user.name "camelia Bot"
-
-script:
-  - gulp karma --browsers=Firefox
-  - ./scripts/travis-build-init.sh --sha=$TRAVIS_COMMIT
-    
