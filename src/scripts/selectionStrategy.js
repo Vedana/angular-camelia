@@ -98,7 +98,7 @@
 						return;
 					}
 
-					if (this._cardinality == 0x01) {
+					if (this._cardinality === 0x01) {
 						this._base = cursorValue;
 						this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
 
@@ -122,7 +122,7 @@
 					if (event && event.ctrlKey) {
 						var count = selectionProvider.count();
 						if (selectionProvider.containsAll(rowValues)) {
-							if (this._cardinality == 0x03 && count < 2) {
+							if (this._cardinality === 0x03 && count < 2) {
 								return;
 							}
 							selectionProvider.remove(rowValues);

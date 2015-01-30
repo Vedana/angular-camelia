@@ -17,7 +17,7 @@
 
 		return {
 			GetCMType: function(node) {
-				if (!node || node.nodeType != Node.ELEMENT_NODE) {
+				if (!node || node.nodeType !== Node.ELEMENT_NODE) {
 					return null;
 				}
 
@@ -49,7 +49,7 @@
 
 					ret[type] = node;
 
-					if (type == stopType) {
+					if (type === stopType) {
 						break;
 					}
 				}
@@ -134,7 +134,7 @@
 							continue;
 						}
 					} else {
-						if (ctype != type) {
+						if (ctype !== type) {
 							continue;
 						}
 					}
@@ -179,7 +179,7 @@
 				var map = !angular.isString(type);
 
 				for (; child; child = child.previousSibling) {
-					if (child.nodeType != Node.ELEMENT_NODE) {
+					if (child.nodeType !== Node.ELEMENT_NODE) {
 						continue;
 					}
 
@@ -192,7 +192,7 @@
 							continue;
 						}
 					} else {
-						if (ctype != type) {
+						if (ctype !== type) {
 							continue;
 						}
 					}
@@ -216,7 +216,7 @@
 				}
 
 				var scrollTop = viewPort.scrollTop;
-				var clientHeight = viewPort.clientHeight;
+				//var clientHeight = viewPort.clientHeight;
 
 				var last = null;
 				this.GetNextType(child, type, function(child, ctype) {
@@ -254,7 +254,7 @@
 							continue;
 						}
 					} else {
-						if (ctype != type) {
+						if (ctype !== type) {
 							continue;
 						}
 					}
@@ -280,7 +280,7 @@
 					var propertyName = type + "_" + stateName;
 
 					var oldElementId = renderContext[propertyName];
-					if (oldElementId && (!element || oldElementId != element.id)) {
+					if (oldElementId && (!element || oldElementId !== element.id)) {
 						renderContext[propertyName] = null;
 
 						var oldElement = document.getElementById(oldElementId);
@@ -325,7 +325,7 @@
 					var propertyName = type + "_" + stateName;
 
 					var oldElementId = renderContext[propertyName];
-					if (oldElementId && (!element || oldElementId != element.id)) {
+					if (oldElementId && (!element || oldElementId !== element.id)) {
 						renderContext[propertyName] = null;
 
 						var oldElement = document.getElementById(oldElementId);

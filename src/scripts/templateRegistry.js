@@ -10,12 +10,12 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.templateRegistry", [ "camelia.core" ]);
+	var module = angular.module('camelia.templateRegistry', [ 'camelia.core' ]);
 
-	module.factory("camelia.TemplateRegistry", [ "$log", "$q", "camelia.core", function($log, $q, cc) {
+	module.factory('camelia.TemplateRegistry', [ '$log', '$q', 'camelia.core', function($log, $q, cc) {
 
 		var doc = angular.element(document);
-		var controller = doc.controller("cmTemplateRegistry");
+		var controller = doc.controller('cmTemplateRegistry');
 
 		if (!controller) {
 			controller = {
@@ -56,13 +56,13 @@
 				var byId;
 				var idx = templatesByScopeAndId.indexOf($containerScope);
 				if (idx >= 0) {
-					byid = templatesByScopeAndId[idx];
+					byId = templatesByScopeAndId[idx];
 
 				} else {
 					byId = {};
 					templatesByScopeAndId.unshift(byId);
 
-					$containerScope.$on("$destroy", function() {
+					$containerScope.$on('$destroy', function() {
 						var idx2 = templatesByScopeAndId.indexOf($containerScope);
 						if (idx2 < 0) {
 							return;
@@ -76,10 +76,6 @@
 			},
 
 			FindById: function(id) {
-				if (target[0]) {
-					target = target[0];
-				}
-
 				for (var i = 0; i < templatesByScopeAndId.length; i++) {
 					var byId = templatesByScopeAndId[i];
 
@@ -104,13 +100,13 @@
 				angular.forEach(scopeTemplates, function(template) {
 					var $tScope = template.$scope;
 
-					if (name && $tScope.name != name) {
+					if (name && $tScope.name !== name) {
 						return;
 					}
 
 					var enabledExp = $tScope.enabledExpresion;
 					if (enabledExp) {
-						if (enabledExp === "false") {
+						if (enabledExp === 'false') {
 							return;
 						}
 
@@ -121,7 +117,7 @@
 					if (refId) {
 						var refTemplate = self.FindById(refId);
 						if (!refTemplate) {
-							$log.error("Can not fin template id=" + refId);
+							$log.error('Can not fin template id=' + refId);
 							return;
 						}
 

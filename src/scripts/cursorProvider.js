@@ -10,11 +10,11 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.cursorProvider', [ "camelia.core", "camelia.scopeWrapper" ]);
+	var module = angular.module('camelia.cursorProvider', [ 'camelia.core', 'camelia.scopeWrapper' ]);
 
-	module.factory('camelia.CursorProvider', [ "$rootScope",
-		"camelia.core",
-		"camelia.ScopeWrapper",
+	module.factory('camelia.CursorProvider', [ '$rootScope',
+		'camelia.core',
+		'camelia.ScopeWrapper',
 		function($rootScope, cc, ScopeWrapper) {
 
 			function CursorProvider($parentScope) {
