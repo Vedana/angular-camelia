@@ -13,9 +13,9 @@
              ],
   "main": ["./dist/camelia.js", "./dist/camelia.css" ],
   "dependencies": {
-    "angular": "1.2.15",
-    "angular-resource": "1.2.15",
-    "angular-sanitize": "1.2.15"
+    "angular": "~1.2.15",
+    "angular-resource": "~1.2.15",
+    "angular-sanitize": "~1.2.15"
   },
   "repository": {
     "type": "git",
@@ -24,7 +24,7 @@
   "ignore": [
     ".*",
     "Gruntfile.js",
-    "kerma*.js",
+    "karma*.js",
     "package.json",
     "test",
     "src",
