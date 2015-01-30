@@ -26,6 +26,7 @@
 	padding: 0;
 	border: 0;
 	overflow: hidden;
+	min-height: 48px;
 }
 
 .cm_dataGrid_title {
@@ -493,7 +494,6 @@
 }
 
 .cm_dataGrid_table {
-	position: absolute;
 }
 
 .pageSeparator {
