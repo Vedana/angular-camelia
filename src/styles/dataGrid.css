@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
  * @author olivier.oeuillot@vedana.com
  */
@@ -110,7 +110,7 @@
 	position: absolute;
 	right: 0;
 	top: 0;
-	width: 16px;
+	width: 18px;
 	height: 100%;
 	padding: 0;
 	margin: 0;
@@ -120,28 +120,12 @@
 	background-color: transparent;
 }
 
-.cm_dataGrid_tcell_filtred .cm_dataGrid_tpArrow, .cm_dataGrid_tpFiltred
-	{
+.cm_dataGrid_tcell_filtred .cm_dataGrid_tpArrow, .cm_dataGrid_tpFiltred {
 	display: none;
 }
 
 .cm_dataGrid_tcell_filtred .cm_dataGrid_tpFiltred {
 	display: block;
-}
-
-.cm_dataGrid_tpFiltred:after {
-	content: "\2714";
-}
-
-.cm_dataGrid_tpArrow {
-	position: absolute;
-	left: calc(50% - 4px);
-	top: calc(50% - 4px);
-	width: 0;
-	height: 0;
-	border-left: 4px solid transparent;
-	border-right: 4px solid transparent;
-	border-top: 4px solid black;
 }
 
 .cm_dataGrid_tcell_filtred .cm_dataGrid_tparams,
@@ -282,7 +266,7 @@
 
 .cm_dataGrid_tcell {
 	border-right-color: #E8F1FB;
-	padding: 6px 6px 2px;
+	padding: 6px 6px 2px 2px;
 }
 
 .cm_dataGrid_tcell_right {
@@ -540,8 +524,8 @@
 	background: transparent url('gridBgError.png') repeat;
 }
 
-.cm_grid_errorPage IMG {
-	background-image: url('gridError.png');
+.cm_grid_errorPage .cm_grid_errorIcon {
+	color: #AC506A;
 }
 
 .cm_grid_errorPage LABEL {

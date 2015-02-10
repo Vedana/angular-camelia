@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -14,6 +14,7 @@
 
 	module.value("cm_filtersPopup_className", "cm_popup cm_filtersPopup");
 
+	// Caution, it is not a singleton if $injector is used !
 	var anonymousId = 0;
 
 	var ROW_TYPE = "rfilter";
@@ -109,6 +110,11 @@
 								id: "cm_lfilter_" + idx,
 								$inputTarget: input[0].id
 							});
+
+							/*
+							 * var span = cc.createElement(right, "span", { className:
+							 * "cm_filtersPopup_licon fa fa-files-o" });
+							 */
 
 							var label = cc.createElement(right, "label", {
 								id: "cm_llfilter_" + idx,

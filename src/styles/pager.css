@@ -1,38 +1,51 @@
-.cm_pager_value,
-.cm_pager_label,
-.cm_pager_button {
+.cm_pager_value, .cm_pager_label, .cm_pager_button {
 	font-family: "Segoe WPC", "Segoe UI", Helvetica, Arial,
 		"Arial Unicode MS", Sans-Serif;
 	cursor: pointer;
 }
 
-.cm_pager_button_index, .cm_pager_button_uindex, .cm_pager_button_cindex,
-	.cm_pager_button_bprev, .cm_pager_button_bnext {
-	border: 1px solid transparent;
+.cm_pager_button {
+	border-width: 1px;
+	border-style: solid;
+	border-color: transparent;
 	background: transparent;
 	font-size: 1.5em;
+	outline: 0;
+	-moz-outline-style: none;
 }
 
 .cm_pager_button_bprev, .cm_pager_button_bnext {
 	text-weight: bold;
 }
 
-.cm_pager_value,
-.cm_pager_button_cindex {
+.cm_pager_value, .cm_pager_button_cindex {
 	color: #1690CA;
 	text-weight: bold;
 	font-size: 1.5em;
 }
 
 .cm_pager_button:hover {
+	color: #50A0C7;
 	border-color: #70C0E7;
 	background-color: #E5F3FB;
+	transition: color, border-color, background-color 0.5s ease;
+}
+
+.cm_pager_button_focus, .cm_pager_button_focus:hover {
+	color: #26A0DA;
+	border-color: #26A0DA;
+	background-color: #CBE8F6;
+}
+
+.cm_pager_button_focus::-moz-focus-inner {
+	border: 0;
 }
 
 .cm_pager_button:disabled {
 	background: transparent;
 	border-color: transparent;
 	cursor: auto;
+	color: graytext;
 }
 
 .cm_pager_button_mouseDown {

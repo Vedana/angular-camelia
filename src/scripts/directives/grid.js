@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10,112 +10,123 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.templateRegistry' ]);
+	var module = angular.module('camelia.directives.grid', [ 'camelia.core',
+		'camelia.templateRegistry',
+		'camelia.components.grid' ]);
 
 	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
 
-	module.directive("cmDatagrid", [ "$injector",
-		"$interpolate",
-		"$log",
-		"$q",
-		"camelia.core",
-		"cm_grid_componentProviderName",
-		"camelia.TemplateRegistry",
-		function($injector, $interpolate, $log, $q, cc, cm_grid_componentProviderName, TemplateRegistry) {
+	module.directive("cmDatagrid",
+			[ "$injector",
+				"$interpolate",
+				"$log",
+				"$q",
+				"$exceptionHandler",
+				"camelia.core",
+				"cm_grid_componentProviderName",
+				"camelia.TemplateRegistry",
+				function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_grid_componentProviderName,
+						TemplateRegistry) {
 
-			return {
-				restrict: "E",
-				scope: {
-					dataModelProvider: '=?',
-					dataModelProviderName: '@datamodelprovider',
-					componentProvider: '=?',
-					componentProviderName: '@componentprovider',
-					rendererProvider: '=?',
-					rendererProviderName: '@rendererprovider',
-					selectionProvider: '=?',
-					selectionProviderName: '@selectionprovider',
-					value: '=',
-					varName: '@var',
-					style: '@',
-					className: '@class',
-					caption: '@',
-					// rowClass: '@', // Raw attribute
-					tabIndex: '@',
-					id: '@',
-					selection: '=?',
-					cursor: '=?',
-					columnCursor: '=?',
-					first: '=?',
-					rows: '=?',
-					rowCount: '=?rowcount',
-					selectable: '@',
-					selectionCardinality: '@selectioncardinality'
-				},
-				replace: true,
-
-				controller: [ "$scope", function($scope) {
-					// var dataGridProvider='camelia.datagrid';
-
-					var componentProvider = $scope.componentProvider;
-					if (!componentProvider) {
-						var componentProviderName = $scope.componentProviderName || cm_grid_componentProviderName;
-						componentProvider = cc.LoadProvider(componentProviderName);
-					}
-					this.componentProvider = componentProvider;
-
-					$scope.columns = [];
-					this.appendColumn = function(column) {
-						$scope.columns.push(column);
-					};
-
-					this.getColumnIndex = function() {
-						return $scope.columns.length;
-					};
-
-					$scope.groupProviders = [];
-					this.appendGroupProvider = function(groupProvider) {
-						$scope.groupProviders.push(groupProvider);
-					};
-
-					this.getProviderIndex = function() {
-						return $scope.groupProviders.length;
-					};
-				} ],
-				compile: function() {
 					return {
-						pre: function($scope, element, attrs, controller) {
-
-							$scope.rowClassRawExpression = element.attr("rowClass");
-
-							var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
-							controller.dataGrid = dataGrid;
-
-							TemplateRegistry.MarkTemplateContainer($scope, element);
+						restrict: "E",
+						scope: {
+							dataModelProvider: '=?',
+							dataModelProviderName: '@datamodelprovider',
+							componentProvider: '=?',
+							componentProviderName: '@componentprovider',
+							rendererProvider: '=?',
+							rendererProviderName: '@rendererprovider',
+							selectionProvider: '=?',
+							selectionProviderName: '@selectionprovider',
+							value: '=',
+							varName: '@var',
+							style: '@',
+							className: '@class',
+							lookId: '@',
+							caption: '@',
+							// rowClass: '@', // Raw attribute
+							tabIndex: '@',
+							id: '@',
+							selection: '=?',
+							cursor: '=?',
+							columnCursor: '=?',
+							first: '=?',
+							rows: '=?',
+							rowCount: '=?rowcount',
+							selectable: '@',
+							selectionCardinality: '@selectioncardinality'
 						},
-						post: function($scope, element, attrs, controller) {
-							TemplateRegistry.RegisterTemplates($scope);
+						replace: true,
 
-							var dataGrid = controller.dataGrid;
+						controller: [ "$scope", function($scope) {
+							// var dataGridProvider='camelia.datagrid';
 
-							var promise = $injector.invoke(dataGrid.construct, dataGrid);
-
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
+							var componentProvider = $scope.componentProvider;
+							if (!componentProvider) {
+								var componentProviderName = $scope.componentProviderName || cm_grid_componentProviderName;
+								componentProvider = cc.LoadProvider(componentProviderName);
 							}
+							this.componentProvider = componentProvider;
 
-							promise.then(function(table) {
-								$log.info("Table created ", table);
+							$scope.columns = [];
+							this.appendColumn = function(column) {
+								$scope.columns.push(column);
+							};
 
-								element.replaceWith(table);
+							this.getColumnIndex = function() {
+								return $scope.columns.length;
+							};
 
-							}, function(reason) {
-								$log.error("Failed to create table ", reason);
-							});
+							$scope.groupProviders = [];
+							this.appendGroupProvider = function(groupProvider) {
+								$scope.groupProviders.push(groupProvider);
+							};
+
+							this.getProviderIndex = function() {
+								return $scope.groupProviders.length;
+							};
+						} ],
+						compile: function() {
+							return {
+								pre: function($scope, element, attrs, controller) {
+
+									$scope.rowClassRawExpression = element.attr("rowClass");
+
+									var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
+									controller.dataGrid = dataGrid;
+
+									TemplateRegistry.MarkTemplateContainer($scope, element);
+								},
+								post: function($scope, element, attrs, controller) {
+									TemplateRegistry.RegisterTemplates($scope);
+
+									var dataGrid = controller.dataGrid;
+
+									var promise = $injector.invoke(dataGrid.construct, dataGrid);
+
+									if (!cc.isPromise(promise)) {
+										promise = $q.when(promise);
+									}
+
+									promise.then(function onSuccess(table) {
+										$log.info("Table created ", table);
+
+										element.replaceWith(table);
+
+									}, function onError(reason) {
+										if (reason instanceof Error) {
+											$exceptionHandler(reason);
+
+										} else {
+											$log.error("Failed to create table ", reason);
+										}
+									});
+								}
+							};
 						}
 					};
-				}
-			};
-		} ]);
+				} ]);
 
 	module.directive("cmDatacolumn", [ "camelia.core",
 		"camelia.TemplateRegistry",

@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10,12 +10,13 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.components.grid", [ "camelia.core",
-		"camelia.dataModel",
-		"camelia.cursorProvider",
-		"camelia.selectionProvider",
-		"camelia.selectionStrategy",
-		"camelia.pagerRegistry" ]);
+	var module = angular.module("camelia.components.grid", [ 'camelia.core',
+		'camelia.dataModel',
+		'camelia.cursorProvider',
+		'camelia.selectionProvider',
+		'camelia.selectionStrategy',
+		'camelia.pagerRegistry',
+		'camelia.renderers.grid' ]);
 
 	module.value("cm_grid_rendererProviderName", "camelia.renderers.grid:camelia.renderers.GridProvider");
 	module.value("cm_grid_dataModelProviderName", "");
@@ -45,7 +46,7 @@
 			 * ------------------------ DataGrid --------------------------
 			 */
 
-			var DataGrid = function($scope, element, directiveInterpolate) {
+			var DataGrid = function($scope, element, directiveInterpolate, defaultRendererProviderName) {
 				this.$scope = $scope;
 				this.directiveInterpolate = directiveInterpolate || $interpolate;
 
@@ -58,7 +59,13 @@
 
 				var rendererProvider = $scope.rendererProvider;
 				if (!rendererProvider) {
-					var rendererProviderName = $scope.rendererProviderName || cm_dataGrid_rendererProviderName;
+					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName ||
+							cm_dataGrid_rendererProviderName;
+
+					if ($scope.lookId) {
+						rendererProviderName += "-" + $scope.lookId;
+					}
+
 					rendererProvider = cc.LoadProvider(rendererProviderName);
 				}
 				this.rendererProvider = rendererProvider;
@@ -71,7 +78,7 @@
 					}
 				}
 				this.dataModelProvider = dataModelProvider;
-				this.$scope.$watchCollection("value", function(newValue) {
+				this.$scope.$watchCollection("value", function onValueChanged(newValue) {
 					$scope.$broadcast("cm:valueChanged", newValue);
 				});
 
@@ -84,7 +91,7 @@
 					if (selectable) {
 						selectionProvider = SelectionProvider.From($scope.selection, $scope);
 
-						$scope.$watch("selection", function(newSelection, oldSelection) {
+						$scope.$watch("selection", function onSelectionChanged(newSelection, oldSelection) {
 
 							cc.log("WATCH selection newSelection=", newSelection, " oldSelection=", oldSelection);
 
@@ -94,7 +101,7 @@
 				}
 				this.selectionProvider = selectionProvider;
 
-				$scope.$on(SelectionProvider.SELECTION_SET_EVENT, function(event, data) {
+				$scope.$on(SelectionProvider.SELECTION_SET_EVENT, function onSelectionChanged(event, data) {
 					cc.log("EVENT selection newSelection=", data.newSelection);
 
 					$scope.selection = data.newSelection;
@@ -145,7 +152,7 @@
 						}
 					});
 
-					$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
+					$scope.$on(CursorProvider.CURSOR_CHANGED, function onCursorChanged(event, data) {
 						// cc.log("EVENT cursor newValue=", data.row, " column=",
 						// ((data.column) ? data.column.id : null));
 
@@ -201,7 +208,7 @@
 					var gridRenderer = new this.rendererProvider(renderContext);
 					this.gridRenderer = gridRenderer;
 
-					$scope.$watch("first", function(newValue, oldValue) {
+					$scope.$watch("first", function onFirstChanged(newValue, oldValue) {
 						if (!angular.isNumber(newValue) || newValue === oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
@@ -215,7 +222,7 @@
 						}, 10, false);
 					});
 
-					$scope.$watch("rows", function(newValue, oldValue) {
+					$scope.$watch("rows", function onRowsChanged(newValue, oldValue) {
 						if (!angular.isNumber(newValue) || newValue === oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
@@ -245,7 +252,7 @@
 
 						self._updateDataModel(gridRenderer.$scope.value);
 
-						gridRenderer.$scope.$on("cm:valueChanged", function(event, value) {
+						gridRenderer.$scope.$on("cm:valueChanged", function onValueChanged(event, value) {
 							self._updateDataModel(value);
 						});
 
@@ -281,11 +288,11 @@
 						if (dataModel) {
 							// dataModel.installWatcher(renderContext.$scope, "value");
 
-							dataModel.$on(DataModel.DATA_MODEL_CHANGED_EVENT, function(event, value) {
+							dataModel.$on(DataModel.DATA_MODEL_CHANGED_EVENT, function onDataModelChanged(event, value) {
 								self._updateDataModel(value);
 							});
 
-							dataModel.$on(DataModel.DATA_MODEL_UPDATED_EVENT, function(event, value) {
+							dataModel.$on(DataModel.DATA_MODEL_UPDATED_EVENT, function onDataModelUpdated(event, value) {
 								gridRenderer.updateData();
 							});
 						}
@@ -450,9 +457,9 @@
 
 				var collapsedProvider = $scope.collapsedProvider;
 				if (!collapsedProvider) {
-					collapsedProvider = SelectionProvider.From($scope.collapsedGroups);
+					collapsedProvider = SelectionProvider.From($scope.collapsedGroups, $scope);
 
-					$scope.$watch("collapsedGroups", function() {
+					$scope.$watch("collapsedGroups", function onCollapsedGroupsChanged() {
 						try {
 							digesterPhase = true;
 
@@ -465,7 +472,7 @@
 				this.collapsedProvider = collapsedProvider;
 
 				if (collapsedProvider) {
-					collapsedProvider.$on(SelectionProvider.SELECTION_SET_EVENT, function(event, data) {
+					collapsedProvider.$on(SelectionProvider.SELECTION_SET_EVENT, function onSelectionEvent(event, data) {
 						$scope.collapsedGroups = data.newSelection;
 
 						if (digesterPhase) {

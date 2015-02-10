@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -16,6 +16,9 @@
 
 	var PROGRESS_DELAY_MS = 200;
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory('camelia.renderers.grid.table', [ "$log",
 		"$q",
 		"$timeout",
@@ -29,8 +32,6 @@
 		"camelia.TemplateRegistry",
 		function($log, $q, $timeout, $injector, $interpolate, $exceptionHandler, cc, cm, cm_dataGrid_rowIndentPx,
 				cm_dataGrid_group_animation, TemplateRegistry) {
-
-			var anonymousId = 0;
 
 			function _destroyScope($scope) {
 				return function() {

@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -12,13 +12,18 @@
 
 	var module = angular.module("camelia.animations.grid");
 
+	var DEFAULT_GRID_PAGECHANGE_TIMEOUT = 500;
+
+	module.value("cm_grid_pageChange_timeout", DEFAULT_GRID_PAGECHANGE_TIMEOUT);
+
 	module.factory("camelia.animations.grid.PageChange", [ "$log",
 		"$timeout",
 		"$q",
 		'camelia.animations.Animation',
 		'camelia.core',
 		"camelia.i18n.Grid",
-		function($log, $timeout, $q, Animation, cc, i18n) {
+		"cm_grid_pageChange_timeout",
+		function($log, $timeout, $q, Animation, cc, i18n, cm_grid_pageChange_timeout) {
 
 			var anonymousId = 0;
 
@@ -90,7 +95,7 @@
 							self._waitingPage = waitingPage;
 						});
 
-					}, 1000, false);
+					}, cm_grid_pageChange_timeout || DEFAULT_GRID_PAGECHANGE_TIMEOUT, false);
 				},
 
 				/**
@@ -131,9 +136,8 @@
 						className: "cm_grid_waitingPage"
 					});
 
-					var image = cc.createElement(waitingDiv, "img", {
-						src: cc.EMPTY_IMAGE_SRC,
-						alt: ""
+					var image = cc.createElement(waitingDiv, "span", {
+						className: "cm_grid_waitingCircle fa fa-circle-o-notch fa-spin fa-2x "
 					});
 
 					var label = cc.createElement(waitingDiv, "label", {
@@ -203,9 +207,8 @@
 						className: "cm_grid_errorPage"
 					});
 
-					var image = cc.createElement(errorDiv, "img", {
-						src: cc.EMPTY_IMAGE_SRC,
-						alt: ""
+					var image = cc.createElement(errorDiv, "span", {
+						className: "cm_grid_errorIcon fa fa-exclamation-triangle fa-2x "
 					});
 
 					var label = cc.createElement(errorDiv, "label", {
@@ -277,7 +280,7 @@
 							var titleViewPortBCR = renderer.titleViewPort.getBoundingClientRect();
 							var containerBCR = renderer.container.getBoundingClientRect();
 
-							var h2 = (containerBCR.height - titleViewPortBCR.height);
+							var h2 = Math.floor(containerBCR.height - titleViewPortBCR.height)-1; // Why -1 ????
 
 							newTableViewPort.style.height = h2 + "px";
 							renderer.bodyContainer.style.height = h2 + "px";

@@ -1,9 +1,8 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
  * @author olivier.oeuillot@vedana.com
  */
-
 .cm_filtersPopup {
 	background-color: #F0F0F0;
 }
@@ -30,12 +29,10 @@
 }
 
 .cm_filtersPopup_right {
-	padding: 0 4px 0 24px;
+	padding: 0 4px;
 	border: 1px solid transparent;
 	flex-grow: 1;
 	-ms-flex-preferred-size: auto;
-	background: url(filtersPopupItem.png) no-repeat 0 0 scroll;
-	image-rendering: -moz-crisp-edges;
 }
 
 .cm_filtersPopup_label {

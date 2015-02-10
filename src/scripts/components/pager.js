@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10,7 +10,9 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.components.pager", [ "camelia.core", "camelia.pagerRegistry" ]);
+	var module = angular.module("camelia.components.pager", [ "camelia.core",
+		"camelia.pagerRegistry",
+		"camelia.renderers.pager" ]);
 
 	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.Pager");
 	module.value("cm_pager_format", "{bprev} {bpages} {bnext}");
@@ -27,7 +29,8 @@
 		"$exceptionHandler",
 		"camelia.core",
 		"camelia.PagerRegistry",
-		function($log, $q, $timeout, $exceptionHandler, cc, PagerRegistry) {
+		"cm_pager_rendererProviderName",
+		function($log, $q, $timeout, $exceptionHandler, cc, PagerRegistry, cm_pager_rendererProviderName) {
 
 			/*
 			 * ------------------------ PagerBase --------------------------
@@ -38,7 +41,13 @@
 
 				var rendererProvider = $scope.rendererProvider;
 				if (!rendererProvider) {
-					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName;
+					var rendererProviderName = $scope.rendererProviderName || cm_pager_rendererProviderName ||
+							cm_dataGrid_rendererProviderName;
+
+					if ($scope.lookId) {
+						rendererProviderName += "-" + $scope.lookId;
+					}
+
 					rendererProvider = cc.LoadProvider(rendererProviderName);
 				}
 				this.rendererProvider = rendererProvider;
@@ -72,38 +81,43 @@
 				/**
 				 * @returns {Promise}
 				 */
-				construct: [ "$q",
-					function($q) {
-						this.constructing = true;
-						this.constructed = false;
-						this.element = null;
+				construct: [ function() {
+					this.constructing = true;
+					this.constructed = false;
+					this.element = null;
 
-						var self = this;
+					var self = this;
 
-						return this.targetPromise.then(function(targetElement) {
-							cc.Assert(targetElement && angular.element(targetElement).scope(), "pager", "Invalid target component ",
-									targetElement);
+					return this.targetPromise.then(function onSuccess(targetElement) {
+						cc.Assert(targetElement && angular.element(targetElement).scope(), "pager", "Invalid target component ",
+								targetElement);
 
-							var targetScope = angular.element(targetElement).scope();
+						var targetScope = angular.element(targetElement).scope();
 
-							delete self.targetPromise;
-							// self.targetComponent = targetComponent;
+						delete self.targetPromise;
+						// self.targetComponent = targetComponent;
 
-							var renderContext = {
-								pager: self,
-								targetScope: targetScope,
-								$scope: self.$scope
-							};
+						var renderContext = {
+							pager: self,
+							targetScope: targetScope,
+							$scope: self.$scope
+						};
 
-							return self.constructFromTarget(renderContext);
+						return self.constructFromTarget(renderContext).then(function onSuccess(result) {
 
-						}, function(reason) {
 							self.constructing = false;
-							self.constructed = false;
+							self.constructed = true;
 
-							return $q.reject(reason);
+							return result;
 						});
-					} ],
+
+					}, function onError(reason) {
+						self.constructing = false;
+						self.constructed = false;
+
+						return $q.reject(reason);
+					});
+				} ],
 
 				constructFromTarget: function(renderContext) {
 					var targetScope = renderContext.targetScope;
@@ -113,24 +127,25 @@
 					var nextPositions;
 
 					var self = this;
-					var targetDestroyedOff = targetScope.$on("$destroy", function() {
+					var targetDestroyedOff = targetScope.$on("$destroy", function onDestroy() {
 
 						self._targetDestroyed(targetScope);
 
 						renderContext.targetScope = undefined;
 					});
 
-					var positionsChangedOff = targetScope.$on("cm:positionsChanged", function(event, positions) {
-						if (!self.element) {
-							nextPositions = positions;
-							return;
-						}
-						nextPositions = undefined;
+					var positionsChangedOff = targetScope.$on("cm:positionsChanged",
+							function onPositionsChanged(event, positions) {
+								if (!self.element) {
+									nextPositions = positions;
+									return;
+								}
+								nextPositions = undefined;
 
-						self.updatePositions(positions);
-					});
+								self.updatePositions(positions);
+							});
 
-					this.$scope.$on("$destroy", function() {
+					this.$scope.$on("$destroy", function onDestroy() {
 						if (targetDestroyedOff) {
 							targetDestroyedOff();
 							targetDestroyedOff = null;
@@ -150,12 +165,10 @@
 						containerPromise = $q.when(containerPromise);
 					}
 
-					return containerPromise.then(function(element) {
-						self.constructing = false;
-						self.constructed = true;
+					return containerPromise.then(function onSuccess(element) {
 						self.element = element;
 
-						angular.element(element).data("$scope", self.$scope);
+						// angular.element(element).data("$scope", self.$scope);
 
 						var positions = nextPositions;
 						nextPositions = undefined;

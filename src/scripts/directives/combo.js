@@ -10,43 +10,48 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.pager', [ 'camelia.core',
+	var module = angular.module('camelia.directives.combo', [ 'camelia.core',
 		'camelia.templateRegistry',
-		'camelia.components.pager' ]);
+		'camelia.components.combo' ]);
 
-	module.value("cm_pager_componentProviderName", "camelia.components.pager:camelia.components.Pager");
+	module.value("cm_combo_componentProviderName", "camelia.components.combo:camelia.components.Combo");
 
-	module.directive("cmPager",
+	module.directive("cmCombo",
 			[ "$injector",
 				"$interpolate",
 				"$log",
 				"$q",
 				"$exceptionHandler",
 				"camelia.core",
-				"cm_pager_componentProviderName",
+				"cm_combo_componentProviderName",
 				"camelia.TemplateRegistry",
-				function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_pager_componentProviderName,
+				function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_combo_componentProviderName,
 						TemplateRegistry) {
 
 					return {
 						restrict: "E",
 						scope: {
+							id: '@',
 							forElementId: '@for',
-							target: '=?',
+							selectedItem: '=?',
 							style: '@',
 							className: '@class',
-							lookId: '@',
-							caption: '@',
-							tabIndex: '@',
-							id: '@',
-							format: '=?'
+							maxTextLength: '@maxtextlength',
+							textSize: '@textsize',
+							tabIndex: '@tabindex',
+							tags: '=',
+							tagVar: '@tagvar',
+							// tagLabel: '@taglabel',
+							// tagTooltip: '@tagtooltip',
+							// tagClass: '@tagclass',
+							hasOpenPopupButton: '@hasopenpopupbutton'
 						},
 						replace: true,
 
 						controller: [ "$scope", function($scope) {
 							var componentProvider = $scope.componentProvider;
 							if (!componentProvider) {
-								var componentProviderName = $scope.componentProviderName || cm_pager_componentProviderName;
+								var componentProviderName = $scope.componentProviderName || cm_combo_componentProviderName;
 								componentProvider = cc.LoadProvider(componentProviderName);
 							}
 							this.componentProvider = componentProvider;
@@ -55,29 +60,37 @@
 							return {
 								pre: function($scope, element, attrs, controller) {
 									TemplateRegistry.MarkTemplateContainer($scope, element);
+
+									var tagsRawExpression = element.attr("tags");
+									if (tagsRawExpression) {
+										$scope.tagVar = element.attr("tagVar");
+										$scope.tagLabelRawExpression = element.attr("tagLabel");
+										$scope.tagTooltipRawExpression = element.attr("tagTooltip");
+										$scope.tagClassRawExpression = element.attr("tagClass");
+									}
 								},
 								post: function($scope, element, attrs, controller, transludeFunc) {
 									TemplateRegistry.RegisterTemplates($scope);
 
-									var pager = new controller.componentProvider($scope, element);
+									var combo = new controller.componentProvider($scope, element, $interpolate);
 
-									var promise = $injector.invoke(pager.construct, pager);
+									var promise = $injector.invoke(combo.construct, combo);
 
 									if (!cc.isPromise(promise)) {
 										promise = $q.when(promise);
 									}
 
-									promise.then(function onSuccess(pagerElement) {
-										$log.info("Pager created ", pagerElement);
+									promise.then(function onSuccess(comboElement) {
+										$log.info("Combo created ", comboElement);
 
-										element.replaceWith(pagerElement);
+										element.replaceWith(comboElement);
 
 									}, function onError(reason) {
 										if (reason instanceof Error) {
 											$exceptionHandler(reason);
 
 										} else {
-											$log.error("Failed to create pager ", reason);
+											$log.error("Failed to create combo ", reason);
 										}
 									});
 								}

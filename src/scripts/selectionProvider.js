@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -23,7 +23,7 @@
 			 */
 
 			function SelectionProvider($parentScope) {
-				ScopeWrapper.call(this, $parentScope.$new(true));
+				ScopeWrapper.call(this, ($parentScope || $rootScope).$new(true));
 			}
 
 			SelectionProvider.SELECTION_CHANGING_EVENT = "cm:selectionChanging";

@@ -10,6 +10,14 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations.grid", [ "camelia.animations",	"camelia.i18n.grid"]);
+	var module = angular.module("camelia.i18n.combo", []);
+
+	module.factory("camelia.i18n.Combo", [ function() {
+
+		return {
+			'en': {}
+		};
+
+	} ]);
 
 })(window, window.angular);

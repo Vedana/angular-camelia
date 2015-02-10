@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -80,13 +80,13 @@
 							});
 							this.container = container[0];
 
-							$scope.$watch("style", function(style) {
+							$scope.$watch("style", function onStyleChanged(style) {
 								style = style || "";
 								container.attr("style", style);
 							});
 
 							var self = this;
-							$scope.$watch("className", function() {
+							$scope.$watch("className", function onClassNameChanged() {
 								self.gridStyleUpdate(container);
 							});
 
@@ -283,6 +283,8 @@
 						 * @returns {Promise}
 						 */
 						_gridReady: function(element, focusFirstCell) {
+
+							$log.debug("Grid ready element=", element, " focus=", focusFirstCell);
 
 							var row;
 							var cell;
@@ -1131,7 +1133,9 @@
 						/**
 						 * Called when first, rows, dataModel changed
 						 */
-						updateData: function(updateColumnWidths) {
+						updateData: function(updateColumnWidths, setFocus) {
+
+							$log.debug("UpdateData updateColumnWidths=" + updateColumnWidths + " setFocus=" + setFocus);
 
 							if (updateColumnWidths === undefined) {
 								updateColumnWidths = true;
@@ -1140,7 +1144,7 @@
 							var self = this;
 
 							return this._monitorPositions(function() {
-								return self._refreshRows(updateColumnWidths).then(null, function onError(reason) {
+								return self._refreshRows(updateColumnWidths, setFocus).then(null, function onError(reason) {
 									$log.error("UpdateData failed ", reason);
 
 									return $q.reject(reason);
@@ -1284,7 +1288,7 @@
 
 										return self.gridLayout().then(function onSuccess(result) {
 
-											var p = self._gridReady(self.container, focus !== false);
+											var p = self._gridReady(self.container, !!focus);
 
 											self.$scope.$broadcast(eventName || "cm:gridRefreshed", param);
 

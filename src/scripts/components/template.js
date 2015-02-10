@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -12,54 +12,49 @@
 
 	var module = angular.module("camelia.components.template", [ "camelia.core" ]);
 
-	module.factory("camelia.components.Template", [ "$log",
-		"$timeout",
-		"$exceptionHandler",
-		"$compile",
-		"camelia.core",
-		function($log, $timeout, $exceptionHandler, $compile, cc) {
+	var anonymousId = 0;
 
-			var anonymousId = 0;
+	/*
+	 * ------------------------ Template --------------------------
+	 */
 
-			/*
-			 * ------------------------ Popup --------------------------
+	module.factory("camelia.components.Template", [ "$log", "camelia.core", function($log, cc) {
+
+		var Template = function($scope, element, containerScope, transcludeFunc) {
+			this.$scope = $scope;
+			this._transcludeFunc = transcludeFunc;
+			this.id = $scope.id || ("template_" + (anonymousId++));
+			// element.data("cm_component", this);
+
+			if (!containerScope.templates) {
+				containerScope.templates = [];
+			}
+
+			containerScope.templates.push(this);
+		};
+
+		Template.prototype = {
+
+			/**
+			 * @returns {Element}
 			 */
+			transclude: function(parent, $scope) {
 
-			var Template = function($scope, element, containerScope, transcludeFunc) {
-				this.$scope = $scope;
-				this._transcludeFunc = transcludeFunc;
-				this.id = $scope.id || ("template_" + (anonymousId++));
-				// element.data("cm_component", this);
+				var f = this._transcludeFunc;
 
-				if (!containerScope.templates) {
-					containerScope.templates = [];
-				}
+				var clone = f($scope, function(clone, newScope) {
 
-				containerScope.templates.push(this);
-			};
-	
-			Template.prototype = {
+					// clone.scope=newScope;
 
-				/**
-				 * @returns {Promise}
-				 */
-				transclude: function(parent, $scope) {
+					parent.append(clone);
+				});
 
-					var f = this._transcludeFunc;
+				return clone;
+			}
+		};
 
-					var clone = f($scope, function(clone, newScope) {
+		return Template;
 
-						// clone.scope=newScope;
-
-						parent.append(clone);
-					});
-
-					return clone;
-				}
-			};
-
-			return Template;
-
-		} ]);
+	} ]);
 
 })(window, window.angular);

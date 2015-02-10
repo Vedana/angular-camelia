@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -46,37 +46,15 @@
 				/**
 				 * @returns {Promise}
 				 */
-				construct: [ "$q",
-					function($q) {
-						this.constructing = true;
-						this.constructed = false;
-						this.element = null;
+				construct: [ function() {
+					this.constructing = true;
+					this.constructed = false;
+					this.element = null;
 
-						var self = this;
+					var self = this;
 
-						return $q.when(function(targetComponent) {
-							cc.Assert(targetComponent && targetComponent.$scope, "pager", "Invalid target component ",
-									targetComponent);
-
-							self.targetComponent = targetComponent;
-
-							var renderContext = {
-								pager: self,
-								target: targetComponent,
-
-								rendererProvider: self.rendererProvider,
-								$scope: self.$scope
-							};
-
-							return self.constructFromTarget(renderContext);
-
-						}, function(reason) {
-							self.constructing = false;
-							self.constructed = false;
-
-							return $q.reject(reason);
-						});
-					} ],
+					return $q.when(false);
+				} ],
 
 				open: function() {
 				},

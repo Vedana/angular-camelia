@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -19,6 +19,9 @@
 
 	module.value("cm_pager_className", "cm_pager");
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory("camelia.renderers.Pager",
 			[ "$log",
 				"$q",
@@ -29,8 +32,6 @@
 				"camelia.Key",
 				"camelia.i18n.Pager",
 				function($log, $q, $exceptionHandler, cc, cm, cm_pager_className, Key, i18n) {
-
-					var anonymousId = 0;
 
 					function searchElements(target) {
 						return cm.SearchElements({
@@ -56,6 +57,16 @@
 
 							this.containerElement = container[0];
 
+							var self = this;
+							$scope.$watch("style", function onStyleChanged(style) {
+								style = style || "";
+								container.attr("style", style);
+							});
+
+							$scope.$watch("className", function onClassNameChanged() {
+								self.pagerStyleUpdate(container);
+							});
+
 							container.on("mouseover", this._onMouseOver());
 
 							container.on("mouseout", this._onMouseOut());
@@ -74,7 +85,6 @@
 							this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
 							this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
 
-							var self = this;
 							$scope.$on("$destroy", function() {
 								self._offFocus();
 
@@ -156,6 +166,20 @@
 							return function(event) {
 								var target = event.target;
 								var elements = searchElements(target);
+
+								var next;
+								switch (event.keyCode) {
+								case Key.VK_RIGHT:
+									next = cm.GetNextFocusable(self.containerElement, target);
+									break;
+								case Key.VK_LEFT:
+									next = cm.GetPreviousFocusable(self.containerElement, target);
+									break;
+								}
+
+								if (next) {
+									next.focus();
+								}
 							};
 						},
 
@@ -283,79 +307,85 @@
 							$scope.maxRows = positions.maxRows;
 							$scope.rows = positions.rows;
 
-							var span = null;
-							for (var i = 0; i < message.length;) {
-								var c = message.charAt(i++);
-								if (c === "{") {
-									var end = message.indexOf("}", i);
-									var varName = message.substring(i, end).toLowerCase();
-									i = end + 1;
+							var templateScope = $scope.$new(false);
+							try {
+								var span = null;
+								for (var i = 0; i < message.length;) {
+									var c = message.charAt(i++);
+									if (c === "{") {
+										var end = message.indexOf("}", i);
+										var varName = message.substring(i, end).toLowerCase();
+										i = end + 1;
 
-									if (span && span.length) {
-										this.renderSpan(fragment, span.join(""));
-										span = null;
+										if (span && span.length) {
+											this.renderSpan(fragment, span.join(""));
+											span = null;
+										}
+
+										var parameters = undefined;
+										var pvar = varName.indexOf(':');
+										if (pvar >= 0) {
+											var parameter = varName.substring(pvar + 1);
+											varName = varName.substring(0, pvar);
+
+											parameters = {};
+
+											var ss = parameter.split(';');
+											for (var j = 0; j < ss.length; j++) {
+												var s = ss[j];
+												var p = "";
+												var ep = s.indexOf('=');
+												if (ep >= 0) {
+													p = s.substring(ep + 1);
+													s = s.substring(0, ep);
+												}
+
+												parameters[s] = p;
+											}
+										}
+
+										this.renderType(fragment, varName, parameters, components, templateScope);
+
+										continue;
 									}
 
-									var parameters = undefined;
-									var pvar = varName.indexOf(':');
-									if (pvar >= 0) {
-										var parameter = varName.substring(pvar + 1);
-										varName = varName.substring(0, pvar);
-
-										parameters = {};
-
-										var ss = parameter.split(';');
-										for (var j = 0; j < ss.length; j++) {
-											var s = ss[j];
-											var p = "";
-											var ep = s.indexOf('=');
-											if (ep >= 0) {
-												p = s.substring(ep + 1);
-												s = s.substring(0, ep);
+									if (c === "\'") {
+										if (!span) {
+											span = [];
+										}
+										for (var j = i;;) {
+											var end = message.indexOf("'", j);
+											if (end < 0) {
+												span.push(message.substring(j));
+												i = message.length;
+												break;
 											}
 
-											parameters[s] = p;
+											if (message.charAt(end + 1) === "\'") {
+												span.push(message.substring(j, end), "'");
+												j = end + 2;
+												continue;
+											}
+
+											span.push(message.substring(j, end));
+											i = end + 1;
+											break;
 										}
+										continue;
 									}
 
-									this.renderType(fragment, varName, parameters, components);
-
-									continue;
-								}
-
-								if (c === "\'") {
 									if (!span) {
 										span = [];
 									}
-									for (var j = i;;) {
-										var end = message.indexOf("'", j);
-										if (end < 0) {
-											span.push(message.substring(j));
-											i = message.length;
-											break;
-										}
-
-										if (message.charAt(end + 1) === "\'") {
-											span.push(message.substring(j, end), "'");
-											j = end + 2;
-											continue;
-										}
-
-										span.push(message.substring(j, end));
-										i = end + 1;
-										break;
-									}
-									continue;
+									span.push(c);
 								}
 
-								if (!span) {
-									span = [];
+								if (span && span.length) {
+									this.renderSpan(fragment, span.join(""));
 								}
-								span.push(c);
-							}
 
-							if (span && span.length) {
-								this.renderSpan(fragment, span.join(""));
+							} finally {
+								templateScope.$destroy();
 							}
 						},
 
@@ -370,39 +400,69 @@
 							return element;
 						},
 
-						renderButton: function(parent, value, type, langParams, scope) {
+						renderButton: function(parent, value, type, langParams, templateScope) {
+
+							var text = cc.lang(i18n, type + "_label", langParams);
+							var tooltip = cc.lang(i18n, type + "_tooltip", langParams);
+							var className = cc.lang(i18n, type + "_className", langParams);
+
+							templateScope.$value = value;
+							templateScope.$text = text;
+							templateScope.$tooltip = tooltip;
+							templateScope.$disabled = (value < 0);
+
+							try {
+								if (this._templates) {
+									var template = this._templates[type];
+									if (template) {
+										var comp = template.transclude(parent, templateScope);
+
+										return comp;
+									}
+								}
+
+								var element = cc.createElement(parent, "button", {
+									textNode: text,
+									id: "cm_bpager_" + (anonymousId++),
+									$value: value,
+									$pagerType: type
+								});
+								if (templateScope.$tooltip) {
+									element.attr("title", templateScope.$tooltip);
+								}
+								if (templateScope.$disabled) {
+									element.attr("disabled", true);
+								}
+
+								if (className && !text) {
+									cc.createElement(element, "span", {
+										className: "cm_bpager_span " + className
+									});
+								}
+
+								this.buttonStyleUpdate(element);
+
+								return element;
+
+							} finally {
+								delete templateScope.$value;
+								delete templateScope.$text;
+								delete templateScope.$tooltip;
+								delete templateScope.$disabled;
+							}
+						},
+
+						renderValue: function(parent, value, type, templateScope) {
 
 							if (this._templates) {
 								var template = this._templates[type];
 								if (template) {
-									var comp = template.transclude(parent, scope);
+									var comp = template.transclude(parent, templateScope);
 
 									return comp;
 								}
 							}
 
-							var text = cc.lang(i18n, type + "_label", langParams);
-							var tooltip = cc.lang(i18n, type + "_tooltip", langParams);
-
-							var element = cc.createElement(parent, "button", {
-								textNode: text,
-								id: "cm_bpager_" + (anonymousId++),
-								$value: value,
-								$pagerType: type
-							});
-							if (tooltip) {
-								element.attr("title", tooltip);
-							}
-							if (value < 0) {
-								element.attr("disabled", true);
-							}
-
-							this.buttonStyleUpdate(element);
-
-							return element;
-						},
-
-						renderValue: function(parent, value, type) {
 							var element = cc.createElement(parent, "span", {
 								textNode: value,
 								id: "cm_vpager_" + (anonymousId++),
@@ -414,7 +474,7 @@
 							return element;
 						},
 
-						renderType: function(fragment, type, parameters, components) {
+						renderType: function(fragment, type, parameters, components, templateScope) {
 							var $scope = this.$scope;
 
 							var first = $scope.first;
@@ -426,89 +486,99 @@
 								return;
 							}
 
-							switch (type) {
-							case "first":
-							case "position":
-								this.renderValue(fragment, first + 1, "first");
-								break;
+							templateScope.$parameters = parameters;
+							templateScope.$type = type;
 
-							case "last":
-								var last = first + rows;
-								if (rowCount >= 0 && last >= rowCount) {
-									last = rowCount;
-								} else if (maxRows > 0 && last >= maxRows) {
-									last = maxRows;
-								}
+							try {
+								switch (type) {
+								case "first":
+								case "position":
+									this.renderValue(fragment, first + 1, "first", templateScope);
+									break;
 
-								this.renderValue(fragment, last, "last");
-								break;
-
-							case "rowcount":
-								if (rowCount < 0) {
-									return;
-								}
-								this.renderValue(fragment, rowCount, "rowCount");
-								break;
-
-							case "pagecount":
-								if (rowCount < 0 || rows <= 0) {
-									return;
-								}
-
-								var pageCount = Math.floor(((rowCount - 1) / rows) + 1);
-								this.renderValue(fragment, pageCount, "pageCount");
-								break;
-
-							case "pageposition":
-								if (rows <= 0) {
-									return;
-								}
-
-								var pagePosition = Math.floor(first / rows) + 1;
-								this.renderValue(fragment, pagePosition, "pagePosition");
-								break;
-
-							case "bprev":
-								var idx = first - rows;
-								if (idx < 0) {
-									idx = 0;
-								}
-
-								var prevBut = this.renderButton(fragment, (first > 0) ? idx : -1, "bprev");
-								components.bprev = prevBut;
-								break;
-
-							case "bnext":
-								var idx = first + rows;
-								var nextIndex = -1;
-
-								if (rowCount >= 0) {
-									if (idx + rows > rowCount) {
-										idx = (rowCount - ((rowCount + rows - 1) % rows)) - 1;
-										if (idx < 0) {
-											idx = 0;
-										}
+								case "last":
+									var last = first + rows;
+									if (rowCount >= 0 && last >= rowCount) {
+										last = rowCount;
+									} else if (maxRows > 0 && last >= maxRows) {
+										last = maxRows;
 									}
 
-									if (idx > first) {
+									this.renderValue(fragment, last, "last", templateScope);
+									break;
+
+								case "rowcount":
+									if (rowCount < 0) {
+										return;
+									}
+									this.renderValue(fragment, rowCount, "rowCount", templateScope);
+									break;
+
+								case "pagecount":
+									if (rowCount < 0 || rows <= 0) {
+										return;
+									}
+
+									var pageCount = Math.floor(((rowCount - 1) / rows) + 1);
+									this.renderValue(fragment, pageCount, "pageCount", templateScope);
+									break;
+
+								case "pageposition":
+									if (rows <= 0) {
+										return;
+									}
+
+									var pagePosition = Math.floor(first / rows) + 1;
+									this.renderValue(fragment, pagePosition, "pagePosition", templateScope);
+									break;
+
+								case "bprev":
+									var idx = first - rows;
+									if (idx < 0) {
+										idx = 0;
+									}
+
+									var prevBut = this.renderButton(fragment, (first > 0) ? idx : -1, "bprev", null, templateScope);
+									components.bprev = prevBut;
+									break;
+
+								case "bnext":
+									var idx = first + rows;
+									var nextIndex = -1;
+
+									if (rowCount >= 0) {
+										if (idx + rows > rowCount) {
+											idx = (rowCount - ((rowCount + rows - 1) % rows)) - 1;
+											if (idx < 0) {
+												idx = 0;
+											}
+										}
+
+										if (idx > first) {
+											nextIndex = idx;
+										}
+									} else {
 										nextIndex = idx;
 									}
-								} else {
-									nextIndex = idx;
+
+									var nextBut = this.renderButton(fragment, nextIndex, "bnext", null, templateScope);
+									components.bnext = nextBut;
+									break;
+
+								case "bpages":
+									this.appendBPages(fragment, parameters, components, templateScope);
+									break;
 								}
 
-								var nextBut = this.renderButton(fragment, nextIndex, "bnext");
-								components.bnext = nextBut;
-								break;
-
-							case "bpages":
-								this.appendBPages(fragment, parameters, components);
-								break;
+							} finally {
+								delete templateScope.$value;
+								delete templateScope.$parameters;
+								delete templateScope.$type;
 							}
 
 						},
 
-						appendBPages: function(parent, parameters, components) {
+						appendBPages: function(parent, parameters, components, templateScope) {
 							var $scope = this.$scope;
 
 							var first = $scope.first;
@@ -517,7 +587,7 @@
 							var rows = $scope.rows;
 
 							if (!maxRows) {
-								this.renderValue(parent, cc.lang(i18n, "noPages"), "noPages");
+								this.renderValue(parent, cc.lang(i18n, "noPages"), "noPages", templateScope);
 								return;
 							}
 
@@ -562,8 +632,6 @@
 								sep = cc.lang(i18n, "separator");
 							}
 
-							var butScope = this.$scope.$parent.$new();
-
 							for (var i = 0; i < showPage; i++) {
 								if (i > 0) {
 									this.renderSpan(parent, sep, "sep");
@@ -585,24 +653,30 @@
 									pageIndex: pi + 1
 								};
 
-								butScope.$index = i;
-								butScope.$pageIndex = pi;
-								butScope.$rowIndex = pi * rows;
+								templateScope.$index = i;
+								templateScope.$pageIndex = pi;
+								templateScope.$rowIndex = pi * rows;
+								templateScope.$currentPage = (pi === selectedPage);
 
-								var but = this.renderButton(parent, (pi === selectedPage) ? -1 : (pi * rows), type, langParams,
-										butScope);
+								try {
+									var but = this.renderButton(parent, (pi === selectedPage) ? -1 : (pi * rows), type, langParams,
+											templateScope);
 
-								if (type === "index") {
-									components["index:p" + (pi * rows)] = but;
-									components["index:i" + i] = but;
+									if (type === "index") {
+										components["index:p" + (pi * rows)] = but;
+										components["index:i" + i] = but;
 
-								} else {
-									components[type] = but;
+									} else {
+										components[type] = but;
+									}
+
+								} finally {
+									delete templateScope.$index;
+									delete templateScope.$pageIndex;
+									delete templateScope.$rowIndex;
+									delete templateScope.$currentPage;
 								}
 							}
-
-							butScope.$destroy();
-
 						},
 
 						pagerStyleUpdate: function(element) {

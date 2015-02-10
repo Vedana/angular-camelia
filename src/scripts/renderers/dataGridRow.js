@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -12,13 +12,14 @@
 
 	var module = angular.module("camelia.renderers.grid");
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory("camelia.renderers.grid.row", [ "$log",
 		"$interpolate",
 		"camelia.core",
 		"camelia.cmTypes",
 		function($log, $interpolate, cc, cm) {
-
-			var anonymousId = 0;
 
 			return {
 				rowRenderer: function(parentElement, rowScope, index, rowIdent, destroyScopeRef) {

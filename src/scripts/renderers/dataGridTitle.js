@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -15,6 +15,9 @@
 
 	var module = angular.module("camelia.renderers.grid");
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory("camelia.renderers.grid.title", [ "$log",
 		"$timeout",
 		"camelia.core",
@@ -23,8 +26,6 @@
 		"cm_grid_sizerPx",
 		"camelia.i18n.Grid",
 		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx, i18n) {
-
-			var anonymousId = 0;
 
 			return {
 
@@ -170,11 +171,11 @@
 							button.attr("aria-expanded", false);
 
 							cc.createElement(parameters, "div", {
-								className: "cm_dataGrid_tpArrow"
+								className: "cm_dataGrid_tpArrow fa fa-caret-down"
 							});
 
 							cc.createElement(parameters, "div", {
-								className: "cm_dataGrid_tpFiltred"
+								className: "cm_dataGrid_tpFiltred fa fa-check"
 							});
 
 							hasParams = true;

@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -18,9 +18,11 @@
 			'en': {
 				bfirst_label: "First",
 				blast_label: "Last",
-				bprev_label: "<",
+				bprev_label: "",
+				bprev_className: "fa fa-angle-left",
 				bprev_tooltip: "Show previous page",
-				bnext_label: ">",
+				bnext_label: "",
+				bnext_className: "fa fa-angle-right",
 				bnext_tooltip: "Show next page",
 				index_label: "{pageIndex}",
 				index_tooltip: "Show page #{pageIndex}",

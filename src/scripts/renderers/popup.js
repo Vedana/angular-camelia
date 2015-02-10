@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -14,6 +14,9 @@
 
 	module.value("cm_popup_className", "cm_popup");
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory("camelia.renderers.Popup", [ "$log",
 		"$q",
 		"$exceptionHandler",
@@ -24,8 +27,6 @@
 		"cm_popup_className",
 		"camelia.Key",
 		function($log, $q, $exceptionHandler, $timeout, $rootScope, cc, cm, cmPopupClassName, Key) {
-
-			var anonymousId = 0;
 
 			function PopupRenderer($scope, configuration) {
 

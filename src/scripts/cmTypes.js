@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9,6 +9,9 @@
 
 (function(window, angular, undefined) {
 	"use strict";
+
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
 
 	var camelia = angular.module("camelia.core");
 	camelia.factory("camelia.cmTypes", [ "camelia.core", function(cc) {
@@ -21,7 +24,7 @@
 					return null;
 				}
 
-				/*jshint camelcase: false */
+				/* jshint camelcase: false */
 				var type = node.cm_type;
 				if (type) {
 					return type;
@@ -301,7 +304,13 @@
 					var propertyName = type + "_" + stateName;
 
 					if (!renderContext[propertyName]) {
-						renderContext[propertyName] = element.id;
+						var id = element.id;
+						if (!id) {
+							id = "__cm_types_" + (anonymousId++);
+							element.id = id;
+						}
+
+						renderContext[propertyName] = id;
 
 						if (!element[prefixedStateName]) {
 							element[prefixedStateName] = true;
@@ -370,6 +379,101 @@
 
 				if (callback) {
 					callback(callbackElements);
+				}
+			},
+			IsFocusable: function(element) {
+				if (element.disabled) {
+					return false;
+				}
+
+				if (element.cm_focusable) {
+					return true;
+				}
+
+				var tagName = element.tagName.toLowerCase();
+				if (tagName === "button" || tagName === "input" || tagName === "a") {
+					if (element.tabIndex === undefined || element.tabIndex >= 0) {
+						return true;
+					}
+				}
+
+				return false;
+			},
+			GetNextFocusable: function(container, element) {
+				var e = null;
+				for (;;) {
+					if (e === element) {
+						return null; // Loop
+					}
+					if (e && e.nodeType === Node.ELEMENT_NODE) {
+						if (this.IsFocusable(e)) {
+							return e;
+						}
+
+						if (!e.disabled && e.firstChild) {
+							e = e.firstChild;
+							continue;
+						}
+					}
+					if (!e) {
+						e = element; // Boot phase
+					}
+
+					if (e.nextSibling) {
+						e = e.nextSibling;
+						continue;
+					}
+
+					for (;;) {
+						e = e.parentNode;
+
+						if (e === container) {
+							e = e.firstChild;
+							break;
+						}
+
+						if (!e.nextSibling) {
+							continue;
+						}
+
+						e = e.nextSibling;
+						break;
+					}
+				}
+			},
+			GetPreviousFocusable: function(container, element) {
+				var e = null;
+				for (;;) {
+
+					if (e && e.nodeType === Node.ELEMENT_NODE) {
+						if (this.IsFocusable(e)) {
+							return e;
+						}
+					}
+
+					if (!e) {
+						e = element; // Boot phase
+					}
+
+					if (e.previousSibling) {
+						e = e.previousSibling;
+
+						for (; e.lastChild && !e.lastChild.disabled;) {
+							e = e.lastChild;
+						}
+
+						continue;
+					}
+
+					e = e.parentNode;
+
+					if (e === container) {
+						e = e.lastChild;
+					}
+
+					if (e === element) {
+						return null; // Loop
+					}
 				}
 			}
 		};

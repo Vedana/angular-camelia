@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -147,6 +147,9 @@
 											switch (typeof (value)) {
 											case "function":
 											case "object":
+												if (name.charAt(0) === "$") {
+													name = name.substring(1);
+												}
 												element[name] = value;
 												break;
 
@@ -371,16 +374,25 @@
 
 						LoadProvider: function(providerName) {
 							var myInjector = $injector;
+							var moduleName = "";
 							var idx = providerName.indexOf(":");
 							if (idx > 0) {
-								var moduleName = providerName.substring(0, idx);
+								moduleName = providerName.substring(0, idx);
 								providerName = providerName.substring(idx + 1);
 
-								myInjector = angular.injector([ "ng", "camelia.core", moduleName ]);
+								if (!myInjector.has(providerName)) {
+									myInjector = angular.injector([ "ng", "camelia.core", moduleName ]);
+								}
 							}
 
 							var provider = myInjector.get(providerName);
-							return provider;
+							if (provider) {
+								return provider;
+							}
+
+							var err = new Error("Can not find provider='" + providerName + "' moduleName='" + moduleName + "'");
+							$log.error(err);
+							throw err;
 						},
 
 						CloneAttributes: function(element) {
