@@ -41,8 +41,8 @@
 
 				var rendererProvider = $scope.rendererProvider;
 				if (!rendererProvider) {
-					var rendererProviderName = $scope.rendererProviderName || cm_pager_rendererProviderName ||
-							cm_dataGrid_rendererProviderName;
+					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName ||
+							cm_pager_rendererProviderName;
 
 					if ($scope.lookId) {
 						rendererProviderName += "-" + $scope.lookId;

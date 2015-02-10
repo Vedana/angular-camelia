@@ -7,7 +7,7 @@
  * @author olivier.oeuillot@vedana.com
  */
 
-/* jshint sub: true, shadow: true */
+/* jshint sub: true, shadow: true, scripturl: true */
 /* jshint -W080 */
 
 (function(window, angular, undefined) {
@@ -376,7 +376,7 @@
 						tooltip = tag.toTagTooltip();
 					}
 					if (tooltip) {
-						button[0].title = tooltip;
+						li[0].title = tooltip;
 					}
 
 					var className = "";
@@ -587,7 +587,7 @@
 							return;
 						}
 
-						log.error("Can  not find function for " + type);
+						$log.error("Can  not find function for " + type);
 					};
 				},
 

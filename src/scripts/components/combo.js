@@ -99,6 +99,7 @@
 						containerPromise = $q.when(containerPromise);
 					}
 
+					var self = this;
 					return containerPromise.then(function onSuccess(element) {
 						self.constructing = false;
 						self.constructed = true;
