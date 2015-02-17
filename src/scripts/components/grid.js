@@ -12,9 +12,7 @@
 
 	var module = angular.module("camelia.components.grid", [ 'camelia.core',
 		'camelia.dataModel',
-		'camelia.cursorProvider',
-		'camelia.selectionProvider',
-		'camelia.selectionStrategy',
+		'camelia.selection',
 		'camelia.pagerRegistry',
 		'camelia.renderers.grid' ]);
 

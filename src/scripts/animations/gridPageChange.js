@@ -120,7 +120,7 @@
 						angular.element(renderer.bodyContainer).append(fragment);
 
 						$timeout(function() {
-							waitingPage.className += " cm_grid_waitingPage_shown";
+							waitingPage.setAttribute("cm_shown", true);
 						}, 100, false);
 
 						return waitingPage;

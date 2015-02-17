@@ -11,7 +11,7 @@
 	background: transparent;
 	font-size: 1.5em;
 	outline: 0;
-	-moz-outline-style: none;
+	outline-style: none;
 }
 
 .cm_pager_button_bprev, .cm_pager_button_bnext {
@@ -31,13 +31,13 @@
 	transition: color, border-color, background-color 0.5s ease;
 }
 
-.cm_pager_button_focus, .cm_pager_button_focus:hover {
+.cm_pager_button[cm_focus], .cm_pager_button[cm_focus]:hover {
 	color: #26A0DA;
 	border-color: #26A0DA;
 	background-color: #CBE8F6;
 }
 
-.cm_pager_button_focus::-moz-focus-inner {
+.cm_pager_button[cm_focus]::-moz-focus-inner {
 	border: 0;
 }
 
@@ -48,6 +48,6 @@
 	color: graytext;
 }
 
-.cm_pager_button_mouseDown {
+.cm_pager_button[cm_mouseDown] {
 	transform: scale(0.9);
 }

@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations", [ "camelia.core", "camelia.scopeWrapper" ]);
+	var module = angular.module("camelia.animations", [ 'camelia.core' ]);
 
 	module.factory("camelia.animations.Animation", [ "$log",
 		"$timeout",

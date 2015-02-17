@@ -22,6 +22,8 @@
 
 					var cmTypeMatchRegexp = /cm_([a-z]*)_.*/i;
 
+					var ESCAPE_REGEXP = /([\\\/\.\*\+\?\|\(\)\[\]\{\}\-\^])/g;
+
 					function int(str) {
 						return parseInt(str, 10);
 					}
@@ -139,6 +141,9 @@
 											break;
 
 										default:
+											if (value === undefined) {
+												break;
+											}
 											if (!name.indexOf("css")) { /* ==0 !!! */
 												element.style[name.substring(3, 4).toLowerCase() + name.substring(4)] = value;
 												break;
@@ -205,10 +210,12 @@
 								}
 
 								classes.push(base);
-								mat(classes, base, 0);
+								if (extensions) {
+									mat(classes, base, 0);
+								}
 							}
 
-							if (element.injector) {
+							if (element[0]) {
 								element = element[0];
 							}
 
@@ -226,67 +233,38 @@
 						},
 
 						BubbleEvent: function(element, eventName, eventData) {
-							if (element[0]) {
-								element = element[0];
-							}
-							var jqLite = angular.element;
-
-							var cache = jqLite.cache;
-							var expando = jqLite.expando;
-
-							eventData = eventData || [];
-
-							var event = {
-								type: eventName,
-								currentTarget: element,
-								relatedTarget: element,
-								preventDefault: angular.noop,
-								stopPropagation: function() {
-									this.stop = true;
-								}
-							};
-
-							angular.extend(event, eventData);
-
-							var params = [ event ];
-
-							for (; element && element.nodeType === Node.ELEMENT_NODE && !event.stop; element = element.parentNode) {
-
-								var expandoId = element[expando];
-								if (!expandoId) {
-									continue;
-								}
-								var expandoStore = cache[expandoId];
-								if (!expandoStore) {
-									continue;
-								}
-								var events = expandoStore.events;
-								if (!events) {
-									continue;
-								}
-								var eventFns = events[eventName];
-								if (!eventFns) {
-									continue;
-								}
-
-								angular.forEach(eventFns, function(fn) {
-									if (event.stop) {
-										return;
-									}
-
-									try {
-										if (fn.call) {
-											fn.call(element, event);
-											return;
-										}
-										if (fn.handler) {
-											fn.handler.call(element, event);
-										}
-									} catch (e) {
-										$exceptionHandler(e);
-									}
-								});
-							}
+							/*
+							 * if (element[0]) { element = element[0]; } var jqLite =
+							 * angular.element;
+							 * 
+							 * var cache = jqLite.cache; var expando = jqLite.expando;
+							 * 
+							 * eventData = eventData || [];
+							 * 
+							 * var event = { type: eventName, currentTarget: element,
+							 * relatedTarget: element, preventDefault: angular.noop,
+							 * stopPropagation: function() { this.stop = true; } };
+							 * 
+							 * angular.extend(event, eventData);
+							 * 
+							 * var params = [ event ];
+							 * 
+							 * for (; element && element.nodeType === Node.ELEMENT_NODE &&
+							 * !event.stop; element = element.parentNode) {
+							 * 
+							 * var expandoId = element[expando]; if (!expandoId) { continue; }
+							 * var expandoStore = cache[expandoId]; if (!expandoStore) {
+							 * continue; } var events = expandoStore.events; if (!events) {
+							 * continue; } var eventFns = events[eventName]; if (!eventFns) {
+							 * continue; }
+							 * 
+							 * angular.forEach(eventFns, function(fn) { if (event.stop) {
+							 * return; }
+							 * 
+							 * try { if (fn.call) { fn.call(element, event); return; } if
+							 * (fn.handler) { fn.handler.call(element, event); } } catch (e) {
+							 * $exceptionHandler(e); } }); }
+							 */
 						},
 						format: function(as) {
 							var cycles = [];
@@ -591,10 +569,38 @@
 
 							target.addEventListener(type, listenerApply, useCapture);
 
-							return function() {
+							var off = function() {
 								target.removeEventListener(type, listenerApply, useCapture);
 							};
-						}
+
+							if (scope) {
+								scope.$on("$destroy", off);
+							}
+
+							return off;
+						},
+
+						/**
+						 * @method private static
+						 * 
+						 * There are a few reserved chars in regular expressions. Handle
+						 * string encoding with a powerfull regular expression. Reserved
+						 * chars are the following set: \/.*+?|()[]{}-^
+						 */
+						escapeRegexp: function(str) {
+							if (!str) {
+								return "";
+							}
+							return str.replace(ESCAPE_REGEXP, "\\$1");
+						},
+						callPromise: function(f, thiz, params) {
+							return function() {
+								var ret = f.call(thiz, params);
+
+								return ret;
+							};
+						},
+
 					};
 				} ]);
 

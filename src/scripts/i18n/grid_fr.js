@@ -25,7 +25,8 @@
 					filtredColumn: "(Filtrée)",
 					loadingData: "Chargement des données ...",
 					receivingData: "{count} lignes reçues ...",
-					loadingError: "Erreur de chargement"
+					loadingError: "Erreur de chargement",
+					criteriaList: "Liste des filtres de la colonne {title} :"
 				}
 			});
 		} ]);

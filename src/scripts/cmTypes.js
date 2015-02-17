@@ -65,61 +65,38 @@
 					element = element[0];
 				}
 
-				var extensions = [];
-
-				if (element._ascending) {
-					extensions.push("_ascending");
-				}
-
-				if (element._collapsed) {
-					extensions.push("_collapsed");
-				}
-
-				if (element._cursor) {
-					extensions.push("_cursor");
-				}
-
-				if (element._descending) {
-					extensions.push("_descending");
-				}
-
-				if (element._errored) {
-					extensions.push("_error");
-				}
-
-				if (element._filtreable) {
-					extensions.push("_filtreable");
-				}
-
-				if (element._filtred) {
-					extensions.push("_filtred");
-				}
-
-				if (element._focus) {
-					extensions.push("_focus");
-				}
-
-				if (element._mouseDown) {
-					extensions.push("_mouseDown");
-				}
-
-				if (element._openedPopup) {
-					extensions.push("_openedPopup");
-				}
-
-				if (element._over) {
-					extensions.push("_over");
-				}
-
-				if (element._selected) {
-					extensions.push("_selected");
-				}
-
-				if (element._sortable) {
-					extensions.push("_sortable");
-				}
-
-				cc.MixClasses(element, classes, extensions, constantClasses);
+				/*
+				 * var extensions = [];
+				 * 
+				 * if (element._ascending) { extensions.push("_ascending"); }
+				 * 
+				 * if (element._collapsed) { extensions.push("_collapsed"); }
+				 * 
+				 * if (element._cursor) { extensions.push("_cursor"); }
+				 * 
+				 * if (element._descending) { extensions.push("_descending"); }
+				 * 
+				 * if (element._errored) { extensions.push("_error"); }
+				 * 
+				 * if (element._filtreable) { extensions.push("_filtreable"); }
+				 * 
+				 * if (element._filtred) { extensions.push("_filtred"); }
+				 * 
+				 * if (element._focus) { extensions.push("_focus"); }
+				 * 
+				 * if (element._mouseDown) { extensions.push("_mouseDown"); }
+				 * 
+				 * if (element._openedPopup) { extensions.push("_openedPopup"); } else
+				 * if (element._openedPopup === false) {
+				 * extensions.push("_closedPopup"); }
+				 * 
+				 * if (element._over) { extensions.push("_over"); }
+				 * 
+				 * if (element._selected) { extensions.push("_selected"); }
+				 * 
+				 * if (element._sortable) { extensions.push("_sortable"); }
+				 */
+				cc.MixClasses(element, classes, null, constantClasses);
 			},
 
 			ForEachElement: function(elements, type, func) {
@@ -276,6 +253,7 @@
 			SwitchOnState: function(renderContext, elements, stateName, callback) {
 
 				var prefixedStateName = "_" + stateName;
+				var attr = "cm" + prefixedStateName;
 
 				// cc.log("StateOn[" + stateName + "] target=", target, " elements=",
 				// elements);
@@ -288,8 +266,9 @@
 						renderContext[propertyName] = null;
 
 						var oldElement = document.getElementById(oldElementId);
-						if (oldElement && oldElement[prefixedStateName]) {
-							oldElement[prefixedStateName] = false;
+						if (oldElement && oldElement.hasAttribute(attr)) {
+							// oldElement[prefixedStateName] = false;
+							oldElement.removeAttribute(attr);
 
 							cc.BubbleEvent(oldElement, "cm_update");
 						}
@@ -312,8 +291,9 @@
 
 						renderContext[propertyName] = id;
 
-						if (!element[prefixedStateName]) {
-							element[prefixedStateName] = true;
+						if (!element.hasAttribute(attr)) {
+							// element[prefixedStateName] = true;
+							element.setAttribute(attr, true);
 
 							cc.BubbleEvent(element, "cm_update");
 						}
@@ -327,6 +307,7 @@
 
 			SwitchOffState: function(renderContext, elements, stateName, callback) {
 				var prefixedStateName = "_" + stateName;
+				var attr = "cm" + prefixedStateName;
 
 				// cc.log("StateOff[" + stateName + "] target=", target, " elements=",
 				// elements);
@@ -340,8 +321,9 @@
 
 						var oldElement = document.getElementById(oldElementId);
 
-						if (oldElement && oldElement[prefixedStateName]) {
-							oldElement[prefixedStateName] = false;
+						if (oldElement && oldElement.hasAttribute(attr)) {
+							// oldElement[prefixedStateName] = false;
+							oldElement.removeAttribute(attr);
 
 							cc.BubbleEvent(oldElement, "cm_update");
 						}
@@ -358,6 +340,7 @@
 
 				var prefixedStateName = "_" + stateName;
 				var callbackElements = {};
+				var attr = "cm" + prefixedStateName;
 
 				angular.forEach(elements, function(element, type) {
 					var propertyName = type + "_" + stateName;
@@ -368,8 +351,10 @@
 
 						var oldElement = document.getElementById(oldElementId);
 
-						if (oldElement && oldElement[prefixedStateName]) {
-							oldElement[prefixedStateName] = false;
+						if (oldElement && oldElement.hasAttribute(attr)) {
+							// oldElement[prefixedStateName] = value;
+							oldElement.removeAttribute(attr);
+
 							callbackElements[type] = oldElement;
 
 							cc.BubbleEvent(oldElement, "cm_update");
@@ -379,101 +364,6 @@
 
 				if (callback) {
 					callback(callbackElements);
-				}
-			},
-			IsFocusable: function(element) {
-				if (element.disabled) {
-					return false;
-				}
-
-				if (element.cm_focusable) {
-					return true;
-				}
-
-				var tagName = element.tagName.toLowerCase();
-				if (tagName === "button" || tagName === "input" || tagName === "a") {
-					if (element.tabIndex === undefined || element.tabIndex >= 0) {
-						return true;
-					}
-				}
-
-				return false;
-			},
-			GetNextFocusable: function(container, element) {
-				var e = null;
-				for (;;) {
-					if (e === element) {
-						return null; // Loop
-					}
-					if (e && e.nodeType === Node.ELEMENT_NODE) {
-						if (this.IsFocusable(e)) {
-							return e;
-						}
-
-						if (!e.disabled && e.firstChild) {
-							e = e.firstChild;
-							continue;
-						}
-					}
-					if (!e) {
-						e = element; // Boot phase
-					}
-
-					if (e.nextSibling) {
-						e = e.nextSibling;
-						continue;
-					}
-
-					for (;;) {
-						e = e.parentNode;
-
-						if (e === container) {
-							e = e.firstChild;
-							break;
-						}
-
-						if (!e.nextSibling) {
-							continue;
-						}
-
-						e = e.nextSibling;
-						break;
-					}
-				}
-			},
-			GetPreviousFocusable: function(container, element) {
-				var e = null;
-				for (;;) {
-
-					if (e && e.nodeType === Node.ELEMENT_NODE) {
-						if (this.IsFocusable(e)) {
-							return e;
-						}
-					}
-
-					if (!e) {
-						e = element; // Boot phase
-					}
-
-					if (e.previousSibling) {
-						e = e.previousSibling;
-
-						for (; e.lastChild && !e.lastChild.disabled;) {
-							e = e.lastChild;
-						}
-
-						continue;
-					}
-
-					e = e.parentNode;
-
-					if (e === container) {
-						e = e.lastChild;
-					}
-
-					if (e === element) {
-						return null; // Loop
-					}
 				}
 			}
 		};

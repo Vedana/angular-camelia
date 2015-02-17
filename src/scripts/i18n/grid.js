@@ -23,7 +23,8 @@
 				filtredColumn: "(Filtred)",
 				loadingData: "Loading data ...",
 				receivingData: "{count} rows received ...",
-				loadingError: "Loading error"
+				loadingError: "Loading error",
+				criteriaList: "Filters list of column {title} :"
 			}
 		};
 

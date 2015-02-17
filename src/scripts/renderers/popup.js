@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.renderers.popup", [ "camelia.components.popup", "camelia.key" ]);
+	var module = angular.module("camelia.renderers.popup", [ "camelia.components.popup" ]);
 
 	module.value("cm_popup_className", "cm_popup");
 

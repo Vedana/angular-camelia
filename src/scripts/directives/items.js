@@ -12,10 +12,20 @@
 
 	var module = angular.module('camelia.directives.items', [ 'camelia.components.items' ]);
 
+	module.factory("camelia.directives.ItemsContainer", [ function() {
+
+		return {
+			MarkItemsContainer: function($scope, element) {
+				element.data('$cmItemsContainerController', $scope);
+			}
+		};
+	} ]);
+
 	module.directive("cmItem", [ "$log", "camelia.components.Item", function($log, Item) {
 
 		return {
 			restrict: "E",
+			require: "^cmItemsContainer",
 			scope: {
 				label: '@',
 				id: '@',
@@ -47,10 +57,12 @@
 
 		return {
 			restrict: "E",
+			require: "^cmItemsContainer",
 			scope: {
 				id: '@',
 				value: '=',
-				varName: '@var'
+				varName: '@var',
+				itemColumn: '@itemcolumn'
 			// itemLabel: '@',
 			// itemClass: '@class',
 			// itemDisabled: '@',

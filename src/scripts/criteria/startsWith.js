@@ -15,7 +15,8 @@
 	module.factory("camelia.criteria.StartsWith", [ "$log",
 		"camelia.criteria.Criteria",
 		"camelia.core",
-		function($log, Criteria, cc) {
+		"camelia.CharsetUtils",
+		function($log, Criteria, cc, chu) {
 
 			var StartsWith = function(scope, element, attrs) {
 				Criteria.call(this, scope, element, attrs);
@@ -27,13 +28,18 @@
 					throw new Error("You must specify value attribute");
 				}
 
+				this._value = value;
+
 				var modifiers = "";
 				if (attrs.ignoreCase === "true") {
 					modifiers += "i";
 					this._ignoreCase = true;
 				}
+				if (attrs.ignoreAccents === "true") {
+					this._ignoreAccents = true;
+					value = chu.removeAccents(value);
+				}
 
-				this._value = value;
 				this._regExp = new RegExp("^[" + value + "]", modifiers);
 
 				this._false = (attrs.reverse === "true");
@@ -46,7 +52,7 @@
 						name: this.name,
 						toJson: function() {
 							return {
-								startsWidth: self._value,
+								startsWidthRegExp: self._value,
 								ignoreCase: !!self._ignoreCase,
 								reverse: self._false
 							};
@@ -55,6 +61,10 @@
 				},
 				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 					var f = this._false;
+
+					if (this._ignoreAccents) {
+						value = chu.removeAccents(value);
+					}
 
 					var regExp = this._regExp;
 					if (regExp.test(value)) {

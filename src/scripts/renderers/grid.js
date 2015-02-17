@@ -11,11 +11,8 @@
 	"use strict";
 
 	var module = angular.module("camelia.renderers.grid", [ "camelia.dataModel",
-		"camelia.selectionProvider",
-		"camelia.cursorProvider",
-		"camelia.selectionStrategy",
+		"camelia.selection",
 		"camelia.templateRegistry",
-		"camelia.key",
 		"camelia.renderers.popup",
 		"camelia.components.grid",
 		"camelia.animations.grid",

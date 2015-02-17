@@ -11,7 +11,7 @@
 	'use strict';
 
 	var module = angular.module('camelia.directives.grid', [ 'camelia.core',
-		'camelia.templateRegistry',
+		'camelia.directives.template',
 		'camelia.components.grid' ]);
 
 	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
@@ -24,9 +24,9 @@
 				"$exceptionHandler",
 				"camelia.core",
 				"cm_grid_componentProviderName",
-				"camelia.TemplateRegistry",
+				"camelia.directives.TemplateContainer",
 				function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_grid_componentProviderName,
-						TemplateRegistry) {
+						TemplateContainer) {
 
 					return {
 						restrict: "E",
@@ -96,10 +96,10 @@
 									var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
 									controller.dataGrid = dataGrid;
 
-									TemplateRegistry.MarkTemplateContainer($scope, element);
+									TemplateContainer.MarkTemplateContainer($scope, element);
 								},
 								post: function($scope, element, attrs, controller) {
-									TemplateRegistry.RegisterTemplates($scope);
+									TemplateContainer.RegisterTemplates($scope);
 
 									var dataGrid = controller.dataGrid;
 
@@ -129,9 +129,9 @@
 				} ]);
 
 	module.directive("cmDatacolumn", [ "camelia.core",
-		"camelia.TemplateRegistry",
+		"camelia.directives.TemplateContainer",
 
-		function(cc, TemplateRegistry) {
+		function(cc, TemplateContainer) {
 			return {
 				require: "^cmDatagrid",
 				restrict: "E",
@@ -166,10 +166,10 @@
 						pre: function($scope, element, attrs) {
 							$scope.valueRawExpression = element.attr("text") || element.attr("value");
 
-							TemplateRegistry.MarkTemplateContainer($scope, element);
+							TemplateContainer.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, datagridController) {
-							TemplateRegistry.RegisterTemplates($scope);
+							TemplateContainer.RegisterTemplates($scope);
 
 							if ($scope.fieldName) {
 								if (/[^\w]/.test($scope.fieldName)) {
@@ -195,8 +195,8 @@
 		} ]);
 
 	module.directive("cmDatagroup", [ "camelia.core",
-		"camelia.TemplateRegistry",
-		function(cc, TemplateRegistry) {
+		"camelia.directives.TemplateContainer",
+		function(cc, TemplateContainer) {
 			return {
 				require: "^cmDatagrid",
 				restrict: "E",
@@ -216,10 +216,10 @@
 							$scope.titleClassRawExpression = element.attr("titleclass");
 							$scope.valueRawExpression = element.attr("value");
 
-							TemplateRegistry.MarkTemplateContainer($scope, element);
+							TemplateContainer.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, dataGridController) {
-							TemplateRegistry.RegisterTemplates($scope);
+							TemplateContainer.RegisterTemplates($scope);
 
 							var column = new dataGridController.componentProvider.DataGroup($scope, dataGridController
 									.getProviderIndex() + 1);
@@ -234,8 +234,8 @@
 	module.directive("cmCriteria", [ "camelia.core",
 		"$log",
 		"$injector",
-		"camelia.TemplateRegistry",
-		function(cc, $log, $injector, TemplateRegistry) {
+		"camelia.directives.TemplateContainer",
+		function(cc, $log, $injector, TemplateContainer) {
 			return {
 				require: "^cmDatacolumn",
 				restrict: "E",
@@ -247,10 +247,10 @@
 						pre: function($scope, element, attrs) {
 
 							// console.log("PRE Criteria " + attrs.name);
-							TemplateRegistry.MarkTemplateContainer($scope, element);
+							TemplateContainer.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, dataColumnController) {
-							TemplateRegistry.RegisterTemplates($scope);
+							TemplateContainer.RegisterTemplates($scope);
 
 							var type = $scope.type;
 							if (!angular.isString(type) || !type.length) {

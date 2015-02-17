@@ -29,10 +29,6 @@
 
 		var TemplateRegistry = {
 
-			MarkTemplateContainer: function($scope, element) {
-				element.data('$cmTemplateContainerController', $scope);
-			},
-
 			RegisterTemplates: function($scope) {
 
 				var templates = $scope.templates;

@@ -17,7 +17,7 @@
 	// Caution, it is not a singleton if $injector is used !
 	var anonymousId = 0;
 
-	var ROW_TYPE = "rfilter";
+	var ITEM_TYPE = "rfilter";
 
 	module.factory("camelia.renderers.FiltersPopup", [ "$log",
 		"$q",
@@ -28,7 +28,8 @@
 		"cm_filtersPopup_className",
 		"camelia.Key",
 		"camelia.renderers.Popup",
-		function($log, $q, $exceptionHandler, $timeout, cc, cm, cm_filtersPopup_className, Key, PopupRenderer) {
+		"camelia.i18n.Grid",
+		function($log, $q, $exceptionHandler, $timeout, cc, cm, cm_filtersPopup_className, Key, PopupRenderer, i18n) {
 
 			function searchElements(target) {
 				return cm.SearchElements({
@@ -59,7 +60,8 @@
 				_fillBody: function(container) {
 
 					var ul = cc.createElement(container, "ul", {
-						className: "cm_filtersPopup_list"
+						className: "cm_filtersPopup_list",
+						role: "group"
 					});
 
 					var criterias = this._column._criterias;
@@ -90,7 +92,7 @@
 
 							var idx = (anonymousId++);
 							var li = cc.createElement(ul, "li", {
-								id: "cm_" + ROW_TYPE + "_" + idx
+								id: "cm_" + ITEM_TYPE + "_" + idx
 							});
 
 							li.data("context", fContext);
@@ -99,7 +101,6 @@
 								id: "cm_ifilter_" + idx,
 								type: "checkbox",
 								className: "cm_filtersPopup_input",
-								"aria-labelledby": "cm_llfilter_" + idx,
 								name: id
 							});
 							if (fContext.enabled) {
@@ -133,7 +134,18 @@
 						});
 					});
 
+					var d = cc.createElement(ul, "abbr", {
+						id: "cm_filtersPopup_desc_" + (anonymousId)++,
+						className: "cm_audioDescription",
+						textNode: cc.lang(i18n, "criteriaList", {
+							title: this._column.$scope.title
+						})
+					});
+					ul.attr("aria-describedby", d[0].id);
+
 					this._popupStyleUpdate(container);
+
+					return ul;
 				},
 
 				_open: function(container) {
@@ -388,49 +400,49 @@
 					case Key.VK_DOWN:
 						cancel = true;
 
-						next = cm.GetNextType(row.nextSibling, ROW_TYPE);
+						next = cm.GetNextType(row.nextSibling, ITEM_TYPE);
 						if (!next) {
-							next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+							next = cm.GetNextType(parentNode.firstChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_PAGE_DOWN:
 						cancel = true;
-						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
+						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ITEM_TYPE);
 						if (next && next.id === row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
 							viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
 
-							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
+							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_END:
 						cancel = true;
-						next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
+						next = cm.GetPreviousType(parentNode.lastChild, ITEM_TYPE);
 						break;
 
 					case Key.VK_UP:
 						cancel = true;
 
-						next = cm.GetPreviousType(row.previousSibling, ROW_TYPE);
+						next = cm.GetPreviousType(row.previousSibling, ITEM_TYPE);
 						if (!next) {
-							next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
+							next = cm.GetPreviousType(parentNode.lastChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_PAGE_UP:
 						cancel = true;
-						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
+						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ITEM_TYPE);
 						if (next && next.id === row.id) {
 							viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
 
-							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
+							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_HOME:
 						cancel = true;
-						next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+						next = cm.GetNextType(parentNode.firstChild, ITEM_TYPE);
 						break;
 
 					case Key.VK_ESCAPE:

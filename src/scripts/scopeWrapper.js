@@ -12,7 +12,7 @@
 
 	var LINK_SCOPE = true;
 
-	var module = angular.module('camelia.scopeWrapper', [ "camelia.core" ]);
+	var module = angular.module('camelia.core');
 
 	module.factory('camelia.ScopeWrapper', [ "$rootScope", "camelia.core", function($rootScope, cc) {
 		function ScopeWrapper($scope) {

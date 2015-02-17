@@ -11,91 +11,99 @@
 	'use strict';
 
 	var module = angular.module('camelia.directives.combo', [ 'camelia.core',
-		'camelia.templateRegistry',
+		'camelia.directives.template',
+		'camelia.directives.items',
 		'camelia.components.combo' ]);
 
 	module.value("cm_combo_componentProviderName", "camelia.components.combo:camelia.components.Combo");
 
-	module.directive("cmCombo",
-			[ "$injector",
-				"$interpolate",
-				"$log",
-				"$q",
-				"$exceptionHandler",
-				"camelia.core",
-				"cm_combo_componentProviderName",
-				"camelia.TemplateRegistry",
-				function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_combo_componentProviderName,
-						TemplateRegistry) {
+	module.directive("cmCombo", [ "$injector",
+		"$interpolate",
+		"$log",
+		"$q",
+		"$exceptionHandler",
+		"camelia.core",
+		"cm_combo_componentProviderName",
+		"camelia.directives.TemplateContainer",
+		"camelia.directives.ItemsContainer",
+		function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_combo_componentProviderName,
+				TemplateContainer, ItemsContainer) {
 
+			return {
+				restrict: "E",
+				scope: {
+					id: '@',
+					forElementId: '@for',
+					selectedItem: '=?selecteditem',
+					style: '@',
+					className: '@class',
+					maxTextLength: '@maxtextlength',
+					textSize: '@textsize',
+					tabIndex: '@tabindex',
+					tags: '=?',
+					tagVar: '@tagvar',
+					value: '=?',
+					popupMaxHeight: '@popupmaxheight',
+					maxItems: '@maxitems',
+					placeholder: '@placeholder',
+					suggestIgnoreAccents: "@suggestignoreaccents",
+					suggestIgnoreCase: "@suggestignorecase",
+					// tagLabel: '@taglabel',
+					// tagTooltip: '@tagtooltip',
+					// tagClass: '@tagclass',
+					hasOpenPopupButton: '@hasopenpopupbutton'
+				},
+				replace: true,
+
+				controller: [ "$scope", function($scope) {
+					var componentProvider = $scope.componentProvider;
+					if (!componentProvider) {
+						var componentProviderName = $scope.componentProviderName || cm_combo_componentProviderName;
+						componentProvider = cc.LoadProvider(componentProviderName);
+					}
+					this.componentProvider = componentProvider;
+				} ],
+				compile: function() {
 					return {
-						restrict: "E",
-						scope: {
-							id: '@',
-							forElementId: '@for',
-							selectedItem: '=?',
-							style: '@',
-							className: '@class',
-							maxTextLength: '@maxtextlength',
-							textSize: '@textsize',
-							tabIndex: '@tabindex',
-							tags: '=',
-							tagVar: '@tagvar',
-							// tagLabel: '@taglabel',
-							// tagTooltip: '@tagtooltip',
-							// tagClass: '@tagclass',
-							hasOpenPopupButton: '@hasopenpopupbutton'
-						},
-						replace: true,
+						pre: function($scope, element, attrs, controller) {
+							TemplateContainer.MarkTemplateContainer($scope, element);
+							ItemsContainer.MarkItemsContainer($scope, element);
 
-						controller: [ "$scope", function($scope) {
-							var componentProvider = $scope.componentProvider;
-							if (!componentProvider) {
-								var componentProviderName = $scope.componentProviderName || cm_combo_componentProviderName;
-								componentProvider = cc.LoadProvider(componentProviderName);
+							var tagsRawExpression = element.attr("tags");
+							if (tagsRawExpression) {
+								$scope.tagVar = element.attr("tagVar");
+								$scope.tagLabelRawExpression = element.attr("tagLabel");
+								$scope.tagTooltipRawExpression = element.attr("tagTooltip");
+								$scope.tagClassRawExpression = element.attr("tagClass");
 							}
-							this.componentProvider = componentProvider;
-						} ],
-						compile: function() {
-							return {
-								pre: function($scope, element, attrs, controller) {
-									TemplateRegistry.MarkTemplateContainer($scope, element);
+						},
+						post: function($scope, element, attrs, controller, transludeFunc) {
+							TemplateContainer.RegisterTemplates($scope);
 
-									var tagsRawExpression = element.attr("tags");
-									if (tagsRawExpression) {
-										$scope.tagVar = element.attr("tagVar");
-										$scope.tagLabelRawExpression = element.attr("tagLabel");
-										$scope.tagTooltipRawExpression = element.attr("tagTooltip");
-										$scope.tagClassRawExpression = element.attr("tagClass");
-									}
-								},
-								post: function($scope, element, attrs, controller, transludeFunc) {
-									TemplateRegistry.RegisterTemplates($scope);
+							var combo = new controller.componentProvider($scope, element, $interpolate);
 
-									var combo = new controller.componentProvider($scope, element, $interpolate);
+							var promise = $injector.invoke(combo.construct, combo);
 
-									var promise = $injector.invoke(combo.construct, combo);
+							if (!cc.isPromise(promise)) {
+								promise = $q.when(promise);
+							}
 
-									if (!cc.isPromise(promise)) {
-										promise = $q.when(promise);
-									}
+							promise.then(function onSuccess(comboElement) {
+								$log.info("Combo created ", comboElement);
 
-									promise.then(function onSuccess(comboElement) {
-										$log.info("Combo created ", comboElement);
+								element.replaceWith(comboElement);
 
-										element.replaceWith(comboElement);
+							}, function onError(reason) {
+								if (reason instanceof Error) {
+									$exceptionHandler(reason);
 
-									}, function onError(reason) {
-										if (reason instanceof Error) {
-											$exceptionHandler(reason);
-
-										} else {
-											$log.error("Failed to create combo ", reason);
-										}
-									});
+								} else {
+									$log.error("Failed to create combo ", reason);
 								}
-							};
+							});
 						}
 					};
-				} ]);
+				}
+			};
+		} ]);
 })(window, window.angular);

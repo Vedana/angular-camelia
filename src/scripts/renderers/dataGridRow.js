@@ -92,7 +92,7 @@
 
 					var selectionProvider = this.selectionProvider;
 					if (selectionProvider && selectionProvider.contains(rowScope.$row)) {
-						rowElement._selected = true;
+						rowElement.setAttribute("cm_selected", true);
 					}
 
 					this.rowStyleUpdate(tr);
@@ -118,6 +118,14 @@
 							role: "gridcell",
 							$cm_lindex: column.logicalIndex
 						});
+						td.attr("cm_" + (column.cellAlign || "left"), true);
+
+						if (!column.visibleIndex) {
+							td.attr("cm_first", true);
+						}
+						if (column.visibleIndex === self.visibleColumns.length - 1) {
+							td.attr("cm_last", true);
+						}
 
 						if (column.scope) {
 							td.attr("scope", "row");
@@ -150,15 +158,16 @@
 						classes.push.apply(classes, tr.cm_rowClasses);
 					}
 
+					var trSelected = tr.hasAttribute("cm_selected");
 					var ariaState = 0;
-					if (tr._selected) {
+					if (trSelected) {
 						ariaState |= 0x01;
 					}
 					if (tr.ariaState !== ariaState) {
 						tr.ariaState = ariaState;
 
-						if (tr._selected) {
-							tr.setAttribute("aria-selected", tr._selected);
+						if (trSelected) {
+							tr.setAttribute("aria-selected", true);
 						} else {
 							tr.removeAttribute("aria-selected");
 						}
@@ -238,17 +247,6 @@
 					var cts = [];
 
 					var classes = [ "cm_dataGrid_cell" ];
-					if (!column.visibleIndex) {
-						classes.push("cm_dataGrid_cfirst");
-
-					}
-					if (column.visibleIndex === this.visibleColumns.length - 1) {
-						classes.push("cm_dataGrid_clast");
-					}
-
-					if (column.cellAlign) {
-						cts.push("cm_dataGrid_calign_" + column.cellAlign);
-					}
 
 					if (column.cellClasses) {
 						classes.push.apply(classes, column.cellClasses);
@@ -300,19 +298,19 @@
 					row.insertBefore(cell, beforeCell);
 
 					if (!column.visibleIndex) {
-						this.cellStyleUpdate(cell);
+						cell.setAttribute("cm_first", true);
 
 						var firstCell = cells[rowIdent];
 						if (!beforeColumn || firstCell.id !== beforeColumn.id) {
-							this.cellStyleUpdate(firstCell);
+							firstCell.removeAttribute("cm_first");
 						}
-
-					} else if (column.visibleIndex === visibleColumns.length - 1) {
-						this.cellStyleUpdate(cell);
+					}
+					if (column.visibleIndex === visibleColumns.length - 1) {
+						cell.setAttribute("cm_last", true);
 
 						var lastCell = cells[rowIdent + visibleColumns.length - 1];
 						if (!beforeColumn || lastCell.id !== beforeColumn.id) {
-							this.cellStyleUpdate(lastCell);
+							lastCell.removeAttribute("cm_last");
 						}
 					}
 				}

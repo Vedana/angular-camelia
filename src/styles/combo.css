@@ -1,4 +1,18 @@
 .cm_combo {
+	border: 0;
+	margin: 0;
+	padding: 0;
+	display: inline-flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	justify-content: flex-start;
+	align-items: center;
+	align-content: flex-start;
+	box-sizing: border-box;
+	position: relative;
+}
+
+.cm_combo_container {
 	border: 1px solid;
 	margin: 0;
 	padding: 1px;
@@ -8,19 +22,11 @@
 	justify-content: flex-start;
 	align-items: center;
 	align-content: flex-start;
-	-moz-box-sizing: border-box;
-	-webkit-box-sizing: border-box;
 	box-sizing: border-box;
 	border-color: activeborder;
+	border-color: #B4B4B4;
 	border-radius: 2px;
-}
-
-.cm_combo_over {
-	border-color: #70C0E7;
-}
-
-.cm_combo_focus {
-	border-color: #26A0DA;
+	width: 100%;
 }
 
 .cm_combo_cinput {
@@ -29,15 +35,25 @@
 	margin: 0;
 	padding: 0;
 	position: relative;
+	box-sizing: border-box;
 }
 
+.cm_combo_shadowInput,
 .cm_combo_input {
-	border: 0;
+	border: 1px solid transparent;
 	margin: 0;
 	padding: 0;
-	vertical-align: text-top;
 	width: 100%;
 	position: relative;
+	box-sizing: border-box;
+	vertical-align: top;
+	outline: 0;
+	background-color: transparent;
+}
+
+.cm_combo_shadowInput {
+	position: absolute;
+	color: #CCC;
 }
 
 .cm_combo_button {
@@ -47,20 +63,12 @@
 	margin: 0;
 	background-color: transparent;
 	transition: color, background-color, border-color 0.4s ease;
+	box-sizing: border-box;
+	outline: 0;
 }
 
-.cm_combo_button_over {
-	border-color: #70C0E7;
-	background-color: #E5F3FB;
-	color: #70C0E7;
-	transition: color, background-color, border-color 0.4s ease;
-}
-
-.cm_combo_button_focus {
-	border-color: #26A0DA;
-	background-color: #CBE8F6;
-	color: #26A0DA;
-	transition: color, background-color, border-color 0.4s ease;
+.cm_combo_button[cm_focus]::-moz-focus-inner {
+	border: 0;
 }
 
 .cm_combo_tags {
@@ -75,6 +83,7 @@
 	flex-direction: row;
 	flex-wrap: nowrap;
 	justify-content: flex-start;
+	box-sizing: border-box;
 }
 
 .cm_combo_tag {
@@ -90,6 +99,7 @@
 	border-color: #DEDEDE;
 	white-space: nowrap;
 	transition: color, background-color, border-color 0.4s ease;
+	box-sizing: border-box;
 }
 
 .cm_combo_tag {
@@ -97,20 +107,105 @@
 	cursor: default;
 }
 
-.cm_combo_tag_over {
+.cm_combo_tagRemove {
+	color: inherit;
+	text-decoration: none;
+	margin-left: 4px;
+}
+
+.cm_combo_items {
+	list-style-image: none;
+	list-style-position: outside;
+	list-style-type: none;
+	box-sizing: border-box;
+	position: absolute;
+	min-width: 100%;
+	margin: 0;
+	padding: 0;
+	top: calc(100% - 1px); left : 0;
+	z-index: 4010;
+	background-color: white;
+	box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+	border-style: solid;
+	border-color: activeborder;
+	border-width: 0 1px 1px 1px;
+	border-radius: 0 0 2px 2px;
+	margin: 0;
+	margin: 0;
+	left: 0;
+	overflow: hidden;
+}
+
+.cm_combo[cm_openedPopup] .cm_combo_container {
+	z-index: 4000;
+	box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+	border-radius: 2px 2px 0 0;
+}
+
+.cm_combo[cm_closedPopup] .cm_combo_button_popupRequest {
+	
+}
+
+.cm_combo[cm_openedPopup] .cm_combo_button_popupRequest {
+	transform: rotate(180deg);
+	transition: transform 0.3s ease;
+}
+
+.cm_combo[cm_over] .cm_combo_items, .cm_combo[cm_over] .cm_combo_container {
+	border-color: #70C0E7;
+}
+
+.cm_combo[cm_focus] .cm_combo_items, .cm_combo[cm_focus] .cm_combo_container {
+	border-color: #26A0DA;
+}
+
+.cm_combo[cm_focus] .cm_combo_input {
+	
+}
+
+.cm_combo_item_noSelectable,
+.cm_combo_item {
+	font-family: "Segoe WPC", "Segoe UI", Helvetica, Arial,
+		"Arial Unicode MS", Sans-Serif;
+	font-size: 9pt;
+	font-weight: 500;
+	padding: 1px 7px;
+	border: 1px solid transparent;
+	outline: 0;
+}
+
+.cm_combo_item_noSelectable {
+	color: #AAA;
+}
+
+.cm_combo_button[cm_over],
+.cm_combo_item[cm_over],
+.cm_combo_tag[cm_over] {
 	border-color: #70C0E7;
 	background-color: #E5F3FB;
 	transition: color, background-color, border-color 0.4s ease;
 }
 
-.cm_combo_tag_focus {
+.cm_combo_button[cm_focus],
+.cm_combo_item[cm_focus],
+.cm_combo_tag[cm_focus] {
 	border-color: #26A0DA;
 	background-color: #CBE8F6;
 	transition: color, background-color, border-color 0.4s ease;
 }
 
-.cm_combo_tagRemove {
-	color: inherit;
-	text-decoration: none;
-	margin-left: 4px;
+.cm_combo_button[cm_over] {
+	color: #70C0E7;
+}
+
+.cm_combo_button[cm_focus] {
+	color: #26A0DA;
+}
+
+.cm_combo_item[cm_selected] {
+	background-color: #CBE8F6;
+}
+
+.cm_combo_items[cm_popupheight] {
+	overflow-y: auto;
 }

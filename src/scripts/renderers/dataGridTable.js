@@ -306,8 +306,12 @@
 
 						var filtredState = !!count;
 						var titleElement = column.titleElement;
-						if (titleElement._filtred !== filtredState) {
-							titleElement._filtred = filtredState;
+						if (titleElement.hasAttribute("cm_filtred") !== filtredState) {
+							if (filtredState) {
+								titleElement.setAttribute("cm_filtred", true);
+							} else {
+								titleElement.removeAttribute("cm_filtred");
+							}
 
 							cc.BubbleEvent(titleElement, "cm_update");
 						}
@@ -352,7 +356,7 @@
 
 							dataModelSorters.push({
 								expression: columnSorters,
-								column: column,
+								column: column.$scope.id || column.$scope.fieldName || column.id,
 								ascending: sorter.ascending
 							});
 
@@ -511,6 +515,9 @@
 					});
 				},
 
+				/**
+				 * @returns {{Promise}}
+				 */
 				_tableRowsRenderer1: function(fragment) {
 					var self = this;
 					var table = this.tableElement;
@@ -550,177 +557,59 @@
 					}
 
 					var rowCount = dataModel.getRowCount(false);
-					if (rowCount < 0) {
-						rowCount = -1;
-					}
-					dataGrid.rowCount = rowCount;
-					// console.log("Return rowCount=" + rowCount + " from model");
+					rowCount = cc.ensurePromise(rowCount);
 
-					var visibleIndex = 0;
-					var tbodyElement = tbody[0] || tbody;
+					return rowCount.then(function onSuccess(rowCount) {
+						if (rowCount < 0) {
+							rowCount = -1;
+						}
+						dataGrid.rowCount = rowCount;
+						// console.log("Return rowCount=" + rowCount + " from model");
 
-					var rowScope = null;
-					var groupScope = null;
-					var currentGroup = null;
-					var groupIndex = -1;
+						var visibleIndex = 0;
+						var tbodyElement = tbody[0] || tbody;
 
-					var progressDefer = $q.defer();
-					var progressDate = 0;
+						var rowScope = null;
+						var groupScope = null;
+						var currentGroup = null;
+						var groupIndex = -1;
 
-					function setupDataGrid(lastRowReached) {
+						var progressDefer = $q.defer();
+						var progressDate = 0;
 
-						self._renderedFirst = first;
+						function setupDataGrid(lastRowReached) {
 
-						if (!visibleIndex) {
-							if (!first) {
-								dataGrid.rowCount = 0;
-								dataGrid.maxRows = 0;
+							self._renderedFirst = first;
 
-								// console.log("Reset rowCount and maxRows");
+							if (!visibleIndex) {
+								if (!first) {
+									dataGrid.rowCount = 0;
+									dataGrid.maxRows = 0;
+
+									// console.log("Reset rowCount and maxRows");
+								}
+
+							} else {
+								if (lastRowReached) {
+									dataGrid.rowCount = first + visibleIndex;
+								}
+								dataGrid.maxRows = Math.max(dataGrid.maxRows, first + visibleIndex);
 							}
 
-						} else {
-							if (lastRowReached) {
-								dataGrid.rowCount = first + visibleIndex;
-							}
-							dataGrid.maxRows = Math.max(dataGrid.maxRows, first + visibleIndex);
+							dataGrid.visibleRows = visibleIndex;
 						}
 
-						dataGrid.visibleRows = visibleIndex;
-					}
+						var varName = self.$scope.varName;
+						var groupProvider = self.selectedGroupProvider;
 
-					var varName = this.$scope.varName;
-					var groupProvider = this.selectedGroupProvider;
+						function availablePromise(available) {
+							if (!available) {
 
-					function availablePromise(available) {
-						if (!available) {
+								progressDefer.notify({
+									type: "rowRendered",
+									count: visibleIndex
+								});
 
-							progressDefer.notify({
-								type: "rowRendered",
-								count: visibleIndex
-							});
-
-							dataModel.setRowIndex(-1);
-
-							if (rowScope) {
-								rowScope.$destroy();
-							}
-							if (groupScope) {
-								groupScope.$destroy();
-							}
-
-							setupDataGrid(true);
-							return false;
-						}
-
-						var groupCollapsed = false;
-
-						for (; rows < 0 || visibleIndex < rows;) {
-							var nextAvailable;
-
-							if (progressDefer) {
-								var now = Date.now();
-								if (now > progressDate) {
-									progressDate = now + PROGRESS_DELAY_MS;
-
-									progressDefer.notify({
-										type: "rowRendering",
-										count: visibleIndex,
-										rows: rows
-									});
-								}
-							}
-
-							try {
-								var rowData = dataModel.getRowData();
-								if (groupDataModel) {
-									if (!groupScope) {
-										groupScope = self.$scope.$parent.$new();
-									}
-
-									groupScope.$group = null;
-									groupScope.$count = null;
-									groupScope.$row = rowData;
-									if (varName) {
-										groupScope[varName] = rowData;
-									}
-
-									var group = groupDataModel.getGroup(groupScope, rowData);
-									if (group !== currentGroup) {
-										currentGroup = group;
-										groupIndex++;
-
-										groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
-
-										groupScope.$group = group;
-										groupScope.$count = groupDataModel.getGroupCount(group);
-
-										var destroyGroupScopeRef = {
-											value: true
-										};
-										var groupTR = self.groupRenderer(tbodyElement, groupProvider, groupScope, groupIndex,
-												groupCollapsed, destroyGroupScopeRef);
-										groupTR.data("cm_rowValues", groupDataModel.getGroupValues(group));
-										groupTR.data("cm_value", group);
-
-										if (!destroyGroupScopeRef.value) {
-											groupTR.on('$destroy', _destroyScope(groupScope));
-											groupTR.data('$isolateScope', groupScope);
-											groupScope.$digest();
-											groupScope = null;
-										}
-
-										var trElement = groupTR[0];
-										trElement._visibleIndex = visibleIndex;
-										trElement._rowIndex = rowIndex;
-									}
-								}
-
-								if (!groupCollapsed) {
-									if (!rowScope) {
-										rowScope = self.$scope.$parent.$new();
-									}
-
-									rowScope.$index = visibleIndex;
-									rowScope.$odd = !(visibleIndex & 1);
-									rowScope.$even = !rowScope.$odd;
-									rowScope.$first = (visibleIndex === 0);
-									rowScope.$pageNumber = -1;
-									rowScope.$pageCount = -1;
-									rowScope.$rowIndex = rowIndex;
-									rowScope.$row = rowData;
-									if (varName) {
-										rowScope[varName] = rowData;
-									}
-
-									var destroyRowScopeRef = {
-										value: true
-									};
-
-									var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent, destroyRowScopeRef);
-
-									tr.data("cm_value", rowData);
-
-									if (!destroyRowScopeRef.value) {
-										tr.on('$destroy', _destroyScope(rowScope));
-										tr.data('$isolateScope', rowScope);
-										rowScope.$digest();
-										rowScope = null;
-									}
-								}
-
-								rowIndex++;
-								visibleIndex++;
-
-								if (rows > 0 && visibleIndex >= rows) {
-									break;
-								}
-
-								dataModel.setRowIndex(rowIndex);
-
-								nextAvailable = dataModel.isRowAvailable();
-
-							} catch (x) {
 								dataModel.setRowIndex(-1);
 
 								if (rowScope) {
@@ -730,76 +619,198 @@
 									groupScope.$destroy();
 								}
 
-								$log.error("isRowAvailable() returns error ", x);
-
-								throw x;
+								setupDataGrid(true);
+								return false;
 							}
 
-							if (cc.isPromise(nextAvailable)) {
-								return nextAvailable.then(function(result) {
-									return availablePromise(result);
+							var groupCollapsed = false;
 
-								});
+							for (; rows < 0 || visibleIndex < rows;) {
+								var nextAvailable;
+
+								if (progressDefer) {
+									var now = Date.now();
+									if (now > progressDate) {
+										progressDate = now + PROGRESS_DELAY_MS;
+
+										progressDefer.notify({
+											type: "rowRendering",
+											count: visibleIndex,
+											rows: rows
+										});
+									}
+								}
+
+								try {
+									var rowData = dataModel.getRowData();
+									if (groupDataModel) {
+										if (!groupScope) {
+											groupScope = self.$scope.$parent.$new();
+										}
+
+										groupScope.$group = null;
+										groupScope.$count = null;
+										groupScope.$row = rowData;
+										if (varName) {
+											groupScope[varName] = rowData;
+										}
+
+										var group = groupDataModel.getGroup(groupScope, rowData);
+										if (group !== currentGroup) {
+											currentGroup = group;
+											groupIndex++;
+
+											groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
+
+											groupScope.$group = group;
+											groupScope.$count = groupDataModel.getGroupCount(group);
+
+											var destroyGroupScopeRef = {
+												value: true
+											};
+											var groupTR = self.groupRenderer(tbodyElement, groupProvider, groupScope, groupIndex,
+													groupCollapsed, destroyGroupScopeRef);
+											groupTR.data("cm_rowValues", groupDataModel.getGroupValues(group));
+											groupTR.data("cm_value", group);
+
+											if (!destroyGroupScopeRef.value) {
+												groupTR.on('$destroy', _destroyScope(groupScope));
+												groupTR.data('$isolateScope', groupScope);
+												groupScope.$digest();
+												groupScope = null;
+											}
+
+											var trElement = groupTR[0];
+											trElement._visibleIndex = visibleIndex;
+											trElement._rowIndex = rowIndex;
+										}
+									}
+
+									if (!groupCollapsed) {
+										if (!rowScope) {
+											rowScope = self.$scope.$parent.$new();
+										}
+
+										rowScope.$index = visibleIndex;
+										rowScope.$odd = !(visibleIndex & 1);
+										rowScope.$even = !rowScope.$odd;
+										rowScope.$first = (visibleIndex === 0);
+										rowScope.$pageNumber = -1;
+										rowScope.$pageCount = -1;
+										rowScope.$rowIndex = rowIndex;
+										rowScope.$row = rowData;
+										if (varName) {
+											rowScope[varName] = rowData;
+										}
+
+										var destroyRowScopeRef = {
+											value: true
+										};
+
+										var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent, destroyRowScopeRef);
+
+										tr.data("cm_value", rowData);
+
+										if (!destroyRowScopeRef.value) {
+											tr.on('$destroy', _destroyScope(rowScope));
+											tr.data('$isolateScope', rowScope);
+											rowScope.$digest();
+											rowScope = null;
+										}
+									}
+
+									rowIndex++;
+									visibleIndex++;
+
+									if (rows > 0 && visibleIndex >= rows) {
+										break;
+									}
+
+									dataModel.setRowIndex(rowIndex);
+
+									nextAvailable = dataModel.isRowAvailable();
+
+								} catch (x) {
+									dataModel.setRowIndex(-1);
+
+									if (rowScope) {
+										rowScope.$destroy();
+									}
+									if (groupScope) {
+										groupScope.$destroy();
+									}
+
+									$log.error("isRowAvailable() returns error ", x);
+
+									throw x;
+								}
+
+								if (cc.isPromise(nextAvailable)) {
+									return nextAvailable.then(function(result) {
+										return availablePromise(result);
+
+									});
+								}
+
+								if (nextAvailable !== true) {
+									break;
+								}
 							}
 
-							if (nextAvailable !== true) {
-								break;
+							progressDefer.notify({
+								type: "rowRendered",
+								rows: rows
+							});
+
+							dataModel.setRowIndex(-1);
+							if (rowScope) {
+								rowScope.$destroy();
 							}
+							if (groupScope) {
+								groupScope.$destroy();
+							}
+
+							setupDataGrid(rows > 0 && visibleIndex < rows);
+
+							return progressDefer.resolve(visibleIndex);
 						}
 
-						progressDefer.notify({
-							type: "rowRendered",
-							rows: rows
+						var nextAvailable;
+						try {
+							dataModel.setRowIndex(rowIndex);
+
+							nextAvailable = dataModel.isRowAvailable();
+
+						} catch (x) {
+							dataModel.setRowIndex(-1);
+							if (rowScope) {
+								rowScope.$destroy();
+							}
+
+							dataGrid.rowCount = -1;
+							dataGrid.maxRows = -1;
+							dataGrid.visibleRows = visibleIndex;
+
+							return $q.reject(x);
+						}
+
+						nextAvailable = cc.ensurePromise(nextAvailable);
+
+						nextAvailable.then(function(result) {
+							// $log.debug("First: success ", result);
+							return availablePromise(result);
+
+						}, function(reason) {
+							$log.debug("First: error ", reason);
+							return progressDefer.reject(reason);
+
+						}, function(progress) {
+							// $log.debug("First: Progress notification ", progress);
+							return progressDefer.notify(progress);
 						});
 
-						dataModel.setRowIndex(-1);
-						if (rowScope) {
-							rowScope.$destroy();
-						}
-						if (groupScope) {
-							groupScope.$destroy();
-						}
-
-						setupDataGrid(rows > 0 && visibleIndex < rows);
-
-						return progressDefer.resolve(visibleIndex);
-					}
-
-					var nextAvailable;
-					try {
-						dataModel.setRowIndex(rowIndex);
-
-						nextAvailable = dataModel.isRowAvailable();
-
-					} catch (x) {
-						dataModel.setRowIndex(-1);
-						if (rowScope) {
-							rowScope.$destroy();
-						}
-
-						dataGrid.rowCount = -1;
-						dataGrid.maxRows = -1;
-						dataGrid.visibleRows = visibleIndex;
-
-						return $q.reject(x);
-					}
-
-					nextAvailable = cc.ensurePromise(nextAvailable);
-
-					nextAvailable.then(function(result) {
-						// $log.debug("First: success ", result);
-						return availablePromise(result);
-
-					}, function(reason) {
-						$log.debug("First: error ", reason);
-						return progressDefer.reject(reason);
-
-					}, function(progress) {
-						// $log.debug("First: Progress notification ", progress);
-						return progressDefer.notify(progress);
+						return progressDefer.promise;
 					});
-
-					return progressDefer.promise;
 				},
 
 				tableStyleUpdate: function(body) {

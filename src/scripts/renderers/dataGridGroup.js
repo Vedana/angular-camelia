@@ -26,11 +26,11 @@
 					role: "row",
 					// "aria-hidden": "true",
 					tabIndex: -1,
-					$cm_groupIndex: index
+					$cm_groupIndex: index,
+					cm_collapsed: (collapsed) ? true : undefined
 				});
 
 				var groupElement = tr[0];
-				groupElement._collapsed = collapsed;
 
 				var groupClassMode = groupProvider.titleClassMode;
 				if (groupClassMode === undefined) {

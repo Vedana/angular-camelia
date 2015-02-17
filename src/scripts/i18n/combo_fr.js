@@ -12,14 +12,16 @@
 
 	var module = angular.module("camelia.i18n.combo", []);
 
-	module.factory("camelia.i18n.Combo", [ function() {
+	module.config([ '$provide', function($provide) {
 
-		return {
-			'en': {
-				no_result: "No result"
-			}
-		};
+		$provide.decorator("camelia.i18n.Combo", [ '$delegate', function($delegate) {
 
+			return angular.extend($delegate, {
+				'fr': {
+					no_result: "Aucun résultat"
+				}
+			});
+		} ]);
 	} ]);
 
 })(window, window.angular);

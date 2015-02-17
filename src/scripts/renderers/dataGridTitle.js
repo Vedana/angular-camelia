@@ -97,8 +97,9 @@
 					}
 
 					var cellElement = cc.createElement(ul, "li", {
-						className: [ "cm_dataGrid_tcell", "cm_dataGrid_tcell_right" ],
-						"aria-hidden": true
+						className: [ "cm_dataGrid_tcell", "cm_dataGrid_tcell" ],
+						"aria-hidden": true,
+						cm_align: "right"
 					});
 					cc.createElement(cellElement, "span");
 					this.titleCellRenderer(cellElement);
@@ -139,7 +140,7 @@
 								className: "cm_dataGrid_tcursor"
 							});
 
-							titleCell._sortable = true;
+							titleCell.setAttribute("cm_sortable", true);
 						}
 
 						var title = column.$scope.title;
@@ -180,7 +181,7 @@
 
 							hasParams = true;
 
-							titleCell._filtreable = true;
+							titleCell.setAttribute("cm_filtreable", true);
 						}
 
 						var prevIndex = column.visibleIndex - 1;
@@ -233,15 +234,15 @@
 
 					var newAriaSorter = 0;
 					var messageSorter = null;
-					if (element._sortable) {
+					if (element.hasAttribute("cm_sortable")) {
 						newAriaSorter |= 0x01;
 						messageSorter = "sortableColumn";
 
-						if (element._ascending) {
+						if (element.hasAttribute("cm_ascending")) {
 							newAriaSorter |= 0x02;
 							messageSorter = "sortAscending";
 
-						} else if (element._descending) {
+						} else if (element.hasAttribute("cm_descending")) {
 							newAriaSorter |= 0x04;
 							messageSorter = "sortDescending";
 						}
@@ -254,11 +255,11 @@
 
 					var newAriaFiltred = 0;
 					var messageFiltred = null;
-					if (element._filtreable) {
+					if (element.hasAttribute("cm_filtreable")) {
 						newAriaFiltred |= 0x01;
 						messageFiltred = "filtreableColumn";
 
-						if (element._filtred) {
+						if (element.hasAttribute("cm_filtred")) {
 							newAriaSorter |= 0x02;
 							messageFiltred = "filtredColumn";
 						}

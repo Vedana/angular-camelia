@@ -37,7 +37,7 @@
 							id: "alphabetic_" + entry,
 							toJson: function() {
 								return {
-									startsWith: entry
+									startsWithRegExp: entry
 								};
 							}
 						});

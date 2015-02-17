@@ -10,7 +10,20 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.template', [ 'camelia.components.template' ]);
+	var module = angular.module('camelia.directives.template', [ 'camelia.components.template', 'camelia.templateRegistry' ]);
+
+	module.factory("camelia.directives.TemplateContainer", [ "camelia.TemplateRegistry", function(TemplateRegistry) {
+
+		return {
+			MarkTemplateContainer: function($scope, element) {
+				element.data('$cmTemplateContainerController', $scope);
+			},
+
+			RegisterTemplates: function($scope) {
+				TemplateRegistry.RegisterTemplates($scope);
+			}
+		};
+	} ]);
 
 	module.directive("cmTemplate", [ "$log", "camelia.components.Template", function($log, Template) {
 

@@ -105,20 +105,20 @@
 
 								var sourceEvent = self._selectionSourceEvent;
 
-								console.log("GridRenderer.CURSOR_CHANGED SourceEvent=", sourceEvent);
+								$log.debug("GridRenderer.CURSOR_CHANGED SourceEvent=", sourceEvent);
 
 								if (data.oldRow) {
 									// BLUR event update the element
 									var oldElement = self.getElementFromValue(data.oldRow, ROW_OR_GROUP);
-									if (oldElement && oldElement._cursor) {
-										oldElement._cursor = undefined;
+									if (oldElement && oldElement.hasAttribute("cm_cursor")) {
+										oldElement.removeAttribute("cm_cursor");
 										cc.BubbleEvent(oldElement, "cm_update");
 									}
 								}
 								if (data.row) {
 									var element = self.getElementFromValue(data.row, ROW_OR_GROUP);
-									if (element && !element._cursor) {
-										element._cursor = true;
+									if (element && !element.hasAttribute("cm_cursor")) {
+										element.setAttribute("cm_cursor", true);
 										cc.BubbleEvent(element, "cm_update");
 									}
 								}
@@ -162,13 +162,10 @@
 							container.on("keydown", this._onKeyPress());
 							// container.on("keypress", OnKeyPress(renderContext));
 
-							this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
-							this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
+							cc.on(container, "focus", this._onFocus(), true, $scope);
+							cc.on(container, "blur", this._onBlur(), true, $scope);
 
 							$scope.$on("$destroy", function() {
-								self._offFocus();
-								self._offBlur();
-
 								self.tableDestroy();
 
 								var dr = self._deferredRefresh;
@@ -486,17 +483,14 @@
 
 									self._showBody();
 
-									var cursor = self._cursor;
-									if (cursor) {
-										var p = cursor.parentNode;
-										for (; p && p.nodeType === Node.ELEMENT_NODE; p = p.parentNode) {
-										}
-
-										if (!p || p.nodeType !== Node.DOCUMENT_NODE) {
-											cursor = null;
-											self._cursor = null;
-										}
-									}
+									/*
+									 * var cursor = self._cursor; if (cursor) { var p =
+									 * cursor.parentNode; for (; p && p.nodeType ===
+									 * Node.ELEMENT_NODE; p = p.parentNode) { }
+									 * 
+									 * if (!p || p.nodeType !== Node.DOCUMENT_NODE) { cursor =
+									 * null; self._cursor = null; } }
+									 */
 
 									self.layoutState = "complete";
 
@@ -865,13 +859,15 @@
 							var size = params.removed.length + params.added.length;
 							var cache = (size > 1) ? {} : null;
 
+							var attr = "cm" + propertyName;
+
 							var self = this;
 							if (params.clearAll && !params.removed.length) {
 								this.forEachBodyElement(type, function(element) {
-									if (!element[propertyName]) {
+									if (!element.hasAttribute(attr)) {
 										return;
 									}
-									element[propertyName] = undefined;
+									element.removeAttribute(attr);
 									cc.BubbleEvent(element, "cm_update");
 
 									if (funcRemove) {
@@ -882,11 +878,11 @@
 							} else {
 								angular.forEach(params.removed, function(rowValue) {
 									var element = self.getElementFromValue(rowValue, type, cache);
-									if (!element || !element[propertyName]) {
+									if (!element || !element.hasAttribute(attr)) {
 										return;
 									}
 
-									element[propertyName] = undefined;
+									element.removeAttribute(attr);
 									cc.BubbleEvent(element, "cm_update");
 
 									if (funcRemove) {
@@ -897,11 +893,11 @@
 
 							angular.forEach(params.added, function(rowValue) {
 								var element = self.getElementFromValue(rowValue, type, cache);
-								if (!element || element[propertyName]) {
+								if (!element || element.hasAttribute(attr)) {
 									return;
 								}
 
-								element[propertyName] = true;
+								element.setAttribute(attr, true);
 								cc.BubbleEvent(element, "cm_update");
 
 								if (funcAdd) {
@@ -933,7 +929,7 @@
 						},
 
 						_onResizeColumnMouseUp: function(column, event) {
-							console.log("On resize column mouse up");
+							$log.debug("On resize column mouse up");
 
 							this._onResizeColumnRelease();
 							this.$scope.$broadcast("cm:dataGrid_resized", column);
@@ -943,7 +939,7 @@
 						},
 
 						_onResizeColumnRelease: function() {
-							console.log("On resize column release");
+							$log.debug("On resize column release");
 
 							if (this.columnMouseMoveListener) {
 								document.removeEventListener("mousemove", this.columnMouseMoveListener, true);
@@ -960,7 +956,7 @@
 						},
 
 						_onResizeColumn: function(column, tsizer, event) {
-							console.log("On resize column " + column);
+							$log.debug("On resize column " + column);
 
 							// All Column sizes become specified
 							if (!this._allWidthSpecified) {
@@ -1016,8 +1012,8 @@
 
 									var element = scol.titleElement;
 									if (element) {
-										element._ascending = undefined;
-										element._descending = undefined;
+										element.removeAttribute("cm_ascending");
+										element.removeAttribute("cm_descending");
 									}
 
 									updatedColumns[scol.columnId] = scol;
@@ -1037,8 +1033,13 @@
 								var element = column.titleElement;
 								var ascending = !!sorter.ascending;
 
-								element._ascending = ascending;
-								element._descending = !ascending;
+								if (ascending) {
+									element.setAttribute("cm_ascending", true);
+									element.removeAttribute("cm_descending");
+								} else {
+									element.setAttribute("cm_descending", true);
+									element.removeAttribute("cm_ascending");
+								}
 
 								updatedColumns[column.columnId] = column;
 							});
@@ -1507,7 +1508,7 @@
 									if (elements.tparams) {
 										this._showFilterPopup(column, elements.tparams, event, elements);
 
-									} else if (tcell._sortable) {
+									} else if (tcell.hasAttribute("cm_sortable")) {
 										this._toggleColumnSort(column, event);
 									}
 								}

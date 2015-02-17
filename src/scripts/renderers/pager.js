@@ -14,7 +14,6 @@
 	"use strict";
 
 	var module = angular.module("camelia.renderers.pager", [ "camelia.components.pager",
-		"camelia.key",
 		"camelia.i18n.pager" ]);
 
 	module.value("cm_pager_className", "cm_pager");
@@ -28,10 +27,11 @@
 				"$exceptionHandler",
 				"camelia.core",
 				"camelia.cmTypes",
+				"camelia.UI",
 				"cm_pager_className",
 				"camelia.Key",
 				"camelia.i18n.Pager",
-				function($log, $q, $exceptionHandler, cc, cm, cm_pager_className, Key, i18n) {
+				function($log, $q, $exceptionHandler, cc, cm, cui, cm_pager_className, Key, i18n) {
 
 					function searchElements(target) {
 						return cm.SearchElements({
@@ -82,14 +82,8 @@
 							container.on("keydown", this._onKeyPress());
 							// container.on("keypress", OnKeyPress(renderContext));
 
-							this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
-							this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
-
-							$scope.$on("$destroy", function() {
-								self._offFocus();
-
-								self._offBlur();
-							});
+							cc.on(container, "focus", this._onFocus(), true, $scope);
+							cc.on(container, "blur", this._onBlur(), true, $scope);
 
 							container.on("cm_update", this._onStyleUpdate());
 
@@ -166,17 +160,25 @@
 							return function(event) {
 								var target = event.target;
 								var elements = searchElements(target);
+								var cancel = false;
 
 								var next;
 								switch (event.keyCode) {
 								case Key.VK_RIGHT:
-									next = cm.GetNextFocusable(self.containerElement, target);
+									cancel = true;
+									next = cui.GetNextFocusable(self.containerElement, target);
 									break;
+
 								case Key.VK_LEFT:
-									next = cm.GetPreviousFocusable(self.containerElement, target);
+									cancel = true;
+									next = cui.GetPreviousFocusable(self.containerElement, target);
 									break;
 								}
 
+								if (cancel) {
+									event.stopPropagation();
+									event.preventDefault();
+								}
 								if (next) {
 									next.focus();
 								}
@@ -422,22 +424,23 @@
 								}
 
 								var element = cc.createElement(parent, "button", {
-									textNode: text,
 									id: "cm_bpager_" + (anonymousId++),
 									$value: value,
 									$pagerType: type
 								});
+								var span = cc.createElement(element, "span", {
+									className: "cm_bpager_span " + ((className) ? className : ""),
+									textNode: (text) ? text : null
+								});
+
 								if (templateScope.$tooltip) {
 									element.attr("title", templateScope.$tooltip);
+									element.attr("aria-label", templateScope.$tooltip);
+									// If tooltip ignore the TEXT
+									span.attr("aria-hidden", true);
 								}
 								if (templateScope.$disabled) {
 									element.attr("disabled", true);
-								}
-
-								if (className && !text) {
-									cc.createElement(element, "span", {
-										className: "cm_bpager_span " + className
-									});
 								}
 
 								this.buttonStyleUpdate(element);
