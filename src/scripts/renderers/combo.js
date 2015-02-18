@@ -1149,7 +1149,7 @@
 
 							var pmh = $scope.popupMaxHeight;
 							if (pmh) {
-								if (parseFloat(pmh) == pmh) {
+								if (parseFloat(pmh) === pmh) {
 									pmh = pmh + "px";
 								}
 

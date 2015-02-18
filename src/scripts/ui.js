@@ -102,6 +102,7 @@
 					container = container[0];
 				}
 
+				var e = null;
 				if (!element) {
 					e = container.lastChild;
 					if (!e) {
@@ -109,7 +110,6 @@
 					}
 				}
 
-				var e = null;
 				for (;;) {
 
 					if (e === element) {

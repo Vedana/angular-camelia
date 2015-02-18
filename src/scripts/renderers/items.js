@@ -72,7 +72,7 @@
 					var items = this.$scope.items || [];
 
 					var retPromise = null;
-
+					var self = this;
 					for (var i = 0; i < items.length; i++) {
 						var item = items[i];
 						var promise = item.filter(itemsContext, inputValue);

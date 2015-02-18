@@ -171,7 +171,7 @@
 					}
 
 					var self = this;
-					return rowCount.then(function onSuccess(rowCount) {
+					return rowCount.then(function onSuccess0(rowCount) {
 						var index = 0;
 
 						if (rowCount >= 0) {
@@ -272,7 +272,7 @@
 
 					var label;
 					if (context.itemLabelExpression) {
-						label = $itemScope.$eval(itemLabelExpression);
+						label = $itemScope.$eval(context.itemLabelExpression);
 
 					} else if (this.$scope.itemColumn) {
 						label = row[this.$scope.itemColumn];
