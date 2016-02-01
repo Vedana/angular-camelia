@@ -1,7 +1,7 @@
 {
 	"author": "Olivier Oeuillot",
   "name": "Camelia",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "homepage": "http://github.com/Vedana/camelia",
   "keywords": [
                "css",
@@ -13,9 +13,9 @@
              ],
   "main": ["./dist/camelia.js", "./dist/camelia.css" ],
   "dependencies": {
-    "angular": "~1.2.15",
-    "angular-resource": "~1.2.15",
-    "angular-sanitize": "~1.2.15",
+    "angular": "~1.4.8",
+    "angular-resource": "~1.4.8",
+    "angular-sanitize": "~1.4.8",
     "components-font-awesome": "latest"
   },
   "repository": {
