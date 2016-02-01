@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -16,11 +16,10 @@
 
 	module.factory("camelia.components.popup", [ "$log",
 		"$q",
-		"$timeout",
 		"$exceptionHandler",
 		"camelia.core",
 		"cm_popup_rendererProviderName",
-		function($log, $q, $timeout, $exceptionHandler, cc, cm_popup_rendererProviderName) {
+		function($log, $q, $exceptionHandler, cc, cm_popup_rendererProviderName) {
 
 			var anonymousId = 0;
 

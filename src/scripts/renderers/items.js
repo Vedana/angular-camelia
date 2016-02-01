@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -13,17 +13,18 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.renderers.items", [ "camelia.core" ]);
+	var module = angular.module("camelia.renderers.items", [ "camelia.core", "camelia.monitors", "camelia.i18n.items" ]);
 
 	var MAX_ITEMS = 64;
 
 	module.factory("camelia.renderers.Items", [ "$log",
 		"$q",
 		"$exceptionHandler",
-		"$timeout",
 		"camelia.core",
 		"camelia.CharsetUtils",
-		function($log, $q, $exceptionHandler, $timeout, cc, chu) {
+		"camelia.monitor.ProgressMonitor",
+		"camelia.i18n.Items",
+		function($log, $q, $exceptionHandler, cc, CharsetUtils, ProgressMonitor, i18n) {
 
 			function ItemsRenderer(renderContext) {
 				angular.extend(this, renderContext);
@@ -61,7 +62,7 @@
 					};
 
 					if (itemsContext.ignoreAccents) {
-						inputValue = chu.removeAccents(inputValue);
+						inputValue = CharsetUtils.removeAccents(inputValue);
 					}
 
 					if (inputValue) {
@@ -71,10 +72,20 @@
 
 					var items = this.$scope.items || [];
 
+					var pm = new ProgressMonitor(this.$scope);
+
+					pm.beginTask(cc.lang(i18n, "searching"), items.length);
+
 					var retPromise = null;
 					var self = this;
 					for (var i = 0; i < items.length; i++) {
 						var item = items[i];
+
+						if (item.isVisible() === false) {
+							pm.worked(1);
+							continue;
+						}
+
 						var promise = item.filter(itemsContext, inputValue);
 
 						if (!retPromise) {
@@ -82,12 +93,15 @@
 								if (itemsContext.maxItems > 0 && itemsContext.list.length >= itemsContext.maxItems) {
 									break;
 								}
+								pm.worked(1);
 								continue;
 							}
 
-							retPromise = promise;
+							retPromise = pm.then(promise, 1);
 							continue;
 						}
+
+						retPromise = pm.then(promise, 1);
 
 						retPromise = retPromise.then(function() {
 							if (itemsContext.maxItems > 0 && itemsContext.list.length >= itemsContext.maxItems) {
@@ -102,6 +116,8 @@
 					}
 
 					return retPromise.then(function() {
+						pm.done();
+
 						$log.debug("Search of '" + inputValue + "' maxItems=" + itemsContext.maxItems + " returns " + ret.length +
 								" items");
 

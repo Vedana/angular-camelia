@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -91,7 +91,7 @@
 
 						$scope.$watch("selection", function onSelectionChanged(newSelection, oldSelection) {
 
-							cc.log("WATCH selection newSelection=", newSelection, " oldSelection=", oldSelection);
+							$log.debug("WATCH selection newSelection=", newSelection, " oldSelection=", oldSelection);
 
 							selectionProvider.set(newSelection);
 						});
@@ -100,7 +100,7 @@
 				this.selectionProvider = selectionProvider;
 
 				$scope.$on(SelectionProvider.SELECTION_SET_EVENT, function onSelectionChanged(event, data) {
-					cc.log("EVENT selection newSelection=", data.newSelection);
+					$log.debug("EVENT selection newSelection=", data.newSelection);
 
 					$scope.selection = data.newSelection;
 				});
@@ -216,6 +216,7 @@
 						}
 
 						$timeout(function() {
+							$log.debug("construct", "First changed, update data");
 							gridRenderer.updateData();
 						}, 10, false);
 					});
@@ -229,6 +230,7 @@
 							return;
 						}
 
+						$log.debug("construct", "Rows changed and readyState is not complete=",self.readyState);
 						gridRenderer.updateData();
 					});
 
@@ -238,6 +240,7 @@
 					}
 
 					return containerPromise.then(function onSuccess(element) {
+						$log.debug("construct", "Container constructed");
 						if (element[0]) {
 							element = element[0];
 						}
@@ -251,6 +254,12 @@
 						self._updateDataModel(gridRenderer.$scope.value);
 
 						gridRenderer.$scope.$on("cm:valueChanged", function onValueChanged(event, value) {
+							$log.debug("construct", "valueChanged");
+							
+							if (gridRenderer.$scope.value===value) {
+								return; // ???
+							}
+
 							self._updateDataModel(value);
 						});
 
@@ -279,7 +288,9 @@
 
 					var self = this;
 
-					return dataModelPromise.then(function onSuccess(dataModel) {
+					return dataModelPromise.then(function onSuccess(dataModel) {						
+						$log.debug("_updateDataModel.onSuccess: new DataModel");
+
 						gridRenderer.dataErrored = false;
 						gridRenderer.dataModel = dataModel;
 
@@ -287,10 +298,14 @@
 							// dataModel.installWatcher(renderContext.$scope, "value");
 
 							dataModel.$on(DataModel.DATA_MODEL_CHANGED_EVENT, function onDataModelChanged(event, value) {
+								$log.debug("_updateDataModel: received DATA_MODEL_CHANGED event");
+								
 								self._updateDataModel(value);
 							});
 
 							dataModel.$on(DataModel.DATA_MODEL_UPDATED_EVENT, function onDataModelUpdated(event, value) {
+								$log.debug("_updateDataModel: received DATA_MODEL_UPDATED event");
+								
 								gridRenderer.updateData();
 							});
 						}
@@ -302,8 +317,11 @@
 						return dataModel;
 
 					}, function onError(reason) {
+						$log.debug("_updateDataModel.onError: data model updated");
+
 						gridRenderer.dataErrored = true;
-						gridRenderer.dataModel = null;
+						gridRenderer.dataModel = null;						
+
 						gridRenderer.updateData();
 
 						return $q.reject(reason);

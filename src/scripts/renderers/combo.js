@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -30,13 +30,13 @@
 	var INPUT_CHANGED_EVENT = "c:inputChanged";
 	var COMPLETE_INPUT_EVENT = "c:completeInput";
 	var FILTER_CHANGED_EVENT = "c:filterChanged";
-	var CLEAR_SUGGEST_EVENT = "c:clearSuggest";
 
 	var POPUP_OPEN_REQUEST_ACTION_TYPE = "popupRequest";
 
 	var module = angular.module("camelia.renderers.combo", [ "camelia.components.combo",
 		"camelia.i18n.combo",
-		"camelia.renderers.items" ]);
+		"camelia.renderers.items",
+		"camelia.monitors" ]);
 
 	module.value("cm_combo_className", "cm_combo");
 
@@ -52,7 +52,9 @@
 		"camelia.i18n.Combo",
 		"camelia.CharsetUtils",
 		"camelia.renderers.Items",
-		function($log, $q, $exceptionHandler, $timeout, cc, cm, cui, cm_combo_className, Key, i18n, c, ItemsRenderer) {
+		"camelia.monitor.ProgressMonitor",
+		function($log, $q, $exceptionHandler, $timeout, cc, cm, cui, cm_combo_className, Key, i18n, c, ItemsRenderer,
+				ProgressMonitor) {
 
 			function searchElements(target) {
 				return cm.SearchElements({
@@ -115,6 +117,12 @@
 								self.comboStyleUpdate(container);
 							});
 
+							$scope.$watch("selectItem", function onSelectItemChanged(newValue) {
+								$log.debug("SelectItem change detected", newValue);
+
+								$scope.$broadcast(PROPOSE_ITEM_EVENT, "watch", newValue, {});
+							});
+
 							$scope.$on(POPUP_OPENED_EVENT, function() {
 								cm.SwitchOnState(self, {
 									combo: self.containerElement
@@ -130,19 +138,55 @@
 								}, "openedPopup", false);
 							});
 
-							$scope.$on(SELECT_ITEM_EVENT, function($event, reason, item, event) {
-								var $item = !item || item.$item || item;
+							$scope.$on(SELECT_ITEM_EVENT, function($event, reason, item, label, options, event) {
+								var $item = item;
+								if (item && item.$item) {
+									$item = item.$item;
+								}
 
-								if ($scope.selectedItem === $item) {
+								if (options && options.updateScope === false) {
 									return;
 								}
 
 								$timeout(function() {
+
+									if ($scope.selectedItem === $item) {
+										return;
+									}
+
 									$log.debug("Apply item=", $item);
 									$scope.$apply(function() {
 										$scope.selectedItem = $item;
 									});
 								}, 0, false);
+							});
+
+							var progressMonitors = [];
+							$scope.$on(ProgressMonitor.BEGIN_PROGRESS_MONITOR_EVENT, function($event, progressMonitor) {
+								progressMonitors.push(progressMonitor);
+
+								container.attr("cm_progressMonitor", true);
+
+								if (progressMonitors.length == 1) {
+									self._showProgressMonitor(progressMonitors[0]);
+								}
+
+								progressMonitor.$on('$destroy', function() {
+									var idx = progressMonitors.indexOf(progressMonitor);
+									if (idx < 0) {
+										return;
+									}
+
+									progressMonitors.splice(idx, 1);
+									if (progressMonitors.length) {
+										self._showProgressMonitor(progressMonitors[0]);
+										return;
+									}
+
+									self._showProgressMonitor(null);
+									container.removeAttr("cm_progressMonitor");
+								});
+
 							});
 
 							container.on("cm_update", this._onStyleUpdate());
@@ -230,6 +274,12 @@
 
 								self.comboStyleUpdate(container);
 
+								/*
+								 * var selectedItem = $scope.selectedItem; if (selectedItem) {
+								 * $log.debug("Init with selectItem ", selectedItem);
+								 * $scope.$broadcast(PROPOSE_ITEM_EVENT, "init", selectedItem); }
+								 */
+
 								return container;
 							});
 						},
@@ -297,8 +347,7 @@
 								}
 								oldValue = value;
 
-								// $log.debug("input#INPUT_CHANGED_EVENT: Input changed ! '" +
-								// value + "' proposal='" + proposal +"'");
+								$log.debug("input#INPUT_CHANGED_EVENT: Input changed ! '" + value + "' proposal='" + proposal + "'");
 
 								$scope.$broadcast(FILTER_CHANGED_EVENT, value, reason, event);
 							});
@@ -308,12 +357,14 @@
 								input[0].focus();
 							});
 
-							$scope.$on(SELECT_ITEM_EVENT, function($event, reason, item, label, event) {
-								// $log.debug("input#SELECT_ITEM_EVENT: item=", item);
-								// $scope.$broadcast(PROPOSE_ITEM_EVENT, reason, item, false,
-								// event);
+							$scope.$on(SELECT_ITEM_EVENT, function($event, reason, item, label, options, event) {
+								$log.debug("input#SELECT_ITEM_EVENT: item=", item, " options=", options);
 
-								if (reason === "propose") {
+								if (!options || options.clearShadow !== false) {
+									shadowInput.val("");
+								}
+
+								if (options && options.updateInput !== true) {
 									return;
 								}
 
@@ -327,12 +378,8 @@
 								}, 10, false);
 							});
 
-							$scope.$on(CLEAR_SUGGEST_EVENT, function($event, reason, event) {
-								shadowInput.val("");
-							});
-
-							$scope.$on(PROPOSE_ITEM_EVENT, function($event, reason, item, mergeInput, event) {
-								// $log.debug("input#PROPOSE_ITEM_EVENT: item=", item);
+							$scope.$on(PROPOSE_ITEM_EVENT, function($event, reason, item, options, event) {
+								$log.debug("input#PROPOSE_ITEM_EVENT: item=", item, " option=", options);
 
 								if (!item) {
 									input.data("cm_proposal", null);
@@ -340,19 +387,20 @@
 
 									// $log.debug("SIE4: SET input ''");
 
-									shadowInput.val("");
-
-									$scope.$broadcast(SELECT_ITEM_EVENT, "propose", null, null, event);
+									$scope.$broadcast(SELECT_ITEM_EVENT, "propose", null, null, options, event);
 									return;
 								}
 
 								input.prop("cm_proposalLabel", item.label);
 								input.data("cm_proposal", item);
 
+								options = options || {};
+								options.clearShadow = false;
+
 								var value = input.val();
 								if (value) {
 									var label = item.label;
-									if (mergeInput) {
+									if (options && options.mergeInput) {
 										label = value + label.substring(value.length);
 									}
 
@@ -361,12 +409,12 @@
 									shadowInput[0].scrollLeft = input[0].scrollLeft;
 
 									if (label === value) {
-										$scope.$broadcast(SELECT_ITEM_EVENT, "propose", item, label, event);
+										$scope.$broadcast(SELECT_ITEM_EVENT, "propose", item, label, options, event);
 										return;
 									}
 								}
 
-								$scope.$broadcast(SELECT_ITEM_EVENT, "propose", null, null, event);
+								$scope.$broadcast(SELECT_ITEM_EVENT, "propose", null, null, options, event);
 							});
 
 							$scope.$on(COMPLETE_INPUT_EVENT, function($event, reason, event) {
@@ -374,14 +422,20 @@
 								// shadowInput.val());
 
 								var si = shadowInput.val();
-								if (si && input.val() !== si) {
-									// $log.debug("SIE3: SET input '" + si + "'");
-									$event.done = true;
-
-									var item = input.data("cm_proposal");
-
-									$scope.$broadcast(SELECT_ITEM_EVENT, "complete", item, si, event);
+								if (!si || input.val() === si) {
+									return;
 								}
+
+								// $log.debug("SIE3: SET input '" + si + "'");
+								$event.done = true;
+
+								var item = input.data("cm_proposal");
+
+								$scope.$broadcast(SELECT_ITEM_EVENT, "complete", item, si, {
+									clearShadow: true,
+									updateInput: true
+								}, event);
+
 							});
 
 							$scope.$on(POPUP_OPEN_REQUEST_EVENT, function($event, reason, event) {
@@ -389,7 +443,6 @@
 							});
 
 							$scope.$on(FILTER_CHANGED_EVENT, function($event, reason, event) {
-								$log.debug("SIE5: Clear shadow ''");
 
 								shadowInput.val("");
 
@@ -399,14 +452,19 @@
 
 								var value = input.val();
 								if (!value) {
-									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, null, false, event);
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, null, {
+										clearShadow: false
+									}, event);
 									return;
 								}
 
-								// $log.debug("input#FILTER_CHANGED_EVENT: value=", value);
+								$log.debug("input#FILTER_CHANGED_EVENT: value=", value, "  listItems ...");
 
 								self.listItems(value, 1, self._buildCriterias()).then(function onSuccess(items) {
-									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, items[0], true, event);
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, items[0], {
+										clearShadow: false,
+										mergeInput: true
+									}, event);
 								});
 							});
 
@@ -526,6 +584,10 @@
 							});
 
 							var tagScope = this.$scope.$parent.$new();
+							li.on('$destroy', function() {
+								tagScope.$destroy();
+							});
+
 							tagScope.$tag = tag;
 							if (this.$scope.tagVar) {
 								tagScope[this.$scope.tagVar] = tag;
@@ -576,8 +638,6 @@
 							if (className) {
 								li.prop("cm_classes", className);
 							}
-
-							li.data('$isolateScope', tagScope);
 
 							this.tagStyleUpdate(li);
 							return li;
@@ -779,8 +839,10 @@
 									case Key.VK_ENTER:
 										if (openedPopup) {
 											$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "enterKey", event);
+
+										} else {
+											$scope.$broadcast("keyEnter", event);
 										}
-										$scope.$broadcast("keyEnter", event);
 										break;
 
 									default:
@@ -809,8 +871,10 @@
 										var item = angular.element(elements.item).data("cm_item");
 
 										if (item) {
-											$scope.$broadcast(CLEAR_SUGGEST_EVENT, "nextItem", event);
-											$scope.$broadcast(SELECT_ITEM_EVENT, "itemClick", item, null, event);
+											$scope.$broadcast(SELECT_ITEM_EVENT, "itemClick", item, null, {
+												clearShadow: true,
+												updateInput: true
+											}, event);
 										}
 										$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "itemClick", event);
 										$scope.$broadcast(FOCUS_INPUT_EVENT, "itemClick", event);
@@ -925,7 +989,7 @@
 									var item = angular.element(elements.item).data("cm_item");
 
 									if (item) {
-										$scope.$broadcast(SELECT_ITEM_EVENT, "itemClick", item, null, event);
+										$scope.$broadcast(SELECT_ITEM_EVENT, "itemClick", item, null, {}, event);
 									}
 									$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "itemClick", event);
 									$scope.$broadcast(FOCUS_INPUT_EVENT, "itemClick", event);
@@ -1158,7 +1222,11 @@
 							}
 
 							var $popupScope = $scope.$new(true);
-							ul.data('$isolateScope', $popupScope);
+							ul.on('$destroy', function() {
+								$popupScope.$destroy();
+							});
+
+							$log.debug("Suggest ", inputValue, " listItems ...");
 
 							var self = this;
 							var selectedId = null;
@@ -1173,8 +1241,11 @@
 
 									selectedId = selectedLI.id;
 
-									$scope.$broadcast(CLEAR_SUGGEST_EVENT, "nextItem", event);
-									$scope.$broadcast(SELECT_ITEM_EVENT, "openPopup", items[0], null, event);
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, "openPopup", items[0], null, {
+										clearShadow: true,
+										updateInput: false,
+										mergeInput: true
+									}, event);
 								}
 
 								self.itemsStyleUpdate(ul);
@@ -1216,30 +1287,105 @@
 									cui.EnsureVisible(ul[0], selectedLI);
 								}
 
-								$scope.$broadcast(CLEAR_SUGGEST_EVENT, "nextItem", event);
-								$scope.$broadcast(SELECT_ITEM_EVENT, "nextItem", item, null, event);
+								$scope.$broadcast(SELECT_ITEM_EVENT, "nextItem", item, null, {
+									clearShadow: true,
+									updateInput: true
+								}, event);
 							}
 
 							$popupScope.$on(NEXT_POPUP_ITEM_EVENT, function($event, reason, event) {
-								$log.debug("Process NEXT_POPUP_ITEM_EVENT");
+								// $log.debug("Process NEXT_POPUP_ITEM_EVENT");
 								selectItem("down", event);
 							});
 							$popupScope.$on(PREVIOUS_POPUP_ITEM_EVENT, function($event, reason, event) {
-								$log.debug("Process PREVIOUS_POPUP_ITEM_EVENT");
+								// $log.debug("Process PREVIOUS_POPUP_ITEM_EVENT");
 								selectItem("up", event);
 							});
 
-							$scope.$on(FILTER_CHANGED_EVENT, function($event, inputValue, reason, event) {
-								$log.debug("Process FILTER_CHANGED_EVENT '" + inputValue + "'");
+							$popupScope.$on(FILTER_CHANGED_EVENT, function($event, inputValue, reason, event) {
+								$log.debug("Process POPUP FILTER_CHANGED_EVENT '" + inputValue + "'  listItems ...");
 
 								var itemsPromise = self.listItems(inputValue, -1, self._buildCriterias());
 								itemsPromise.then(function(items) {
 									self._renderItems(ul, items);
 
-									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, items[0], true, event);
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, items[0], {
+										clearShadow: true,
+										updateInput: false,
+										mergeInput: true
+									}, event);
 								});
 							});
 
+						},
+
+						_showProgressMonitor: function(progressMonitor) {
+							var progressMonitorContainer = this._progressMonitorContainer;
+							if (!progressMonitor) {
+								if (!progressMonitorContainer) {
+									return;
+								}
+								this._progressMonitorContainer = undefined;
+
+								angular.element(progressMonitorContainer).remove();
+								return $q.when(false);
+							}
+
+							var self = this;
+							function updateLabel($event, progressMonitor, work) {
+								var pmc = self._progressMonitorContainer;
+
+								var elt = pmc && pmc.querySelector(".cm_combo_pm_label");
+								if (!elt) {
+									return;
+								}
+
+								var label;
+
+								if (typeof (work) === "string") {
+									label = work;
+								} else {
+									label = progressMonitor.getTaskName();
+								}
+
+								if (!isNaN(work)) {
+									label += " (" + Math.floor(work * 100) + "%)";
+								}
+
+								angular.element(elt).text(label);
+							}
+
+							progressMonitor.$on(ProgressMonitor.TASKNAME_CHANGED_EVENT, updateLabel);
+							progressMonitor.$on(ProgressMonitor.WORK_EVENT, updateLabel);
+
+							if (progressMonitorContainer) {
+								updateLabel(null, progressMonitor);
+								return $q.when(true);
+							}
+
+							return this._constructProgressMonitor(this.containerElement).then(function(elt) {
+								self._progressMonitorContainer = elt[0] || elt;
+
+								updateLabel(null, progressMonitor);
+
+								return true;
+							});
+						},
+						_constructProgressMonitor: function(parent) {
+							var pm = cc.createElement(parent, "div", {
+								id: "cm_cpm_" + (anonymousId++),
+								className: "cm_combo_pm"
+							});
+
+							cc.createElement(pm, "span", {
+								className: "cm_combo_pm_waitingCircle fa fa-circle-o-notch fa-spin"
+							});
+
+							cc.createElement(pm, "label", {
+								className: "cm_combo_pm_label"
+							});
+
+							return $q.when(pm);
 						}
 					});
 

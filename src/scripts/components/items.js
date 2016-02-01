@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -36,6 +36,23 @@
 
 		Item.prototype = {
 
+			isVisible: function() {
+				return this.$scope.visible !== false;
+			},
+
+			hasItem: function(listContext, item) {
+				var $scope = this.$scope;
+
+				if (angular.equals(item, $scope.value)) {
+					return true;
+				}
+
+				return false;
+			},
+
+			/**
+			 * @returns {Promise}
+			 */
 			filter: function(listContext, filterValue) {
 				var $scope = this.$scope;
 
@@ -110,6 +127,51 @@
 			};
 
 			Items.prototype = {
+
+				isVisible: function() {
+					return this.$scope.visible !== false;
+				},
+
+				hasItem: function(listContext, item) {
+					var $scope = this.$scope;
+
+					var label;
+					var itemLabel = $scope.itemLabel;
+					if (itemLabel) {
+						var labelExpression = listContext.$interpolate(itemLabel);
+
+						var $itemScope = listContext.$scope.$parent.$new(false);
+						try {
+							$itemScope.$item = row;
+							var varName = this.$scope.varName;
+							if (varName) {
+								$itemScope[varName] = row;
+							}
+
+							label = $itemScope.$eval(labelExpression);
+							if (label !== undefined) {
+								return true;
+							}
+						} finally {
+							$itemScope.destroy();
+						}
+					}
+
+					var itemColumn = this.$scope.itemColumn;
+					if (itemColumn) {
+						label = row[this.$scope.itemColumn];
+						if (label !== undefined) {
+							return true;
+						}
+					}
+
+					label = item.label;
+					if (label) {
+						return true;
+					}
+
+					return false;
+				},
 
 				filter: function(listContext, filterValue) {
 					var $scope = this.$scope;

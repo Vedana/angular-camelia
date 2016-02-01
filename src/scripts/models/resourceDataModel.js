@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -217,7 +217,7 @@
 										type: DataModel.DATA_LOADED,
 										count: response.length
 									});
-								}, 1000 * 4);
+								}, 1000 * 4, false);
 							} else {
 								deferred.notify({
 									type: DataModel.DATA_LOADED,
@@ -241,7 +241,7 @@
 							if (__SLOW_LOADING_SIMULATION) {
 								$timeout(function() {
 									deferred.resolve(cache[rowIndex] !== undefined);
-								}, 1000 * 6);
+								}, 1000 * 6, false);
 							} else {
 								deferred.resolve(cache[rowIndex] !== undefined);
 							}
@@ -277,7 +277,7 @@
 						deferred.notify({
 							type: DataModel.DATA_REQUESTING
 						});
-					}, 0);
+					}, 0, false);
 
 					if (__ERROR_LOADING_SIMULATION === 1) {
 						throw new Error({
@@ -291,7 +291,7 @@
 							deferred.notify({
 								type: DataModel.DATA_LOADING
 							});
-						}, 1000 * 2);
+						}, 1000 * 2, false);
 					}
 
 					// console.log("Ask for #" + rowIndex + " => Returns promise");

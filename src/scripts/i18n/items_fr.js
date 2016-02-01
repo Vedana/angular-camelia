@@ -10,16 +10,18 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.i18n.criteria", []);
+	var module = angular.module("camelia.i18n.items", []);
 
-	module.factory("camelia.i18n.Criteria", [ function() {
+	module.config([ '$provide', function($provide) {
 
-		return {
-			'en': {
-				alphabetic_others: "Others"
-			}
-		};
+		$provide.decorator("camelia.i18n.Items", [ '$delegate', function($delegate) {
 
+			return angular.extend($delegate, {
+				'fr': {
+					searching: "Recherche en cours ..."
+				}
+			});
+		} ]);
 	} ]);
 
 })(window, window.angular);

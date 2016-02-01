@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -30,12 +30,12 @@
 				label: '@',
 				id: '@',
 				className: '@class',
-				value: '@',
+				value: '=',
 				disabled: '@',
 				tooltip: '@',
-				searchWords: '@'
+				searchWords: '@',
+				visible: '@'
 			},
-			transclude: true,
 
 			compile: function() {
 				return {
@@ -62,14 +62,15 @@
 				id: '@',
 				value: '=',
 				varName: '@var',
-				itemColumn: '@itemcolumn'
+				itemColumn: '@itemcolumn',
+				visible: '@'
 			// itemLabel: '@',
 			// itemClass: '@class',
 			// itemDisabled: '@',
 			// itemTooltip: '@',
 			// itemSearchWords: '@'
+			// itemVisible: '@'
 			},
-			transclude: true,
 
 			compile: function() {
 				return {

@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -53,7 +53,6 @@
 					// tagClass: '@tagclass',
 					hasOpenPopupButton: '@hasopenpopupbutton'
 				},
-				replace: true,
 
 				controller: [ "$scope", function($scope) {
 					var componentProvider = $scope.componentProvider;

@@ -18,22 +18,8 @@
 
 			return angular.extend($delegate, {
 				'fr': {
-					bfirst_label: "Premier",
-					blast_label: "Dernier",
-					bprev_label: "",
-					bprev_className: "fa fa-angle-left",
-					bprev_tooltip: "Voir la page précédente",
-					bnext_label: "",
-					bnext_className: "fa fa-angle-right",
-					bnext_tooltip: "Voir la page suivante",
-					index_label: "{pageIndex}",
-					index_tooltip: "Voir page #{pageIndex}",
-					cindex_label: "{pageIndex}",
-					cindex_tooltip: "Page courrante #{pageIndex}",
-					uindex_label: "...",
-					uindex_tooltip: "Voir la page suivante",
-					separator: " ",
-					noPages: "Aucune page"
+					canceled: "Tâche annulée",
+					done: "Tâche finie"
 				}
 			});
 		} ]);

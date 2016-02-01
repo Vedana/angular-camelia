@@ -1,3 +1,8 @@
+/**
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @author olivier.oeuillot@vedana.com
+ */
 .cm_combo {
 	border: 0;
 	margin: 0;
@@ -113,6 +118,7 @@
 	margin-left: 4px;
 }
 
+.cm_combo_pm,
 .cm_combo_items {
 	list-style-image: none;
 	list-style-position: outside;
@@ -136,6 +142,7 @@
 	overflow: hidden;
 }
 
+.cm_combo[cm_progressMonitor] .cm_combo_container 
 .cm_combo[cm_openedPopup] .cm_combo_container {
 	z-index: 4000;
 	box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
@@ -209,3 +216,14 @@
 .cm_combo_items[cm_popupheight] {
 	overflow-y: auto;
 }
+
+.cm_combo_pm {
+	background-color:#26A0DA;
+	color:white;
+	font: 8pt Tahoma, Verdana, Arial, Helvetica, sans-serif;
+}
+
+.cm_combo_pm_waitingCircle {
+	margin: 4px;	
+}
+

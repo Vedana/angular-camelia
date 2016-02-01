@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -31,33 +31,28 @@
 					return {
 						restrict: "E",
 						scope: {
-							dataModelProvider: '=?',
-							dataModelProviderName: '@datamodelprovider',
-							componentProvider: '=?',
-							componentProviderName: '@componentprovider',
-							rendererProvider: '=?',
-							rendererProviderName: '@rendererprovider',
-							selectionProvider: '=?',
-							selectionProviderName: '@selectionprovider',
+							dataModelProvider: '=?datamodelprovider',
+							componentProvider: '=?componentprovider',
+							rendererProvider: '=?rendererprovider',
+							selectionProvider: '=?selectionprovider',
 							value: '=',
 							varName: '@var',
 							style: '@',
 							className: '@class',
-							lookId: '@',
+							lookId: '@lookid',
 							caption: '@',
 							// rowClass: '@', // Raw attribute
-							tabIndex: '@',
+							tabIndex: '@tabindex',
 							id: '@',
 							selection: '=?',
 							cursor: '=?',
-							columnCursor: '=?',
+							columnCursor: '=?columncursor',
 							first: '=?',
 							rows: '=?',
 							rowCount: '=?rowcount',
 							selectable: '@',
 							selectionCardinality: '@selectioncardinality'
 						},
-						replace: true,
 
 						controller: [ "$scope", function($scope) {
 							// var dataGridProvider='camelia.datagrid';

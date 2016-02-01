@@ -10,21 +10,14 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.i18n.grid", []);
+	var module = angular.module("camelia.i18n.progressMonitor", []);
 
-	module.factory("camelia.i18n.Grid", [ function() {
+	module.factory("camelia.i18n.ProgressMonitor", [ function() {
 
 		return {
 			'en': {
-				sortableColumn: "(Sortable)",
-				ascending: "(Sorted order ascending)",
-				descending: "(Sorted order descending)",
-				filtreableColumn: "",
-				filtredColumn: "(Filtred)",
-				loadingData: "Loading data ...",
-				receivingData: "{count} rows received ...",
-				loadingError: "Loading error",
-				criteriaList: "Filters list of column {title} :"
+				canceled: "Canceled task",
+				done: "Finished task"
 			}
 		};
 

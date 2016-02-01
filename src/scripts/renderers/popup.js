@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2016 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -131,12 +131,14 @@
 					});
 					this.container = container[0];
 
-					container.data("$isolateScope", this.$scope);
+					var self = this;
+					container.on('$destroy', function() {
+						self.$scope.$destroy();
+					});
 
 					var promise = this._render(angular.element(this.container));
 					promise = cc.ensurePromise(promise);
 
-					var self = this;
 					return promise.then(function() {
 						document.body.appendChild(self.container);
 
