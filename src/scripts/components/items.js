@@ -142,10 +142,10 @@
 
 						var $itemScope = listContext.$scope.$parent.$new(false);
 						try {
-							$itemScope.$item = row;
+							$itemScope.$item = item;
 							var varName = this.$scope.varName;
 							if (varName) {
-								$itemScope[varName] = row;
+								$itemScope[varName] = item;
 							}
 
 							label = $itemScope.$eval(labelExpression);
@@ -232,6 +232,16 @@
 						}
 					}
 
+					function onError(reason) {
+						release();
+
+						deferred.reject(reason);
+					}
+
+					function onUpdate(update) {
+						deferred.notify(update);
+					}
+
 					var self = this;
 					return rowCount.then(function onSuccess0(rowCount) {
 						var index = 0;
@@ -283,16 +293,6 @@
 							available = cc.ensurePromise(available);
 
 							return available.then(onSuccess, onError, onUpdate);
-						}
-
-						function onError(reason) {
-							release();
-
-							deferred.reject(reason);
-						}
-
-						function onUpdate(update) {
-							deferred.notify(update);
 						}
 
 						available.then(onSuccess, onError, onUpdate);

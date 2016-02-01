@@ -18,13 +18,14 @@
 	// Caution, it is not a singleton if $injector is used !
 	var anonymousId = 0;
 
-	module.factory("camelia.monitor.ProgressMonitor", [ "$log",
+	module.factory("camelia.monitor.ProgressMonitor", [  "$log",
+	  "$rootScope",
 		"$q",
 		"$injector",
 		"camelia.core",
 		"camelia.ScopeWrapper",
 		"camelia.i18n.ProgressMonitor",
-		function($log, $q, $injector, cc, ScopeWrapper, i18n) {
+		function($log, $rootScope, $q, $injector, cc, ScopeWrapper, i18n) {
 
 			function ProgressMonitor($parentScope, options) {
 				this._options = options || {};
@@ -140,7 +141,7 @@
 						return;
 					}
 					this._canceled = true;
-					this.$broadcast(CANCELED_EVENT, name);
+					this.$broadcast(ProgressMonitor.CANCELED_EVENT, name);
 
 					this.$emit(ProgressMonitor.SUB_TASKNAME_CHANGED_EVENT);
 

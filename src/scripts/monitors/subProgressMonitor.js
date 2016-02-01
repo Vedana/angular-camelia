@@ -112,9 +112,9 @@
 						return;
 					}
 
-					this._ticksSent += tick;
+					this._ticksSent += ticks;
 
-					this._parent.worked(tick);
+					this._parent.worked(ticks);
 				}
 			});
 
