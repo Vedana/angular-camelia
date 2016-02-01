@@ -14289,7 +14289,7 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.i18n.items", []);
+	var module = angular.module("camelia.i18n.items");
 
 	module.config([ '$provide', function($provide) {
 
