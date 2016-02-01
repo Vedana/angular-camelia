@@ -232,16 +232,6 @@
 						}
 					}
 
-					function onError(reason) {
-						release();
-
-						deferred.reject(reason);
-					}
-
-					function onUpdate(update) {
-						deferred.notify(update);
-					}
-
 					var self = this;
 					return rowCount.then(function onSuccess0(rowCount) {
 						var index = 0;
@@ -263,6 +253,17 @@
 						dataModel.setRowIndex(index);
 						var available = dataModel.isRowAvailable();
 						available = cc.ensurePromise(available);
+
+						function onError(reason) {
+							release();
+
+							deferred.reject(reason);
+						}
+
+						function onUpdate(update) {
+							deferred.notify(update);
+						}
+
 						function onSuccess(result) {
 							if (!result) {
 								release();
