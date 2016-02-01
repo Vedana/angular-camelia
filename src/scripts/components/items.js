@@ -159,7 +159,7 @@
 
 					var itemColumn = this.$scope.itemColumn;
 					if (itemColumn) {
-						label = row[this.$scope.itemColumn];
+						label = item[this.$scope.itemColumn];
 						if (label !== undefined) {
 							return true;
 						}
