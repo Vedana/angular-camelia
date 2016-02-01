@@ -1,5 +1,5 @@
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -22,6 +22,8 @@
 
 					var cmTypeMatchRegexp = /cm_([a-z]*)_.*/i;
 
+					var ESCAPE_REGEXP = /([\\\/\.\*\+\?\|\(\)\[\]\{\}\-\^])/g;
+
 					function int(str) {
 						return parseInt(str, 10);
 					}
@@ -29,6 +31,8 @@
 					var msie;
 
 					return {
+						EMPTY_IMAGE_SRC: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+
 						Assert: function(arg, name /* , message */) {
 							if (arg) {
 								return;
@@ -63,7 +67,7 @@
 							}
 
 							var doc;
-							if (parent.nodeType == 9) {
+							if (parent.nodeType === Node.DOCUMENT_NODE) {
 								doc = parent;
 								parent = doc.body.parentNode;
 
@@ -77,12 +81,12 @@
 								tagName = arguments[i++];
 								properties = arguments[i++];
 
-								this.Assert(typeof (tagName) == "string", "createElement", "Invalid 'tagName' parameter (" + tagName +
+								this.Assert(typeof (tagName) === "string", "createElement", "Invalid 'tagName' parameter (" + tagName +
 										")");
-								this.Assert(properties === undefined || typeof (properties) == "object", "createElement",
+								this.Assert(properties === undefined || typeof (properties) === "object", "createElement",
 										"Invalid properties parameter (" + properties + ")");
 
-								if (this.IsMSIE() <= 6 && tagName.toLowerCase() == "input" && properties && properties.type &&
+								if (this.IsMSIE() <= 6 && tagName.toLowerCase() === "input" && properties && properties.type &&
 										properties.name) {
 									element = doc.createElement("<input name=\"" + properties.name + "\" type=\"" + properties.type +
 											"\">");
@@ -137,6 +141,9 @@
 											break;
 
 										default:
+											if (value === undefined) {
+												break;
+											}
 											if (!name.indexOf("css")) { /* ==0 !!! */
 												element.style[name.substring(3, 4).toLowerCase() + name.substring(4)] = value;
 												break;
@@ -145,11 +152,14 @@
 											switch (typeof (value)) {
 											case "function":
 											case "object":
+												if (name.charAt(0) === "$") {
+													name = name.substring(1);
+												}
 												element[name] = value;
 												break;
 
 											default:
-												if (name.charAt(0) != "$") {
+												if (name.charAt(0) !== "$") {
 													element.setAttribute(name, value);
 												} else {
 													element[name.substring(1)] = value;
@@ -200,10 +210,12 @@
 								}
 
 								classes.push(base);
-								mat(classes, base, 0);
+								if (extensions) {
+									mat(classes, base, 0);
+								}
 							}
 
-							if (element.injector) {
+							if (element[0]) {
 								element = element[0];
 							}
 
@@ -212,7 +224,7 @@
 							}
 
 							var className = classes.join(" ");
-							if (element.className == className) {
+							if (element.className === className) {
 								return false;
 							}
 
@@ -221,67 +233,38 @@
 						},
 
 						BubbleEvent: function(element, eventName, eventData) {
-							if (element[0]) {
-								element = element[0];
-							}
-							var jqLite = angular.element;
-
-							var cache = jqLite.cache;
-							var expando = jqLite.expando;
-
-							eventData = eventData || [];
-
-							var event = {
-								type: eventName,
-								currentTarget: element,
-								relatedTarget: element,
-								preventDefault: angular.noop,
-								stopPropagation: function() {
-									this.stop = true;
-								}
-							};
-
-							angular.extend(event, eventData);
-
-							var params = [ event ];
-
-							for (; element && element.nodeType == 1 && !event.stop; element = element.parentNode) {
-
-								var expandoId = element[expando];
-								if (!expandoId) {
-									continue;
-								}
-								var expandoStore = cache[expandoId];
-								if (!expandoStore) {
-									continue;
-								}
-								var events = expandoStore.events;
-								if (!events) {
-									continue;
-								}
-								var eventFns = events[eventName];
-								if (!eventFns) {
-									continue;
-								}
-
-								angular.forEach(eventFns, function(fn) {
-									if (event.stop) {
-										return;
-									}
-
-									try {
-										if (fn.call) {
-											fn.call(element, event);
-											return;
-										}
-										if (fn.handler) {
-											fn.handler.call(element, event);
-										}
-									} catch (e) {
-										$exceptionHandler(e);
-									}
-								});
-							}
+							/*
+							 * if (element[0]) { element = element[0]; } var jqLite =
+							 * angular.element;
+							 * 
+							 * var cache = jqLite.cache; var expando = jqLite.expando;
+							 * 
+							 * eventData = eventData || [];
+							 * 
+							 * var event = { type: eventName, currentTarget: element,
+							 * relatedTarget: element, preventDefault: angular.noop,
+							 * stopPropagation: function() { this.stop = true; } };
+							 * 
+							 * angular.extend(event, eventData);
+							 * 
+							 * var params = [ event ];
+							 * 
+							 * for (; element && element.nodeType === Node.ELEMENT_NODE &&
+							 * !event.stop; element = element.parentNode) {
+							 * 
+							 * var expandoId = element[expando]; if (!expandoId) { continue; }
+							 * var expandoStore = cache[expandoId]; if (!expandoStore) {
+							 * continue; } var events = expandoStore.events; if (!events) {
+							 * continue; } var eventFns = events[eventName]; if (!eventFns) {
+							 * continue; }
+							 * 
+							 * angular.forEach(eventFns, function(fn) { if (event.stop) {
+							 * return; }
+							 * 
+							 * try { if (fn.call) { fn.call(element, event); return; } if
+							 * (fn.handler) { fn.handler.call(element, event); } } catch (e) {
+							 * $exceptionHandler(e); } }); }
+							 */
 						},
 						format: function(as) {
 							var cycles = [];
@@ -369,16 +352,27 @@
 
 						LoadProvider: function(providerName) {
 							var myInjector = $injector;
+							var moduleName = "";
 							var idx = providerName.indexOf(":");
 							if (idx > 0) {
-								var moduleName = providerName.substring(0, idx);
+								moduleName = providerName.substring(0, idx);
 								providerName = providerName.substring(idx + 1);
 
-								myInjector = angular.injector([ "ng", "camelia.core", moduleName ]);
+								if (!myInjector.has(providerName)) {
+									myInjector = angular.injector([ "ng", "camelia.core", moduleName ]);
+									
+									throw new Error("Provider '"+moduleName+"' is not in the context !");
+								}
 							}
 
 							var provider = myInjector.get(providerName);
-							return provider;
+							if (provider) {
+								return provider;
+							}
+
+							var err = new Error("Can not find provider='" + providerName + "' moduleName='" + moduleName + "'");
+							$log.error(err);
+							throw err;
 						},
 
 						CloneAttributes: function(element) {
@@ -397,12 +391,15 @@
 							return object && angular.isFunction(object.then);
 						},
 						isWindow: function(obj) {
-						  return obj && obj.document && obj.location && obj.alert && obj.setInterval;
+							return obj && obj.document && obj.location && obj.alert && obj.setInterval;
 						},
 						isScope: function(obj) {
-						  return obj && obj.$evalAsync && obj.$watch;
+							return obj && obj.$evalAsync && obj.$watch;
 						},
 
+						ensurePromise: function(object) {
+							return this.isPromise(object) ? object : $q.when(object);
+						},
 						toBoolean: function(value, defaultValue) {
 							if (value === true) {
 								return value;
@@ -410,7 +407,7 @@
 
 							if (value && value.length) {
 								var v = value.toLowerCase();
-								return !(v == "f" || v == "0" || v == "false" || v == "no" || v == "n" || v == "[]");
+								return !(v === "f" || v === "0" || v === "false" || v === "no" || v === "n" || v === "[]");
 							}
 
 							return !!defaultValue;
@@ -444,6 +441,9 @@
 						},
 
 						setFocus: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
 
 							// this.log("SetFocus ", element);
 
@@ -501,7 +501,7 @@
 							for (var i = 0; i < qs.length; i++) {
 								var ad = qs[i];
 
-								if (ad.type != type) {
+								if (ad.type !== type) {
 									continue;
 								}
 
@@ -526,20 +526,6 @@
 						getProto: function(type) {
 							return (Object.getPrototypeOf && Object.getPrototypeOf(type)) || type.__proto__;
 						},
-
-						inheritScope: function(obj, parentScope, isolate) {
-							var prototype = this.getProto(obj);
-
-							var scope = (parentScope || $rootScope).$new(isolate !== false);
-							if (Object.setPrototypeOf) {
-								Object.setPrototypeOf(obj, scope);
-								Object.setPrototypeOf(scope, prototype);
-								return;
-							}
-
-							obj.__proto__ = scope;
-							scope.__proto__ = prototype;
-						},
 						extend: function(clazz, parentClass, members) {
 							return this.extendProto(clazz, parentClass.prototype, members);
 						},
@@ -562,16 +548,16 @@
 								var self = this;
 
 								try {
-									if (async!==false) {
+									if (async !== false) {
 										return $timeout(function() {
-											
+
 											listener.call(self, event);
-											
+
 											(scope || $rootScope).$apply();
-											
+
 										}, 0, false);
 									}
-									
+
 									var ret;
 									(scope || $rootScope).$apply(function() {
 										ret = listener.call(self, event);
@@ -585,16 +571,130 @@
 
 							target.addEventListener(type, listenerApply, useCapture);
 
-							return function() {
+							var off = function() {
 								target.removeEventListener(type, listenerApply, useCapture);
 							};
-						}
+
+							if (scope) {
+								scope.$on("$destroy", off);
+							}
+
+							return off;
+						},
+
+						/**
+						 * @method private static
+						 * 
+						 * There are a few reserved chars in regular expressions. Handle
+						 * string encoding with a powerfull regular expression. Reserved
+						 * chars are the following set: \/.*+?|()[]{}-^
+						 */
+						escapeRegexp: function(str) {
+							if (!str) {
+								return "";
+							}
+							return str.replace(ESCAPE_REGEXP, "\\$1");
+						},
+						callPromise: function(f, thiz, params) {
+							return function() {
+								var ret = f.call(thiz, params);
+
+								return ret;
+							};
+						},
+
 					};
 				} ]);
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http:// www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module('camelia.core');
+
+	var ACCENTS_MAPPER = [ /[áãàâäåāăąȁȃȧǎǟǡ]/g,
+		"a",
+		/[æǣǽ]/g,
+		"ae",
+		/[çćĉċč]/g,
+		"c",
+		/[éèêëēĕėęěȅȇȩ]/g,
+		"e",
+		/[íìîïĩīĭįıȉȋǐ]/g,
+		"i",
+		/[ĳ]/g,
+		"ij",
+		/[ñńņňŉŋ]/g,
+		"n",
+		/[óõòôöōŏőȍȏǒȫȭȯȱ]/g,
+		"o",
+		/[œ]/g,
+		"oe",
+		/[úùûüµũūŭůűųǔǖǘǚǜ]/g,
+		"u",
+		/[ýÿŷȳ]/g,
+		"y",
+		/[ÀÁÂÃÄÅĀĂĄȀȂȦǍǞǠ]/g,
+		"A",
+		/[ÆǢǼ]/g,
+		"AE",
+		/[ÇĆĈĊČ]/g,
+		"C",
+		/[ÈÉÊËĒĔĖĘĚȄȆȨ]/g,
+		"E",
+		/[ÌÍÎÏĨĪĬĮİȈȊǏ]/g,
+		"I",
+		/[Ĳ]/g,
+		"IJ",
+		/[ÑŃŅŇŊ]/g,
+		"N",
+		/[ÓÔÕÖÒŌŎŐȌȎǑȪȬȮȰ]/g,
+		"O",
+		/[ŔŖŘ]/g,
+		/[Œ]/g,
+		"OE",
+		"R",
+		/[ÙÚÛÜŨŪŬŮŰŲǓǕǗǙǛ]/g,
+		"U",
+		/[ÝŶŸȲ]/g,
+		"Y" ];
+
+	module.factory('camelia.CharsetUtils', [ '$log', function($log) {
+
+		return {
+			removeAccents: function(text) {
+				var mapper = ACCENTS_MAPPER;
+
+				var ret = text;
+
+				for (var i = 0; i < mapper.length;) {
+					var expr = mapper[i++];
+					var code = mapper[i++];
+
+					ret = ret.replace(expr, code);
+				}
+
+				$log.debug("remove accents  of '" + text + "' to '" + ret + "'");
+
+				return ret;
+			}
+		};
+
+	} ]);
+
+})(window, window.angular);
+
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -605,6 +705,9 @@
 (function(window, angular, undefined) {
 	"use strict";
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	var camelia = angular.module("camelia.core");
 	camelia.factory("camelia.cmTypes", [ "camelia.core", function(cc) {
 
@@ -612,10 +715,11 @@
 
 		return {
 			GetCMType: function(node) {
-				if (!node || node.nodeType != 1) {
+				if (!node || node.nodeType !== Node.ELEMENT_NODE) {
 					return null;
 				}
 
+				/* jshint camelcase: false */
 				var type = node.cm_type;
 				if (type) {
 					return type;
@@ -644,7 +748,7 @@
 
 					ret[type] = node;
 
-					if (type == stopType) {
+					if (type === stopType) {
 						break;
 					}
 				}
@@ -656,57 +760,38 @@
 					element = element[0];
 				}
 
-				var extensions = [];
-
-				if (element._ascending) {
-					extensions.push("_ascending");
-				}
-
-				if (element._collapsed) {
-					extensions.push("_collapsed");
-				}
-
-				if (element._cursor) {
-					extensions.push("_cursor");
-				}
-
-				if (element._descending) {
-					extensions.push("_descending");
-				}
-
-				if (element._filtreable) {
-					extensions.push("_filtreable");
-				}
-
-				if (element._filtred) {
-					extensions.push("_filtred");
-				}
-
-				if (element._focus) {
-					extensions.push("_focus");
-				}
-
-				if (element._mouseDown) {
-					extensions.push("_mouseDown");
-				}
-
-				if (element._openedPopup) {
-					extensions.push("_openedPopup");
-				}
-
-				if (element._over) {
-					extensions.push("_over");
-				}
-
-				if (element._selected) {
-					extensions.push("_selected");
-				}
-
-				if (element._sortable) {
-					extensions.push("_sortable");
-				}
-
-				cc.MixClasses(element, classes, extensions, constantClasses);
+				/*
+				 * var extensions = [];
+				 * 
+				 * if (element._ascending) { extensions.push("_ascending"); }
+				 * 
+				 * if (element._collapsed) { extensions.push("_collapsed"); }
+				 * 
+				 * if (element._cursor) { extensions.push("_cursor"); }
+				 * 
+				 * if (element._descending) { extensions.push("_descending"); }
+				 * 
+				 * if (element._errored) { extensions.push("_error"); }
+				 * 
+				 * if (element._filtreable) { extensions.push("_filtreable"); }
+				 * 
+				 * if (element._filtred) { extensions.push("_filtred"); }
+				 * 
+				 * if (element._focus) { extensions.push("_focus"); }
+				 * 
+				 * if (element._mouseDown) { extensions.push("_mouseDown"); }
+				 * 
+				 * if (element._openedPopup) { extensions.push("_openedPopup"); } else
+				 * if (element._openedPopup === false) {
+				 * extensions.push("_closedPopup"); }
+				 * 
+				 * if (element._over) { extensions.push("_over"); }
+				 * 
+				 * if (element._selected) { extensions.push("_selected"); }
+				 * 
+				 * if (element._sortable) { extensions.push("_sortable"); }
+				 */
+				cc.MixClasses(element, classes, null, constantClasses);
 			},
 
 			ForEachElement: function(elements, type, func) {
@@ -725,7 +810,7 @@
 							continue;
 						}
 					} else {
-						if (ctype != type) {
+						if (ctype !== type) {
 							continue;
 						}
 					}
@@ -740,7 +825,7 @@
 				if (viewPort[0]) {
 					viewPort = viewPort[0];
 				}
-				if (viewPort.offsetHeight == viewPort.scrollHeight) {
+				if (viewPort.offsetHeight === viewPort.scrollHeight) {
 					return this.GetPreviousType(child, type, func);
 				}
 
@@ -770,7 +855,7 @@
 				var map = !angular.isString(type);
 
 				for (; child; child = child.previousSibling) {
-					if (child.nodeType != 1) {
+					if (child.nodeType !== Node.ELEMENT_NODE) {
 						continue;
 					}
 
@@ -783,7 +868,7 @@
 							continue;
 						}
 					} else {
-						if (ctype != type) {
+						if (ctype !== type) {
 							continue;
 						}
 					}
@@ -802,12 +887,12 @@
 				if (viewPort[0]) {
 					viewPort = viewPort[0];
 				}
-				if (viewPort.offsetHeight == viewPort.scrollHeight) {
+				if (viewPort.offsetHeight === viewPort.scrollHeight) {
 					return this.GetNextType(child, type, func);
 				}
 
 				var scrollTop = viewPort.scrollTop;
-				var clientHeight = viewPort.clientHeight;
+				// var clientHeight = viewPort.clientHeight;
 
 				var last = null;
 				this.GetNextType(child, type, function(child, ctype) {
@@ -832,7 +917,7 @@
 				var map = !angular.isString(type);
 
 				for (; child; child = child.nextSibling) {
-					if (child.nodeType != 1) {
+					if (child.nodeType !== Node.ELEMENT_NODE) {
 						continue;
 					}
 
@@ -845,7 +930,7 @@
 							continue;
 						}
 					} else {
-						if (ctype != type) {
+						if (ctype !== type) {
 							continue;
 						}
 					}
@@ -863,6 +948,7 @@
 			SwitchOnState: function(renderContext, elements, stateName, callback) {
 
 				var prefixedStateName = "_" + stateName;
+				var attr = "cm" + prefixedStateName;
 
 				// cc.log("StateOn[" + stateName + "] target=", target, " elements=",
 				// elements);
@@ -871,12 +957,13 @@
 					var propertyName = type + "_" + stateName;
 
 					var oldElementId = renderContext[propertyName];
-					if (oldElementId && (!element || oldElementId != element.id)) {
+					if (oldElementId && (!element || oldElementId !== element.id)) {
 						renderContext[propertyName] = null;
 
 						var oldElement = document.getElementById(oldElementId);
-						if (oldElement && oldElement[prefixedStateName]) {
-							oldElement[prefixedStateName] = false;
+						if (oldElement && oldElement.hasAttribute(attr)) {
+							// oldElement[prefixedStateName] = false;
+							oldElement.removeAttribute(attr);
 
 							cc.BubbleEvent(oldElement, "cm_update");
 						}
@@ -891,10 +978,17 @@
 					var propertyName = type + "_" + stateName;
 
 					if (!renderContext[propertyName]) {
-						renderContext[propertyName] = element.id;
+						var id = element.id;
+						if (!id) {
+							id = "__cm_types_" + (anonymousId++);
+							element.id = id;
+						}
 
-						if (!element[prefixedStateName]) {
-							element[prefixedStateName] = true;
+						renderContext[propertyName] = id;
+
+						if (!element.hasAttribute(attr)) {
+							// element[prefixedStateName] = true;
+							element.setAttribute(attr, true);
 
 							cc.BubbleEvent(element, "cm_update");
 						}
@@ -908,6 +1002,7 @@
 
 			SwitchOffState: function(renderContext, elements, stateName, callback) {
 				var prefixedStateName = "_" + stateName;
+				var attr = "cm" + prefixedStateName;
 
 				// cc.log("StateOff[" + stateName + "] target=", target, " elements=",
 				// elements);
@@ -916,13 +1011,14 @@
 					var propertyName = type + "_" + stateName;
 
 					var oldElementId = renderContext[propertyName];
-					if (oldElementId && (!element || oldElementId != element.id)) {
+					if (oldElementId && (!element || oldElementId !== element.id)) {
 						renderContext[propertyName] = null;
 
 						var oldElement = document.getElementById(oldElementId);
 
-						if (oldElement && oldElement[prefixedStateName]) {
-							oldElement[prefixedStateName] = false;
+						if (oldElement && oldElement.hasAttribute(attr)) {
+							// oldElement[prefixedStateName] = false;
+							oldElement.removeAttribute(attr);
 
 							cc.BubbleEvent(oldElement, "cm_update");
 						}
@@ -939,6 +1035,7 @@
 
 				var prefixedStateName = "_" + stateName;
 				var callbackElements = {};
+				var attr = "cm" + prefixedStateName;
 
 				angular.forEach(elements, function(element, type) {
 					var propertyName = type + "_" + stateName;
@@ -949,8 +1046,10 @@
 
 						var oldElement = document.getElementById(oldElementId);
 
-						if (oldElement && oldElement[prefixedStateName]) {
-							oldElement[prefixedStateName] = false;
+						if (oldElement && oldElement.hasAttribute(attr)) {
+							// oldElement[prefixedStateName] = value;
+							oldElement.removeAttribute(attr);
+
 							callbackElements[type] = oldElement;
 
 							cc.BubbleEvent(oldElement, "cm_update");
@@ -966,7 +1065,7 @@
 	} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -977,75 +1076,77 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.cursorProvider', [ "camelia.core" ]);
+	var module = angular.module('camelia.selection');
 
-	module.factory('camelia.CursorProvider', [ "$rootScope", "camelia.core", function($rootScope, cc) {
+	module.factory('camelia.CursorProvider', [ '$rootScope',
+		'camelia.core',
+		'camelia.ScopeWrapper',
+		function($rootScope, cc, ScopeWrapper) {
 
-		var scopeProto = cc.getProto($rootScope);
+			function CursorProvider($parentScope) {
+				ScopeWrapper.call(this, $parentScope.$new(true));
+			}
 
-		function CursorProvider($parentScope) {
-			cc.inheritScope(this, $parentScope);
-		}
+			CursorProvider.CURSOR_REQUESTED = "cm:cursorRequested";
+			CursorProvider.CURSOR_CHANGED = "cm:cursorChanged";
 
-		CursorProvider.CURSOR_REQUESTED = "cm:cursorRequested";
-		CursorProvider.CURSOR_CHANGED = "cm:cursorChanged";
+			cc.extend(CursorProvider, ScopeWrapper, {
 
-		cc.extendProto(CursorProvider, scopeProto, {
+				getRow: function() {
+					var rowValue = this._rowCursor;
 
-			getRow: function() {
-				var rowValue = this._rowCursor;
+					return rowValue;
+				},
 
-				return rowValue;
-			},
+				getColumn: function() {
+					var column = this._columnCursor;
 
-			getColumn: function() {
-				var column = this._columnCursor;
+					return column;
+				},
 
-				return column;
-			},
+				setCursor: function(row, column, sourceEvent) {
 
-			setCursor: function(row, column, sourceEvent) {
+					// cc.log("SetCursor row=", row, " column=", (column) ? column.id :
+					// null, " event=", sourceEvent);
 
-				cc.log("SetCursor row=", row, " column=", (column) ? column.id : null, " event=", sourceEvent);
+					if (this._rowCursor === row && this._columnCursor === column) {
+						return;
+					}
 
-				if (this._rowCursor === row && this._columnCursor === column) {
-					return;
-				}
+					var oldRow = this._rowCursor;
+					var oldColumn = this._columnCursor;
 
-				var oldRow = this._rowCursor;
-				var oldColumn = this._columnCursor;
+					this._rowCursor = row;
+					this._columnCursor = column;
 
-				this._rowCursor = row;
-				this._columnCursor = column;
-
-				this.$emit(CursorProvider.CURSOR_CHANGED, {
-					row: row,
-					column: column,
-					oldRow: oldRow,
-					oldColumn: oldColumn,
-					sourceEvent: sourceEvent
-				});
-			},
-
-			requestCursor: function(row, column, event) {
-
-				this.setCursor(row, column, event);
-
-				if (false) {
-					this.$emit(CursorProvider.REQUEST_CURSOR, {
+					this.$emit(CursorProvider.CURSOR_CHANGED, {
 						row: row,
-						column: column
+						column: column,
+						oldRow: oldRow,
+						oldColumn: oldColumn,
+						sourceEvent: sourceEvent
 					});
-				}
-			}
-		});
+				},
 
-		return CursorProvider;
-	} ]);
+				requestCursor: function(row, column, event) {
+
+					this.setCursor(row, column, event);
+
+					if (false) {
+						this.$emit(CursorProvider.REQUEST_CURSOR, {
+							row: row,
+							column: column
+						});
+					}
+				}
+			});
+
+			return CursorProvider;
+		} ]);
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -1056,1009 +1157,8 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.dataModel', [ 'camelia.core', 'ngResource' ]);
+	var module = angular.module('camelia.core');
 
-	module.factory('camelia.DataModel', [ "$q",
-		"$rootScope",
-		"camelia.core",
-		"$injector",
-		"$resource",
-		function($q, $rootScope, cc, $injector, $resource) {
-
-			var scopeProto = cc.getProto($rootScope);
-			var resourceProto = cc.getProto($resource());
-
-			function DataModel() {
-				cc.inheritScope(this);
-
-				var self = this;
-				this.$on("$destroy", function() {
-
-					var deRegistration = self._watcherDeRegistration;
-					if (deRegistration) {
-						self._watcherDeRegistration = undefined;
-
-						deRegistration();
-					}
-
-					self._wrappedData = undefined;
-					self._sorters = undefined;
-					self._filters = undefined;
-					self._dataScope = undefined;
-					self._fetchProperties = undefined;
-				});
-			}
-
-			DataModel.DATA_REQUESTING = "c:dataRequesting";
-
-			DataModel.DATA_LOADING = "c:dataLoading";
-
-			DataModel.DATA_LOADED = "c:dataLoaded";
-
-			DataModel.DATA_MODEL_CHANGED_EVENT = "cm:dataModelChanged";
-
-			DataModel.DATA_MODEL_UPDATED_EVENT = "cm:dataModelUpdated";
-
-			DataModel.From = function(parameter) {
-
-				if (parameter instanceof DataModel) {
-					return parameter;
-				}
-
-				var parameterProto = parameter && cc.getProto(parameter);
-
-				if (parameterProto === resourceProto) {
-					return $injector.invoke([ "camelia.ResourceDataModel", function(ResourceDataModel) {
-						return new ResourceDataModel(parameter);
-					} ]);
-				}
-				if (angular.isArray(parameter)) {
-					return $injector.invoke([ "camelia.ArrayDataModel", function(ArrayDataModel) {
-						return new ArrayDataModel(parameter);
-					} ]);
-				}
-
-				return new DataModel();
-			};
-
-			cc.extendProto(DataModel, scopeProto, {
-
-				_rowIndex: -1,
-
-				installWatcher: function($scope, varName) {
-					var self = this;
-					this._watcherDeRegistration = $scope.$watch(varName, function(newValue) {
-						self.$broadcast(DataModel.DATA_MODEL_CHANGED_EVENT, newValue);
-					});
-				},
-
-				/**
-				 * @return {Promise|boolean}
-				 */
-				isRowAvailable: function() {
-					return false;
-				},
-				/**
-				 * @param {boolean}
-				 *          force returns promise if not known
-				 * @return {Promise|number}
-				 */
-				getRowCount: function(force) {
-					return -1;
-				},
-				/**
-				 * @return {Object}
-				 */
-				getRowData: function() {
-					return undefined;
-				},
-				/**
-				 * @return {number}
-				 */
-				getRowIndex: function() {
-					return this._rowIndex;
-				},
-				/**
-				 * @param {number}
-				 *          rowIndex
-				 */
-				setRowIndex: function(rowIndex) {
-					var old = this._rowIndex;
-
-					this._rowIndex = rowIndex;
-
-					if (this.$parent == $rootScope) {
-						if (old < 0 && rowIndex >= 0) {
-							// Broadcast START
-							this.$broadcast("cm:begin");
-						}
-
-						if (old >= 0 && rowIndex < 0) {
-							this.$broadcast("cm:end");
-						}
-					}
-				},
-				getWrappedData: function() {
-					return this._wrappedData;
-				},
-				setWrappedData: function(data) {
-					this._wrappedData = data;
-				},
-				setFetchProperties: function(fetchProperties) {
-					this._fetchProperties = fetchProperties;
-				},
-				setSorters: function(sorters) {
-					if (this._sorters === sorters) {
-						return false;
-					}
-					this._sorters = sorters;
-					return true;
-				},
-				setFilters: function(filters) {
-					if (this._filters === filters) {
-						return false;
-					}
-					this._filters = filters;
-					return true;
-				},
-				setGrouped: function(grouped) {
-					this._grouped = !!grouped;
-				},
-				isGrouped: function() {
-					return this._grouped;
-				},
-				setDataScope: function(scope) {
-					this._dataScope = scope;
-				},
-				isFilterSupport: function() {
-					return this.filterSupport;
-				},
-				isSortSupport: function() {
-					return this.sortSupport;
-				},
-				isGroupSupport: function() {
-					return this.groupSupport;
-				},
-				/**
-				 * @returns {Array|Promise}
-				 */
-				toArray: function() {
-					var array = [];
-
-					var index = 0;
-
-					var self = this;
-					function promiseIndex(available) {
-
-						for (; available; index++) {
-							self.setRowIndex(index);
-
-							available = self.isRowAvailable();
-							if (available === false) {
-								break;
-							}
-
-							if (cc.isPromise(available)) {
-								return available.then(promiseIndex);
-							}
-
-							var data = self.getRowData();
-
-							array.push(data);
-						}
-
-						self.setRowIndex(-1);
-
-						return $q.when(array);
-					}
-
-					var ret = array;
-					try {
-						ret = promiseIndex(true);
-
-					} catch (x) {
-						this.setRowIndex(-1);
-
-						throw x;
-					}
-
-					return ret;
-				},
-
-				$destroyChildren: function() {
-					for (; this.$$childHead;) {
-						this.$$childHead.$destroy();
-					}
-				}
-			});
-
-			return DataModel;
-		} ]);
-
-	/*
-	 * ------------------------ ArrayDataModel ------------------------------
-	 */
-
-	module.factory('camelia.ArrayDataModel', [ 'camelia.DataModel', 'camelia.core', function(DataModel, cc) {
-
-		function ArrayDataModel(array) {
-			DataModel.prototype.constructor.call(this);
-
-			this.setWrappedData(array);
-		}
-
-		cc.extend(ArrayDataModel, DataModel, {
-			installWatcher: function($scope, varName) {
-				var self = this;
-				this._watcherDeRegistration = $scope.$watchCollection(varName, function(newValue, oldValue) {
-					if (oldValue === undefined) {
-						return;
-					}
-
-					self.setWrappedData(newValue);
-					self.$broadcast(DataModel.DATA_MODEL_UPDATED_EVENT, newValue);
-				});
-			},
-
-			/**
-			 * @return {Promise}
-			 */
-			isRowAvailable: function() {
-				var index = this.getRowIndex();
-				var rowCount = this.getRowCount();
-
-				if (index >= 0 && (rowCount < 0 || index < rowCount)) {
-					return true;
-				}
-
-				return false;
-			},
-			/**
-			 * @return {Promise|number}
-			 */
-			getRowCount: function() {
-				var array = this.getWrappedData();
-				if (!array) {
-					return 0;
-				}
-				return array.length;
-			},
-			/**
-			 * @return {Object}
-			 */
-			getRowData: function() {
-				if (!this.isRowAvailable()) {
-					throw new Error("Invalid rowIndex (" + this.getRowIndex() + "/" + this.getRowCount() + ")");
-				}
-
-				var array = this.getWrappedData();
-
-				var index = this.getRowIndex();
-				return array[index];
-			},
-			toArray: function() {
-				var array = this.getWrappedData();
-				if (angular.isArray(array)) {
-					return array;
-				}
-
-				return DataModel.prototype.toArray.call(this);
-			}
-		});
-
-		return ArrayDataModel;
-	} ]);
-
-	/*
-	 * ------------------------ WrappedArrayDataModel ------------------------
-	 */
-
-	module.factory('camelia.WrappedArrayDataModel', [ 'camelia.ArrayDataModel',
-		"camelia.core",
-		function(ArrayDataModel, cc) {
-
-			var DELEGATE_TO_PARENT = "$$DELAGATE_PARENT$$";
-			var NO_DATA = "$$NO-DATA$$";
-
-			function WrappedArrayDataModel(dataModel) {
-				ArrayDataModel.call(this, undefined);
-
-				this.$parent = dataModel;
-
-			}
-
-			cc.extend(WrappedArrayDataModel, ArrayDataModel, {
-
-				setSorters: function(sorters) {
-					this.$parent.setSorters(sorters);
-					WrappedArrayDataModel.prototype.$super.setSorters.call(this, sorters);
-				},
-				setFilters: function(filters) {
-					this.$parent.setFilters(filters);
-					WrappedArrayDataModel.prototype.$super.setFilters.call(this, filters);
-				},
-				setGrouped: function(grouped) {
-					this.$parent.setGrouped(grouped);
-					WrappedArrayDataModel.prototype.$super.setGrouped.call(this, grouped);
-				},
-				setDataScope: function(scope) {
-					this.$parent.setDataScope(scope);
-					WrappedArrayDataModel.prototype.$super.setDataScope.call(this, scope);
-				},
-				isFilterSupport: function() {
-					return WrappedArrayDataModel.prototype.$super.isFilterSupport.call(this) || this.$parent.isFilterSupport();
-				},
-				isSortSupport: function() {
-					return WrappedArrayDataModel.prototype.$super.isSortSupport.call(this) || this.$parent.isSortSupport();
-				},
-				isGroupSupport: function() {
-					return WrappedArrayDataModel.prototype.$super.isGroupSupport.call(this) || this.$parent.isGroupSupport();
-				},
-
-				setFetchProperties: function(fetchProperties) {
-					this.$parent.setFetchProperties(fetchProperties);
-					WrappedArrayDataModel.prototype.$super.setFetchProperties.call(this, fetchProperties);
-				},
-
-				setRowIndex: function(index) {
-					this.$parent.setRowIndex(index);
-					WrappedArrayDataModel.prototype.$super.setRowIndex.call(this, index);
-				},
-
-				getRowCount: function() {
-					// TODO Fix must call isRowAvailable before !!!!?
-					var localArray = this.getWrappedData();
-					if (localArray === undefined) {
-						return -1;
-					}
-
-					if (localArray === DELEGATE_TO_PARENT) {
-						return this.$parent.getRowCount();
-					}
-
-					return WrappedArrayDataModel.prototype.$super.getRowCount.call(this);
-				},
-
-				getRowData: function() {
-					var localArray = this.getWrappedData();
-					if (localArray === DELEGATE_TO_PARENT) {
-						return this.$parent.getRowData();
-					}
-
-					return WrappedArrayDataModel.prototype.$super.getRowData.call(this);
-				},
-
-				isRowAvailable: function() {
-
-					var localArray = this.getWrappedData();
-
-					if (localArray === DELEGATE_TO_PARENT) {
-						return this.$parent.isRowAvailable();
-					}
-
-					if (localArray === NO_DATA) {
-						return false;
-					}
-
-					if (localArray) {
-						return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(this);
-					}
-
-					var self = this;
-
-					function _arrayReady(parentArray) {
-
-						localArray = self.processParentArray(parentArray);
-
-						self.setWrappedData(localArray);
-
-						return WrappedArrayDataModel.prototype.$super.isRowAvailable.call(self);
-					}
-
-					function _processArray() {
-						var parentArray = self.$parent.toArray();
-
-						if (cc.isPromise(parentArray)) {
-							return parentArray.then(function(array) {
-								return _arrayReady(array);
-							});
-						}
-
-						if (!parentArray) {
-							parentArray = [];
-						}
-
-						if (angular.isArray(parentArray)) {
-							return _arrayReady(parentArray);
-						}
-
-						throw new Error("Invalid toArray return !");
-					}
-
-					var avail = this.$parent.isRowAvailable();
-					if (avail === false) {
-						this.setWrappedData(NO_DATA);
-						return false;
-					}
-
-					if (!cc.isPromise(avail)) {
-						if (this.delegateToParent()) {
-							this.setWrappedData(DELEGATE_TO_PARENT);
-							return true;
-						}
-
-						return _processArray();
-					}
-
-					return avail.then(function(av) {
-						if (av === false) {
-							self.setWrappedData(NO_DATA);
-							return false;
-						}
-
-						if (self.delegateToParent()) {
-							self.setWrappedData(DELEGATE_TO_PARENT);
-							return true;
-						}
-
-						return _processArray();
-					});
-				},
-
-				delegateToParent: function() {
-					return false;
-				},
-
-				processParentArray: function(array) {
-					return array;
-				}
-			});
-
-			return WrappedArrayDataModel;
-		} ]);
-
-	/*
-	 * ------------------------ SortedDataModel ----------------------------
-	 */
-
-	module.factory('camelia.SortedDataModel', [ 'camelia.WrappedArrayDataModel',
-		'camelia.core',
-		function(WrappedArrayDataModel, cc) {
-
-			function SortedDataModel(dataModel) {
-				WrappedArrayDataModel.call(this, dataModel);
-
-				this.sortSupport = true;
-			}
-
-			cc.extend(SortedDataModel, WrappedArrayDataModel, {
-
-				processParentArray: function(array) {
-
-					if (!this._sorters) {
-						return array;
-					}
-
-					var scope = this._dataScope.$new(true);
-					try {
-						angular.forEach(this._sorters, function(sorter) {
-
-							scope.$array = array;
-
-							var expression = sorter.expression;
-							if (expression == "orderBy:" && sorter.column.$scope.fieldName) {
-								expression += "'" + sorter.column.$scope.fieldName + "'";
-							}
-
-							var newArray = scope.$eval("$array | " + expression);
-
-							if (!sorter.ascending) {
-								newArray = newArray.reverse();
-							}
-
-							array = newArray;
-						});
-
-					} finally {
-						scope.$destroy();
-					}
-
-					return array;
-				},
-
-				delegateToParent: function() {
-					return this.$parent.isSortSupport() || !this._sorters;
-				},
-				getRowCount: function() {
-					return this.$parent.getRowCount();
-				}
-			});
-
-			return SortedDataModel;
-		} ]);
-
-	/*
-	 * ------------------------ FiltredDataModel ----------------------------
-	 */
-
-	module.factory('camelia.FiltredDataModel', [ 'camelia.WrappedArrayDataModel',
-		'camelia.core',
-		function(WrappedArrayDataModel, cc) {
-
-			function FiltredDataModel(dataModel, rowVarName) {
-				WrappedArrayDataModel.call(this, dataModel);
-
-				this.filterSupport = true;
-				this._rowVarName = rowVarName;
-			}
-
-			cc.extend(FiltredDataModel, WrappedArrayDataModel, {
-				processParentArray: function(array) {
-
-					var filters = this._filters;
-					if (!filters || !filters.length) {
-						return array;
-					}
-
-					var filtersLength = filters.length;
-					var rowVarName = this._rowVarName;
-
-					var newArray = [];
-					var rowScope = this._dataScope.$new(true);
-					var self = this;
-					try {
-						angular.forEach(array, function(rowData) {
-
-							rowScope.$row = rowData;
-							if (rowVarName) {
-								rowScope[rowVarName] = rowData;
-							}
-
-							for (var i = 0; i < filtersLength; i++) {
-								var filter = filters[i];
-
-								if (filter(rowScope, self) === false) {
-									return;
-								}
-							}
-
-							newArray.push(rowData);
-						});
-
-					} finally {
-						rowScope.$destroy();
-					}
-
-					return newArray;
-				},
-
-				delegateToParent: function() {
-					return this.$parent.isFilterSupport() || !this._filters;
-				}
-			});
-
-			return FiltredDataModel;
-		} ]);
-
-	/*
-	 * ------------------------ GroupedDataModel ----------------------------
-	 */
-
-	module.factory('camelia.GroupedDataModel', [ 'camelia.WrappedArrayDataModel',
-		"camelia.core",
-		function(WrappedArrayDataModel, cc) {
-			function GroupedDataModel(dataModel, groupProvider, rowVarName) {
-				WrappedArrayDataModel.call(this, dataModel);
-
-				this.groupSupport = true;
-
-				this._groupInitialized = false;
-				this._groupProvider = groupProvider;
-				this._rowVarName = rowVarName;
-				this._groups = [];
-				this._groupCount = [];
-				this._groupValues = [];
-
-				var self = this;
-				this.$on("$destroy", function() {
-					self._groupProvider = groupProvider;
-					self._rowVarName = rowVarName;
-					self._groups = [];
-					self._groupCount = [];
-					self._groupValues = [];
-				});
-			}
-
-			cc.extend(GroupedDataModel, WrappedArrayDataModel, {
-
-				getGroup: function(rowScope, rowData) {
-					var expression = this._groupProvider.$scope.valueRawExpression;
-
-					rowScope.$row = rowData;
-					if (this._rowVarName) {
-						rowScope[this._rowVarName] = rowData;
-					}
-
-					var value = rowScope.$eval(expression);
-
-					return value;
-				},
-				getGroupCount: function(group) {
-					var idx = this._groups.indexOf(group);
-					if (idx < 0) {
-						return -1;
-					}
-
-					return this._groupCount[idx];
-				},
-				getGroupValues: function(group) {
-					var idx = this._groups.indexOf(group);
-					if (idx < 0) {
-						return -1;
-					}
-
-					return this._groupValues[idx];
-				},
-
-				xxxisRowAvailable: function() {
-					var ret = WrappedArrayDataModel.prototype.isRowAvailable.call(this);
-					if (!ret || cc.isPromise(ret)) {
-						return ret;
-					}
-
-					var array = this.toArray();
-					if (cc.isPromise(array)) {
-						var self = this;
-						return array.then(function(array) {
-							self.processParentArray(array);
-
-							return ret;
-						});
-					}
-
-					this.processParentArray(array);
-					return ret;
-				},
-
-				processParentArray: function(array) {
-					if (this._groupInitialized) {
-						return array;
-					}
-
-					this._groupInitialized = true;
-					if (!this._grouped) {
-						return array;
-					}
-
-					var rowScope = this._dataScope.$new(true);
-					try {
-						var self = this;
-
-						var groups = this._groups;
-						var groupCount = this._groupCount;
-						var groupValues = this._groupValues;
-
-						angular.forEach(array, function(rowData) {
-
-							var group = self.getGroup(rowScope, rowData);
-							var idx = groups.indexOf(group);
-							if (idx < 0) {
-								idx = groups.length;
-								groupCount[idx] = 0;
-							}
-
-							groups[idx] = group;
-							groupCount[idx]++;
-
-							if (!groupValues[idx]) {
-								groupValues[idx] = [];
-							}
-
-							groupValues[idx].push(rowData);
-						});
-
-						var sortedGroup = cc.CloneArray(groups);
-
-						// Sort groups
-						var expression = this._groupProvider.$scope.sorter;
-						if (expression) {
-							rowScope.$array = sortedGroup;
-
-							sortedGroup = rowScope.$eval("$array | " + expression);
-						}
-
-						var ret = [];
-						angular.forEach(sortedGroup, function(group) {
-							var idx = groups.indexOf(group);
-
-							ret = ret.concat(groupValues[idx]);
-						});
-
-						return ret;
-
-					} finally {
-						rowScope.$destroy();
-					}
-				},
-
-				delegateToParent: function() {
-					return this.$parent.isGroupSupport() || !this._grouped;
-				},
-				getRowCount: function() {
-					return this.$parent.getRowCount();
-				}
-			});
-
-			return GroupedDataModel;
-		} ]);
-	/*
-	 * ------------------------ ProgressDataModel ----------------------------
-	 */
-	module.factory('camelia.ResourceDataModel', [ '$q', 'camelia.DataModel', 'camelia.core', function($q, DataModel, cc) {
-
-		var DEFAULT_VALUES = {
-			pageSize: 20,
-			offsetMod: 10,
-			offsetParameter: "offset",
-			countParameter: "count",
-			sorterParameter: "sorter",
-			filterParameter: "filter",
-			actionName: "query",
-			keepCache: false
-		};
-
-		var sessionId = 0;
-
-		function ResourceDataModel($resource, configuration) {
-			DataModel.call(this);
-
-			angular.extend(this, angular.extend(DEFAULT_VALUES, configuration || {}));
-			this.$resource = $resource;
-
-			this._sessionId = 0;
-			this._rowCount = -1;
-
-			this._cache = [];
-
-			var self = this;
-			this.$on("begin", function() {
-				self._sessionId = (sessionId++);
-				// console.log("Start session " + self._sessionId);
-			});
-
-			this.$on("end", function() {
-				// console.log("End session " + self._sessionId);
-				self._sessionId = -1;
-
-				var requestPromise = self._requestPromise;
-				if (requestPromise) {
-					self._requestPromise = undefined;
-					requestPromise.cancel();
-				}
-			});
-
-			this.$on("clearState", function() {
-				// debugger;
-				self._cache = [];
-				self._rowCount = -1;
-			});
-		}
-
-		cc.extend(ResourceDataModel, DataModel, {
-
-			isRowAvailable: function() {
-				this.needRowAvailable = false;
-				var rowIndex = this.getRowIndex();
-
-				var cache = this._cache;
-				if (cache[rowIndex] !== undefined) {
-					// console.log("Ask for #" + rowIndex + " => in cache !");
-					return true;
-				}
-
-				if (this._rowCount >= 0 && rowIndex >= this._rowCount) {
-					// console.log("Ask for #" + rowIndex + " => outside of rowCount");
-					return false;
-				}
-
-				this.sortSupport = false;
-				this.filterSupport = false;
-
-				var deferred = $q.defer();
-
-				var fetchProperties = this._fetchProperties;
-
-				var offset = rowIndex;
-				var fetchRows = (fetchProperties && fetchProperties.rows) || 0;
-				var rows = Math.max(fetchRows, this.pageSize);
-
-				if (this.offsetMod > 0) {
-					offset -= (offset % this.offsetMod);
-
-					var last = (rowIndex + rows - 1);
-					last -= (last % this.offsetMod);
-
-					rows = (Math.floor((last - offset) / this.pageSize) + 1) * this.pageSize;
-
-					// console.log("rowIndex=" + rowIndex + " offset=" + offset + " last="
-					// + last + " rows=" + rows + " pageSize="+ this.pageSize);
-				}
-
-				if (this._keepCache === false) {
-					cache = [];
-					this._cache = cache;
-
-				} else {
-					for (var i = offset + rows - 1; i > offset; i--) {
-						if (cache[i] === undefined) {
-							break;
-						}
-						rows--;
-					}
-				}
-
-				var currentSessionId = this._sessionId;
-
-				var actionName = this.actionName;
-
-				var params = {};
-				params[this.offsetParameter] = offset;
-				params[this.countParameter] = rows;
-
-				if (this._sorters && this.sorterParameter) {
-					var ss = [];
-					params[this.sorterParameter] = ss;
-
-					angular.forEach(this._sorters, function(sorter) {
-						var expression = sorter.expression || sorter.column.$scope.fieldName || sorter.column.$scope.id;
-
-						if (!sorter.ascending) {
-							expression += ":desc";
-						}
-
-						ss.push(expression);
-					});
-
-					this.sortSupport = true;
-				}
-
-				var filters = this._filters;
-				if (filters && this.filterParameter) {
-					var ps = [];
-					params[this.filterParameter] = ps;
-
-					angular.forEach(filters, function(filter) {
-						if (!filter.toJson) {
-							return;
-						}
-
-						var parameters = filter.toJson();
-						if (parameters) {
-							ps.push(parameters);
-						}
-
-					});
-
-					this.filterSupport = true;
-				}
-
-				if (this._rowCount < 0 && this.requestRowCountParameter) {
-					params[this.requestRowCountParameter] = true;
-				}
-
-				var requestPromise = this._requestPromise;
-				if (requestPromise) {
-					this._requestPromise = undefined;
-					requestPromise.cancel();
-				}
-
-				var self = this;
-				var ret = this.$resource[actionName].call(this.$resource, params, function(response, responseHeaders) {
-					self._requestPromise = undefined;
-					if (self._sessionId != currentSessionId) {
-						return deferred.reject("Session canceled");
-					}
-					deferred.notify({
-						type: DataModel.DATA_LOADED
-					});
-
-					for (var i = 0; i < response.length; i++) {
-						cache[i + offset] = response[i];
-
-						// console.log("Reg#" + (i + offset) + " => " + response[i]);
-					}
-					if (response.length < rows) {
-						if (response.length || !offset) {
-							self._rowCount = offset + response.length;
-						}
-					}
-
-					// console.log("Ask for #" + rowIndex + " => Deferred " +
-					// cache[rowIndex]);
-
-					deferred.resolve(cache[rowIndex] !== undefined);
-
-				}, function(error) {
-					return deferred.reject("Query error: " + error);
-				});
-
-				this._requestPromise = ret.$promise;
-
-				this._requestPromise.then(null, null, function() {
-					if (self._sessionId != currentSessionId) {
-						return;
-					}
-
-					console.log("progress ...");
-
-					deferred.notify({
-						type: DataModel.DATA_LOADING
-					});
-				});
-
-				// console.log("Ask for #" + rowIndex + " => Returns promise");
-
-				return deferred.promise;
-			},
-
-			setRowIndex: function(index) {
-				// console.log("Set rowIndex=" + index);
-				ResourceDataModel.prototype.$super.setRowIndex.call(this, index);
-				this.needRowAvailable = true;
-			},
-			getRowData: function() {
-				if (this.needRowAvailable) {
-					debugger;
-				}
-
-				var rowIndex = this.getRowIndex();
-
-				var ret = this._cache[rowIndex];
-
-				// console.log("#" + rowIndex + " => " + ret + " " + typeof (rowIndex));
-
-				if (ret === undefined) {
-					debugger;
-				}
-
-				return ret;
-			},
-			getRowCount: function(force) {
-				return this._rowCount;
-			},
-			setSorters: function(sorters) {
-				ResourceDataModel.prototype.$super.setSorters.call(this, sorters);
-				this._cache = [];
-				this._rowCount = -1;
-			},
-			setFilters: function(filters) {
-				ResourceDataModel.prototype.$super.setFilters.call(this, filters);
-				this._cache = [];
-				this._rowCount = -1;
-			},
-			setGrouped: function(grouped) {
-				ResourceDataModel.prototype.$super.setGrouped.call(this, grouped);
-				this._cache = [];
-				this._rowCount = -1;
-			}
-
-		});
-
-		return ResourceDataModel;
-	} ]);
-
-})(window, window.angular);
-/**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
- * @author olivier.oeuillot@vedana.com
- */
-
-(function(window, angular, undefined) {
-	'use strict';
-
-	var module = angular.module('camelia.key', []);
-	
 	module.factory('camelia.Key', [ function() {
 
 		return {
@@ -2225,7 +1325,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -2254,12 +1354,21 @@
 		var promisesByTargetId = controller.promisesByTargetId;
 
 		var PagerRegistry = {
-			TARGET_DECLARED: "cm:targetDeclared",
 
 			RegisterWaitingFor: function($pagerScope, targetId) {
 
 				var pagerDeferredList = promisesByTargetId[targetId];
-				if (pagerDeferredList === true) {
+
+				var target = document.getElementById(targetId);
+				if (target && target.cmPagerRegistred) {
+					delete promisesByTargetId[targetId];
+
+					if (pagerDeferredList) {
+						angular.forEach(pagerDeferredList, function(deferred) {
+							deferred.resolve(target);
+						});
+					}
+
 					return $q.when(target);
 				}
 
@@ -2278,7 +1387,12 @@
 						return;
 					}
 
-					pagerDeferredList.splice(idx, 1);
+					if (pagerDeferredList.length > 1) {
+						pagerDeferredList.splice(idx, 1);
+
+					} else {
+						delete promisesByTargetId[targetId];
+					}
 
 					deferred.reject("Pager destroyed");
 
@@ -2293,10 +1407,11 @@
 					target = target[0];
 				}
 
+				target.cmPagerRegistred = true;
 				var targetId = target.id;
 
 				var ts = promisesByTargetId[targetId];
-				promisesByTargetId[targetId] = true;
+				delete promisesByTargetId[targetId];
 				if (!ts) {
 					return;
 				}
@@ -2312,7 +1427,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -2323,21 +1438,60 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selectionProvider', [ "camelia.core" ]);
+	var LINK_SCOPE = true;
+
+	var module = angular.module('camelia.core');
+
+	module.factory('camelia.ScopeWrapper', [ "$rootScope", "camelia.core", function($rootScope, cc) {
+		function ScopeWrapper($scope) {
+			this.$scope = $scope;
+
+			if (LINK_SCOPE) {
+				$scope.$cmLink = this;
+			}
+		}
+
+		[ '$destroy', '$emit', '$broadcast', '$on', '$eval', '$evalSync', '$digest' ].forEach(function(name) {
+			ScopeWrapper.prototype[name] = function() {
+				var scope = this.$scope;
+				return scope[name].apply(scope, arguments);
+			};
+		});
+
+		ScopeWrapper.prototype.toString = function() {
+			return "[Scoped object $id=" + this.$scope.$id + "]";
+		};
+
+		return ScopeWrapper;
+
+	} ]);
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module('camelia.selection', [ "camelia.core" ]);
 
 	module.factory('camelia.SelectionProvider', [ "$rootScope",
 		"$injector",
 		"camelia.core",
-		function($rootScope, $injector, cc) {
-
-			var scopeProto = cc.getProto($rootScope);
+		"camelia.ScopeWrapper",
+		function($rootScope, $injector, cc, ScopeWrapper) {
 
 			/*
 			 * ------------------------ SelectionProvider --------------------------
 			 */
 
 			function SelectionProvider($parentScope) {
-				cc.inheritScope(this, $parentScope);
+				ScopeWrapper.call(this, ($parentScope || $rootScope).$new(true));
 			}
 
 			SelectionProvider.SELECTION_CHANGING_EVENT = "cm:selectionChanging";
@@ -2361,7 +1515,7 @@
 				return new ArraySelectionProvider($parentScope, [ parameter ]);
 			};
 
-			cc.extendProto(SelectionProvider, scopeProto, {
+			cc.extend(SelectionProvider, ScopeWrapper, {
 
 				_lock: false,
 
@@ -2699,7 +1853,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -2710,17 +1864,16 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selectionStrategy', [ "camelia.core" ]);
+	var module = angular.module('camelia.selection');
 
 	module.factory('camelia.SelectionStrategy', [ "$rootScope",
 		"$injector",
 		"camelia.core",
-		function($rootScope, $injector, cc) {
-
-			var scopeProto = cc.getProto($rootScope);
+		"camelia.ScopeWrapper",
+		function($rootScope, $injector, cc, ScopeWrapper) {
 
 			function SelectionStrategy($parentScope, cardinality) {
-				cc.inheritScope(this, $parentScope);
+				ScopeWrapper.call(this, $parentScope.$new(true));
 
 				this._cardinality = SelectionStrategy._GetCardinality(cardinality);
 			}
@@ -2760,7 +1913,7 @@
 				} ]);
 			};
 
-			cc.extendProto(SelectionStrategy, scopeProto, {
+			cc.extend(SelectionStrategy, ScopeWrapper, {
 				getBase: function() {
 					return null;
 				},
@@ -2799,7 +1952,7 @@
 						return;
 					}
 
-					if (this._cardinality == 0x01) {
+					if (this._cardinality === 0x01) {
 						this._base = cursorValue;
 						this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
 
@@ -2823,7 +1976,7 @@
 					if (event && event.ctrlKey) {
 						var count = selectionProvider.count();
 						if (selectionProvider.containsAll(rowValues)) {
-							if (this._cardinality == 0x03 && count < 2) {
+							if (this._cardinality === 0x03 && count < 2) {
 								return;
 							}
 							selectionProvider.remove(rowValues);
@@ -2833,8 +1986,8 @@
 						if (this._cardinality) {
 							selectionProvider.add(rowValues);
 
-							//this._base = cursorValue;
-							//this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
+							// this._base = cursorValue;
+							// this.$emit(SelectionStrategy.BASE_CHANGED_EVENT, cursorValue);
 							return;
 						}
 					}
@@ -2851,15 +2004,330 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
- * @license Creative Commons - The licensor permits others to copy, distribute, display, and perform the work. In return, licenses may not use the work for commercial purposes -- unless they get the licensor's permission.
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
  * @author olivier.oeuillot@vedana.com
  */
 
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.criteria", [ "camelia.i18n.criteria" ]);
+	var module = angular.module('camelia.templateRegistry', [ 'camelia.core' ]);
+
+	module.factory('camelia.TemplateRegistry', [ '$log', '$q', 'camelia.core', function($log, $q, cc) {
+
+		var doc = angular.element(document);
+		var controller = doc.controller('cmTemplateRegistry');
+
+		if (!controller) {
+			controller = {
+				templatesByScopeAndId: []
+			};
+
+			doc.data('$cmTemplateRegistryController', controller);
+		}
+
+		var templatesByScopeAndId = controller.templatesByScopeAndId;
+
+		var TemplateRegistry = {
+
+			RegisterTemplates: function($scope) {
+
+				var templates = $scope.templates;
+				if (!templates) {
+					return;
+				}
+
+				var self = this;
+				angular.forEach(templates, function(template) {
+					var id = template.id;
+					if (!id) {
+						return;
+					}
+
+					self.Register($scope, template);
+				});
+			},
+
+			Register: function($containerScope, template) {
+
+				var byId;
+				var idx = templatesByScopeAndId.indexOf($containerScope);
+				if (idx >= 0) {
+					byId = templatesByScopeAndId[idx];
+
+				} else {
+					byId = {};
+					templatesByScopeAndId.unshift(byId);
+
+					$containerScope.$on('$destroy', function() {
+						var idx2 = templatesByScopeAndId.indexOf($containerScope);
+						if (idx2 < 0) {
+							return;
+						}
+
+						templatesByScopeAndId.splice(idx2, 1);
+					});
+				}
+
+				byId[template.id] = template;
+			},
+
+			FindById: function(id) {
+				for (var i = 0; i < templatesByScopeAndId.length; i++) {
+					var byId = templatesByScopeAndId[i];
+
+					var target = byId(id);
+					if (target) {
+						return target;
+					}
+				}
+
+				return null;
+			},
+
+			PrepareTemplates: function(scopeTemplates, interpolateFct, name) {
+				if (!scopeTemplates) {
+					return null;
+				}
+
+				var templates = [];
+				var enabledExpressions = {};
+				var self = this;
+
+				angular.forEach(scopeTemplates, function(template) {
+					var $tScope = template.$scope;
+
+					if (name && $tScope.name !== name) {
+						return;
+					}
+
+					var enabledExp = $tScope.enabledExpresion;
+					if (enabledExp) {
+						if (enabledExp === 'false') {
+							return;
+						}
+
+						enabledExpressions[template.id] = interpolateFct(enabledExp);
+					}
+
+					var refId = $tScope.refId;
+					if (refId) {
+						var refTemplate = self.FindById(refId);
+						if (!refTemplate) {
+							$log.error('Can not fin template id=' + refId);
+							return;
+						}
+
+						template = refTemplate;
+					}
+
+					templates.push(template);
+				});
+
+				if (!templates.length) {
+					return null;
+				}
+
+				return {
+					templates: templates,
+					enabledExpressions: enabledExpressions
+				};
+			}
+		};
+
+		return TemplateRegistry;
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module('camelia.core');
+
+	module.factory('camelia.UI', [ '$log', 'camelia.core', function($log, cc) {
+
+		return {
+			IsFocusable: function(element) {
+				if (element.disabled) {
+					return false;
+				}
+
+				if (element.cm_focusable) {
+					return true;
+				}
+
+				if (element.tabIndex >= 0) {
+					return true;
+				}
+
+				if (element.tabIndex < 0) {
+					// After cm_focusable
+					return false;
+				}
+
+				var tagName = element.tagName.toLowerCase();
+				if (tagName === "button" || tagName === "input" || tagName === "a") {
+					return true;
+				}
+
+				return false;
+			},
+			GetNextFocusable: function(container, element) {
+				if (container[0]) {
+					container = container[0];
+				}
+				var e = null;
+
+				if (!element) {
+					e = container.firstChild;
+					if (!e) {
+						return null;
+					}
+				}
+
+				for (;;) {
+					if (e === element) {
+						return null; // Loop
+					}
+					if (e && e.nodeType === Node.ELEMENT_NODE) {
+						if (this.IsFocusable(e)) {
+							return e;
+						}
+
+						if (!e.disabled && e.firstChild) {
+							e = e.firstChild;
+							continue;
+						}
+					}
+					if (!e) {
+						e = element; // Boot phase
+					}
+
+					if (e.nextSibling) {
+						e = e.nextSibling;
+						continue;
+					}
+
+					for (;;) {
+						e = e.parentNode;
+						if (!e) {
+							// WARNING: Detached dom section
+							return null;
+						}
+
+						if (e === container) {
+							e = e.firstChild;
+							break;
+						}
+
+						if (!e.nextSibling) {
+							continue;
+						}
+
+						e = e.nextSibling;
+						break;
+					}
+				}
+			},
+			GetPreviousFocusable: function(container, element) {
+				if (container[0]) {
+					container = container[0];
+				}
+
+				var e = null;
+				if (!element) {
+					e = container.lastChild;
+					if (!e) {
+						return null;
+					}
+				}
+
+				for (;;) {
+
+					if (e === element) {
+						return null; // Loop
+					}
+
+					if (e && e.nodeType === Node.ELEMENT_NODE) {
+						if (this.IsFocusable(e)) {
+							return e;
+						}
+					}
+
+					if (!e) {
+						e = element; // Boot phase
+					}
+
+					if (e.previousSibling) {
+						e = e.previousSibling;
+
+						for (; e.lastChild && !e.lastChild.disabled;) {
+							e = e.lastChild;
+						}
+
+						continue;
+					}
+
+					e = e.parentNode;
+					if (!e) {
+						// WARNING: Detached dom section
+						return null;
+					}
+
+					if (e === container) {
+						e = e.lastChild;
+						for (; e.lastChild && !e.lastChild.disabled;) {
+							e = e.lastChild;
+						}
+					}
+				}
+			},
+
+			EnsureVisible: function(parent, element) {
+				if (parent[0]) {
+					parent = parent[0];
+				}
+
+				if (element.offsetTop - parent.scrollTop < 0) {
+					parent.scrollTop = element.offsetTop;
+					return;
+				}
+
+				if (element.offsetTop + element.offsetHeight - parent.scrollTop > parent.clientHeight) {
+					parent.scrollTop = element.offsetTop + element.offsetHeight - parent.clientHeight;
+					return;
+				}
+
+			}
+		};
+	} ]);
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.criteria", [ "camelia.i18n.criteria", "camelia.core" ]);
 
 	var anonymousId = 0;
 
@@ -2889,7 +2357,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -2927,7 +2395,7 @@
 							id: "alphabetic_" + entry,
 							toJson: function() {
 								return {
-									startsWith: entry
+									startsWithRegExp: entry
 								};
 							}
 						});
@@ -2950,7 +2418,7 @@
 				filterData: function(filterContexts, value, rowScope, dataModel, column) {
 					var f = false;
 
-					if (typeof (value) != "string") {
+					if (typeof (value) !== "string") {
 						return f;
 					}
 
@@ -2974,7 +2442,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3008,7 +2476,7 @@
 						return;
 					}
 
-					if (v.charAt(0) == '=') {
+					if (v.charAt(0) === '=') {
 						v = v.substring(1);
 						self["_" + name + "Eq"] = true;
 					}
@@ -3019,7 +2487,7 @@
 				processNumber("min");
 				processNumber("max");
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(MinMax, Criteria, {
@@ -3064,7 +2532,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3092,7 +2560,7 @@
 					throw new Error("You must specify value attribute");
 				}
 
-				if (attrs.integer == "true") {
+				if (attrs.integer === "true") {
 					this._integer = true;
 					value = parseInt(value, 10);
 
@@ -3101,7 +2569,7 @@
 				}
 				this._value = value;
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(NumberCriteria, Criteria, {
@@ -3142,7 +2610,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3171,14 +2639,14 @@
 				}
 
 				var modifiers = attrs.modifiers || "";
-				if (attrs.ignoreCase == "true") {
+				if (attrs.ignoreCase === "true") {
 					modifiers += "i";
 				}
-				if (attrs.global == "true") {
+				if (attrs.global === "true") {
 					modifiers += "g";
 				}
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 
 				this._regexp = new RegExp(value, modifiers);
 			};
@@ -3199,7 +2667,7 @@
 				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 					var f = this._false;
 
-					if (typeof (value) != "string") {
+					if (typeof (value) !== "string") {
 						return f;
 					}
 
@@ -3217,7 +2685,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3233,7 +2701,8 @@
 	module.factory("camelia.criteria.StartsWith", [ "$log",
 		"camelia.criteria.Criteria",
 		"camelia.core",
-		function($log, Criteria, cc) {
+		"camelia.CharsetUtils",
+		function($log, Criteria, cc, chu) {
 
 			var StartsWith = function(scope, element, attrs) {
 				Criteria.call(this, scope, element, attrs);
@@ -3245,16 +2714,21 @@
 					throw new Error("You must specify value attribute");
 				}
 
+				this._value = value;
+
 				var modifiers = "";
-				if (attrs.ignoreCase == "true") {
+				if (attrs.ignoreCase === "true") {
 					modifiers += "i";
 					this._ignoreCase = true;
 				}
+				if (attrs.ignoreAccents === "true") {
+					this._ignoreAccents = true;
+					value = chu.removeAccents(value);
+				}
 
-				this._value = value;
 				this._regExp = new RegExp("^[" + value + "]", modifiers);
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(StartsWith, Criteria, {
@@ -3264,7 +2738,7 @@
 						name: this.name,
 						toJson: function() {
 							return {
-								startsWidth: self._value,
+								startsWidthRegExp: self._value,
 								ignoreCase: !!self._ignoreCase,
 								reverse: self._false
 							};
@@ -3274,8 +2748,12 @@
 				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 					var f = this._false;
 
+					if (this._ignoreAccents) {
+						value = chu.removeAccents(value);
+					}
+
 					var regExp = this._regExp;
-					if (rexExp.test(value)) {
+					if (regExp.test(value)) {
 						return !f;
 					}
 
@@ -3288,7 +2766,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3318,7 +2796,7 @@
 
 				this._value = value;
 
-				this._false = (attrs.reverse == "true");
+				this._false = (attrs.reverse === "true");
 			};
 
 			cc.extend(Type, Criteria, {
@@ -3337,7 +2815,7 @@
 				filterData: function(enabledFilters, value, rowScope, dataModel, column) {
 					var f = this._false;
 
-					if (typeof (value) == this._value) {
+					if (typeof (value) === this._value) {
 						return !f;
 					}
 
@@ -3350,7 +2828,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3361,12 +2839,134 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.components.grid", [ "camelia.core",
-		"camelia.dataModel",
-		"camelia.cursorProvider",
-		"camelia.selectionProvider",
-		"camelia.selectionStrategy",
-		"camelia.pagerRegistry" ]);
+	var module = angular.module("camelia.components.combo", [ "camelia.core", "camelia.renderers.combo" ]);
+
+	module.value("cm_combo_rendererProviderName", "camelia.renderers.combo:camelia.renderers.Combo");
+
+	var anonymousId = 0;
+
+	module.factory("camelia.components.Combo", [ "$log",
+		"$q",
+		"$exceptionHandler",
+		"$interpolate",
+		"camelia.core",
+		"cm_combo_rendererProviderName",
+		function($log, $q, $exceptionHandler, $interpolate, cc, cm_combo_rendererProviderName) {
+
+			/*
+			 * ------------------------ Combo --------------------------
+			 */
+
+			var Combo = function($scope, element, directiveInterpolate, defaultRendererProviderName) {
+				this.$scope = $scope;
+				this.directiveInterpolate = directiveInterpolate || $interpolate;
+
+				var id = $scope.id;
+				if (!id) {
+					id = "cm_combo_" + (anonymousId++);
+				}
+				this.id = id;
+
+				var rendererProvider = $scope.rendererProvider;
+				if (!rendererProvider) {
+					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName ||
+							cm_combo_rendererProviderName;
+
+					if ($scope.lookId) {
+						rendererProviderName += "-" + $scope.lookId;
+					}
+
+					rendererProvider = cc.LoadProvider(rendererProviderName);
+				}
+				this.rendererProvider = rendererProvider;
+
+			};
+
+			Combo.prototype = {
+
+				/**
+				 * @returns {Promise}
+				 */
+				construct: [ function() {
+					this.constructing = true;
+					this.constructed = false;
+					this.element = null;
+
+					var renderContext = {
+						combo: this,
+						items: this.$scope.items,
+						$scope: this.$scope,
+						$interpolate: this.directiveInterpolate,
+					};
+
+					var self = this;
+
+					return self._construct(renderContext).then(function onSuccess(result) {
+						self.constructing = false;
+						self.constructed = true;
+
+						return result;
+
+					}, function onError(reason) {
+						self.constructing = false;
+						self.constructed = false;
+
+						$q.reject(reason);
+					});
+				} ],
+
+				_construct: function(renderContext) {
+
+					var doc = angular.element(document.createDocumentFragment());
+
+					var comboRenderer = new this.rendererProvider(renderContext);
+					this.comboRenderer = comboRenderer;
+
+					var containerPromise = comboRenderer.render(doc);
+					if (!cc.isPromise(containerPromise)) {
+						containerPromise = $q.when(containerPromise);
+					}
+
+					var self = this;
+					return containerPromise.then(function onSuccess(element) {
+						self.constructing = false;
+						self.constructed = true;
+
+						// angular.element(element).data("$scope", self.$scope);
+
+						return doc;
+
+					}, function onError(reason) {
+						self.constructing = false;
+						self.constructed = false;
+
+						return $q.reject(reason);
+					});
+				}
+
+			};
+
+			return Combo;
+		} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.components.grid", [ 'camelia.core',
+		'camelia.dataModel',
+		'camelia.selection',
+		'camelia.pagerRegistry',
+		'camelia.renderers.grid' ]);
 
 	module.value("cm_grid_rendererProviderName", "camelia.renderers.grid:camelia.renderers.GridProvider");
 	module.value("cm_grid_dataModelProviderName", "");
@@ -3396,7 +2996,7 @@
 			 * ------------------------ DataGrid --------------------------
 			 */
 
-			var DataGrid = function($scope, element, directiveInterpolate) {
+			var DataGrid = function($scope, element, directiveInterpolate, defaultRendererProviderName) {
 				this.$scope = $scope;
 				this.directiveInterpolate = directiveInterpolate || $interpolate;
 
@@ -3409,7 +3009,13 @@
 
 				var rendererProvider = $scope.rendererProvider;
 				if (!rendererProvider) {
-					var rendererProviderName = $scope.rendererProviderName || cm_dataGrid_rendererProviderName;
+					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName ||
+							cm_dataGrid_rendererProviderName;
+
+					if ($scope.lookId) {
+						rendererProviderName += "-" + $scope.lookId;
+					}
+
 					rendererProvider = cc.LoadProvider(rendererProviderName);
 				}
 				this.rendererProvider = rendererProvider;
@@ -3422,7 +3028,7 @@
 					}
 				}
 				this.dataModelProvider = dataModelProvider;
-				this.$scope.$watchCollection("value", function(newValue) {
+				this.$scope.$watchCollection("value", function onValueChanged(newValue) {
 					$scope.$broadcast("cm:valueChanged", newValue);
 				});
 
@@ -3435,9 +3041,9 @@
 					if (selectable) {
 						selectionProvider = SelectionProvider.From($scope.selection, $scope);
 
-						$scope.$watch("selection", function(newSelection, oldSelection) {
+						$scope.$watch("selection", function onSelectionChanged(newSelection, oldSelection) {
 
-							cc.log("WATCH selection newSelection=", newSelection, " oldSelection=", oldSelection);
+							$log.debug("WATCH selection newSelection=", newSelection, " oldSelection=", oldSelection);
 
 							selectionProvider.set(newSelection);
 						});
@@ -3445,8 +3051,8 @@
 				}
 				this.selectionProvider = selectionProvider;
 
-				$scope.$on(SelectionProvider.SELECTION_SET_EVENT, function(event, data) {
-					cc.log("EVENT selection newSelection=", data.newSelection);
+				$scope.$on(SelectionProvider.SELECTION_SET_EVENT, function onSelectionChanged(event, data) {
+					$log.debug("EVENT selection newSelection=", data.newSelection);
 
 					$scope.selection = data.newSelection;
 				});
@@ -3486,7 +3092,7 @@
 							var columnCursor;
 							if (columnCursorId) {
 								angular.forEach($scope.columns, function(column) {
-									if (column.id == columnCursorId) {
+									if (column.id === columnCursorId) {
 										columnCursor = column;
 									}
 								});
@@ -3496,7 +3102,7 @@
 						}
 					});
 
-					$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
+					$scope.$on(CursorProvider.CURSOR_CHANGED, function onCursorChanged(event, data) {
 						// cc.log("EVENT cursor newValue=", data.row, " column=",
 						// ((data.column) ? data.column.id : null));
 
@@ -3552,29 +3158,31 @@
 					var gridRenderer = new this.rendererProvider(renderContext);
 					this.gridRenderer = gridRenderer;
 
-					$scope.$watch("first", function(newValue, oldValue) {
-						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
+					$scope.$watch("first", function onFirstChanged(newValue, oldValue) {
+						if (!angular.isNumber(newValue) || newValue === oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
-						if (self.readyState != "complete") {
+						if (self.readyState !== "complete") {
 							return;
 						}
 
 						$timeout(function() {
+							$log.debug("construct", "First changed, update data");
 							gridRenderer.updateData();
 						}, 10, false);
 					});
 
-					$scope.$watch("rows", function(newValue, oldValue) {
-						if (!angular.isNumber(newValue) || newValue == oldValue || (newValue < 0 && oldValue < 0)) {
+					$scope.$watch("rows", function onRowsChanged(newValue, oldValue) {
+						if (!angular.isNumber(newValue) || newValue === oldValue || (newValue < 0 && oldValue < 0)) {
 							return;
 						}
 
-						if (self.readyState != "complete") {
+						if (self.readyState !== "complete") {
 							return;
 						}
 
+						$log.debug("construct", "Rows changed and readyState is not complete=",self.readyState);
 						gridRenderer.updateData();
 					});
 
@@ -3583,7 +3191,8 @@
 						containerPromise = $q.when(containerPromise);
 					}
 
-					return containerPromise.then(function(element) {
+					return containerPromise.then(function onSuccess(element) {
+						$log.debug("construct", "Container constructed");
 						if (element[0]) {
 							element = element[0];
 						}
@@ -3596,13 +3205,19 @@
 
 						self._updateDataModel(gridRenderer.$scope.value);
 
-						gridRenderer.$scope.$on("cm:valueChanged", function(event, value) {
+						gridRenderer.$scope.$on("cm:valueChanged", function onValueChanged(event, value) {
+							$log.debug("construct", "valueChanged");
+							
+							if (gridRenderer.$scope.value===value) {
+								return; // ???
+							}
+
 							self._updateDataModel(value);
 						});
 
 						return doc;
 
-					}, function(reason) {
+					}, function onError(reason) {
 						self.readyState = "error";
 
 						return doc;
@@ -3625,18 +3240,24 @@
 
 					var self = this;
 
-					dataModelPromise.then(function(dataModel) {
+					return dataModelPromise.then(function onSuccess(dataModel) {						
+						$log.debug("_updateDataModel.onSuccess: new DataModel");
+
 						gridRenderer.dataErrored = false;
 						gridRenderer.dataModel = dataModel;
 
 						if (dataModel) {
 							// dataModel.installWatcher(renderContext.$scope, "value");
 
-							dataModel.$on(DataModel.DATA_MODEL_CHANGED_EVENT, function(event, value) {
+							dataModel.$on(DataModel.DATA_MODEL_CHANGED_EVENT, function onDataModelChanged(event, value) {
+								$log.debug("_updateDataModel: received DATA_MODEL_CHANGED event");
+								
 								self._updateDataModel(value);
 							});
 
-							dataModel.$on(DataModel.DATA_MODEL_UPDATED_EVENT, function(event, value) {
+							dataModel.$on(DataModel.DATA_MODEL_UPDATED_EVENT, function onDataModelUpdated(event, value) {
+								$log.debug("_updateDataModel: received DATA_MODEL_UPDATED event");
+								
 								gridRenderer.updateData();
 							});
 						}
@@ -3645,10 +3266,17 @@
 						gridRenderer.updateData();
 						// }
 
-					}, function(error) {
+						return dataModel;
+
+					}, function onError(reason) {
+						$log.debug("_updateDataModel.onError: data model updated");
+
 						gridRenderer.dataErrored = true;
-						gridRenderer.dataModel = null;
+						gridRenderer.dataModel = null;						
+
 						gridRenderer.updateData();
+
+						return $q.reject(reason);
 					});
 				},
 
@@ -3797,9 +3425,9 @@
 
 				var collapsedProvider = $scope.collapsedProvider;
 				if (!collapsedProvider) {
-					collapsedProvider = SelectionProvider.From($scope.collapsedGroups);
+					collapsedProvider = SelectionProvider.From($scope.collapsedGroups, $scope);
 
-					$scope.$watch("collapsedGroups", function() {
+					$scope.$watch("collapsedGroups", function onCollapsedGroupsChanged() {
 						try {
 							digesterPhase = true;
 
@@ -3812,7 +3440,7 @@
 				this.collapsedProvider = collapsedProvider;
 
 				if (collapsedProvider) {
-					collapsedProvider.$on(SelectionProvider.SELECTION_SET_EVENT, function(event, data) {
+					collapsedProvider.$on(SelectionProvider.SELECTION_SET_EVENT, function onSelectionEvent(event, data) {
 						$scope.collapsedGroups = data.newSelection;
 
 						if (digesterPhase) {
@@ -3851,7 +3479,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -3862,7 +3490,403 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module("camelia.components.pager", [ "camelia.core", "camelia.pagerRegistry" ]);
+	var module = angular.module("camelia.components.items", [ "camelia.core", "camelia.dataModel" ]);
+
+	var anonymousId = 0;
+
+	var whiteSpacesSplitRegExp = /[\p{P}\p{Z}\p{S}]+/;
+
+	/*
+	 * ------------------------ Item --------------------------
+	 */
+
+	module.factory("camelia.components.Item", [ "$log", "camelia.core", "camelia.CharsetUtils", function($log, cc, chu) {
+
+		var Item = function($scope, element, containerScope) {
+			this.$scope = $scope;
+			this.id = $scope.id || ("item_" + (anonymousId++));
+			// element.data("cm_component", this);
+
+			if (!containerScope.items) {
+				containerScope.items = [];
+			}
+
+			containerScope.items.push(this);
+		};
+
+		Item.prototype = {
+
+			isVisible: function() {
+				return this.$scope.visible !== false;
+			},
+
+			hasItem: function(listContext, item) {
+				var $scope = this.$scope;
+
+				if (angular.equals(item, $scope.value)) {
+					return true;
+				}
+
+				return false;
+			},
+
+			/**
+			 * @returns {Promise}
+			 */
+			filter: function(listContext, filterValue) {
+				var $scope = this.$scope;
+
+				if (!filterValue) {
+					listContext.list.push($scope);
+					return;
+				}
+
+				var words = this._words;
+				if (!words) {
+					words = $scope.searchWords || $scope.label;
+					if (!angular.isArray(words)) {
+						var swords = words.split(whiteSpacesSplitRegExp);
+
+						// $log.debug("Split '" + words + "' to ", swords);
+						words = swords;
+					}
+					if (listContext.ignoreAccents) {
+						for (var j = 0; j < words.length; j++) {
+							words[j] = chu.removeAccents(words[j]);
+						}
+					}
+					this._words = words;
+				}
+
+				var regExp = listContext.filterRegexp;
+				for (var i = 0; i < words.length; i++) {
+					var test = regExp.test(words[i]);
+					// $log.debug("Test '" + regExp + "' of '" + words[i] + "' returns " +
+					// test);
+
+					if (!test) {
+						continue;
+					}
+
+					if (listContext.offset > 0) {
+						listContext.offset--;
+						return;
+					}
+
+					listContext.list.push($scope);
+					return;
+				}
+			}
+
+		};
+
+		return Item;
+
+	} ]);
+
+	/*
+	 * ------------------------ Items --------------------------
+	 */
+
+	module.factory("camelia.components.Items", [ "$log",
+		"$q",
+		"camelia.core",
+		"camelia.DataModel",
+		function($log, $q, cc, DataModel) {
+
+			var Items = function($scope, element, containerScope) {
+				this.$scope = $scope;
+				this.id = $scope.id || ("items_" + (anonymousId++));
+				// element.data("cm_component", this);
+
+				if (!containerScope.items) {
+					containerScope.items = [];
+				}
+
+				containerScope.items.push(this);
+			};
+
+			Items.prototype = {
+
+				isVisible: function() {
+					return this.$scope.visible !== false;
+				},
+
+				hasItem: function(listContext, item) {
+					var $scope = this.$scope;
+
+					var label;
+					var itemLabel = $scope.itemLabel;
+					if (itemLabel) {
+						var labelExpression = listContext.$interpolate(itemLabel);
+
+						var $itemScope = listContext.$scope.$parent.$new(false);
+						try {
+							$itemScope.$item = row;
+							var varName = this.$scope.varName;
+							if (varName) {
+								$itemScope[varName] = row;
+							}
+
+							label = $itemScope.$eval(labelExpression);
+							if (label !== undefined) {
+								return true;
+							}
+						} finally {
+							$itemScope.destroy();
+						}
+					}
+
+					var itemColumn = this.$scope.itemColumn;
+					if (itemColumn) {
+						label = row[this.$scope.itemColumn];
+						if (label !== undefined) {
+							return true;
+						}
+					}
+
+					label = item.label;
+					if (label) {
+						return true;
+					}
+
+					return false;
+				},
+
+				filter: function(listContext, filterValue) {
+					var $scope = this.$scope;
+
+					var dataModel = DataModel.From($scope.value || []);
+
+					// ignoreAccents: criterias.ignoreAccents,
+					// ignoreCase: criterias.ignoreCase,
+					// maxItems: maxItems || this.$scope.maxItems
+
+					var filter = {
+						startsWith: filterValue
+					};
+
+					var fetchProperties = {};
+					if (listContext.maxItems) {
+						fetchProperties.rows = listContext.maxItems;
+					}
+					if (listContext.ignoreAccents) {
+						fetchProperties.ignoreAccents = true;
+						filter.ignoreAccents = true;
+
+					}
+					if (listContext.ignoreCase) {
+						fetchProperties.ignoreCase = true;
+						filter.ignoreCase = true;
+					}
+
+					var columnName = $scope.itemColumn || $scope.id || "comboColumn";
+
+					dataModel.setFilters([ {
+						id: columnName,
+						filters: [ {
+							type: "Alphabetic",
+							parameters: filter
+						} ]
+					} ]);
+					dataModel.setSorters([ {
+						column: columnName,
+						ascending: true
+					} ]);
+
+					dataModel.setFetchProperties(fetchProperties);
+
+					var context = {
+						listContext: listContext
+					};
+
+					var rowCount = dataModel.getRowCount();
+					rowCount = cc.ensurePromise(rowCount);
+
+					function release() {
+						dataModel.setRowIndex(-1);
+
+						var evalScope = context.$scope;
+						if (evalScope) {
+							evalScope.$destroy();
+						}
+					}
+
+					var self = this;
+					return rowCount.then(function onSuccess0(rowCount) {
+						var index = 0;
+
+						if (rowCount >= 0) {
+							if (listContext.offset > 0) {
+								if (rowCount <= listContext.offset) {
+									listContext.offset -= rowCount;
+
+									return $q.when(false);
+								}
+
+								index = listContext.offset;
+							}
+						}
+
+						var deferred = $q.defer();
+
+						dataModel.setRowIndex(index);
+						var available = dataModel.isRowAvailable();
+						available = cc.ensurePromise(available);
+						function onSuccess(result) {
+							if (!result) {
+								release();
+
+								return deferred.resolve(false);
+							}
+
+							if (listContext.offset > 0) {
+								listContext.offset--;
+
+							} else {
+								var row = dataModel.getRowData();
+								self._processRow(context, listContext.list, row);
+
+								index++;
+								if (listContext.maxItems > 0) {
+									listContext.maxItems--;
+
+									if (!listContext.maxItems) {
+										release();
+										return deferred.resolve(true);
+									}
+								}
+							}
+
+							dataModel.setRowIndex(index);
+							available = dataModel.isRowAvailable();
+							available = cc.ensurePromise(available);
+
+							return available.then(onSuccess, onError, onUpdate);
+						}
+
+						function onError(reason) {
+							release();
+
+							deferred.reject(reason);
+						}
+
+						function onUpdate(update) {
+							deferred.notify(update);
+						}
+
+						available.then(onSuccess, onError, onUpdate);
+
+						return deferred.promise;
+					});
+				},
+				_processRow: function(context, list, row) {
+					var $itemScope = context.$itemScope;
+					var listContext = context.listContext;
+
+					if (!$itemScope) {
+
+						$itemScope = listContext.$scope.$parent.$new(false);
+						context.$itemScope = $itemScope;
+
+						var $interpolate = listContext.$interpolate;
+
+						var self = this;
+						angular.forEach([ "itemLabel", "itemTooltip", "itemClass", "itemDisabled" ], function(expName) {
+							var exp = self.$scope[expName];
+							if (!exp) {
+								return;
+							}
+
+							context[expName + "Expression"] = $interpolate(exp);
+						});
+					}
+
+					$itemScope.$item = row;
+					var varName = this.$scope.varName;
+					if (varName) {
+						$itemScope[varName] = row;
+					}
+
+					var ret = {
+						$item: row
+					};
+
+					var label;
+					if (context.itemLabelExpression) {
+						label = $itemScope.$eval(context.itemLabelExpression);
+
+					} else if (this.$scope.itemColumn) {
+						label = row[this.$scope.itemColumn];
+
+					} else if (typeof (row.toItemText) === "function") {
+						label = row.toItemText();
+
+					} else if (row.label !== undefined) {
+						label = row.label;
+
+					} else {
+						label = String(row);
+					}
+					ret.label = label;
+
+					var tooltip = null;
+					if (context.itemTooltipExpression) {
+						tooltip = $itemScope.$eval(context.itemTooltipExpression);
+
+					} else if (row.tooltip !== undefined) {
+						tooltip = row.tooltip;
+					}
+					if (tooltip) {
+						ret.tooltip = tooltip;
+					}
+
+					var className = null;
+					if (context.itemClassExpression) {
+						className = $itemScope.$eval(context.itemClassExpression);
+
+					} else if (row.className !== undefined) {
+						className = row.className;
+					}
+					if (className) {
+						ret.className = className;
+					}
+
+					var disabled = false;
+					if (context.itemDisabledExpression) {
+						disabled = $itemScope.$eval(context.itemDisabledExpression);
+
+					} else if (row.disabled !== undefined) {
+						disabled = row.disabled;
+					}
+					if (disabled) {
+						ret.disabled = disabled;
+					}
+
+					list.push(ret);
+				}
+			};
+
+			return Items;
+
+		} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module("camelia.components.pager", [ "camelia.core",
+		"camelia.pagerRegistry",
+		"camelia.renderers.pager" ]);
 
 	module.value("cm_pager_rendererProviderName", "camelia.renderers.pager:camelia.renderers.Pager");
 	module.value("cm_pager_format", "{bprev} {bpages} {bnext}");
@@ -3875,11 +3899,11 @@
 
 	module.factory("camelia.components.PagerBase", [ "$log",
 		"$q",
-		"$timeout",
 		"$exceptionHandler",
 		"camelia.core",
 		"camelia.PagerRegistry",
-		function($log, $q, $timeout, $exceptionHandler, cc, PagerRegistry) {
+		"cm_pager_rendererProviderName",
+		function($log, $q, $exceptionHandler, cc, PagerRegistry, cm_pager_rendererProviderName) {
 
 			/*
 			 * ------------------------ PagerBase --------------------------
@@ -3890,7 +3914,13 @@
 
 				var rendererProvider = $scope.rendererProvider;
 				if (!rendererProvider) {
-					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName;
+					var rendererProviderName = $scope.rendererProviderName || defaultRendererProviderName ||
+							cm_pager_rendererProviderName;
+
+					if ($scope.lookId) {
+						rendererProviderName += "-" + $scope.lookId;
+					}
+
 					rendererProvider = cc.LoadProvider(rendererProviderName);
 				}
 				this.rendererProvider = rendererProvider;
@@ -3924,38 +3954,43 @@
 				/**
 				 * @returns {Promise}
 				 */
-				construct: [ "$q",
-					function($q) {
-						this.constructing = true;
-						this.constructed = false;
-						this.element = null;
+				construct: [ function() {
+					this.constructing = true;
+					this.constructed = false;
+					this.element = null;
 
-						var self = this;
+					var self = this;
 
-						return this.targetPromise.then(function(targetElement) {
-							cc.Assert(targetElement && angular.element(targetElement).scope(), "pager", "Invalid target component ",
-									targetElement);
+					return this.targetPromise.then(function onSuccess(targetElement) {
+						cc.Assert(targetElement && angular.element(targetElement).scope(), "pager", "Invalid target component ",
+								targetElement);
 
-							var targetScope = angular.element(targetElement).scope();
+						var targetScope = angular.element(targetElement).scope();
 
-							delete self.targetPromise;
-							// self.targetComponent = targetComponent;
+						delete self.targetPromise;
+						// self.targetComponent = targetComponent;
 
-							var renderContext = {
-								pager: self,
-								targetScope: targetScope,
-								$scope: self.$scope
-							};
+						var renderContext = {
+							pager: self,
+							targetScope: targetScope,
+							$scope: self.$scope
+						};
 
-							return self.constructFromTarget(renderContext);
+						return self.constructFromTarget(renderContext).then(function onSuccess(result) {
 
-						}, function(reason) {
 							self.constructing = false;
-							self.constructed = false;
+							self.constructed = true;
 
-							return doc;
+							return result;
 						});
-					} ],
+
+					}, function onError(reason) {
+						self.constructing = false;
+						self.constructed = false;
+
+						return $q.reject(reason);
+					});
+				} ],
 
 				constructFromTarget: function(renderContext) {
 					var targetScope = renderContext.targetScope;
@@ -3965,25 +4000,34 @@
 					var nextPositions;
 
 					var self = this;
-					var targetDestroyedOff = targetScope.$on("$destroy", function() {
-						self.targetDestroyed(targetScope);
+					var targetDestroyedOff = targetScope.$on("$destroy", function onDestroy() {
+
+						self._targetDestroyed(targetScope);
 
 						renderContext.targetScope = undefined;
 					});
 
-					var positionsChangedOff = targetScope.$on("cm:positionsChanged", function(event, positions) {
-						if (!self.element) {
-							nextPositions = positions;
-							return;
+					var positionsChangedOff = targetScope.$on("cm:positionsChanged",
+							function onPositionsChanged(event, positions) {
+								if (!self.element) {
+									nextPositions = positions;
+									return;
+								}
+								nextPositions = undefined;
+
+								self.updatePositions(positions);
+							});
+
+					this.$scope.$on("$destroy", function onDestroy() {
+						if (targetDestroyedOff) {
+							targetDestroyedOff();
+							targetDestroyedOff = null;
 						}
-						nextPositions = undefined;
 
-						self.updatePositions(positions);
-					});
-
-					this.$scope.$on("$destroy", function() {
-						targetDestroyedOff();
-						positionsChangedOff();
+						if (positionsChangedOff) {
+							positionsChangedOff();
+							positionsChangedOff = null;
+						}
 					});
 
 					var pagerRenderer = new this.rendererProvider(renderContext);
@@ -3994,12 +4038,10 @@
 						containerPromise = $q.when(containerPromise);
 					}
 
-					return containerPromise.then(function(element) {
-						self.constructing = false;
-						self.constructed = true;
+					return containerPromise.then(function onSuccess(element) {
 						self.element = element;
 
-						angular.element(element).data("$scope", self.$scope);
+						// angular.element(element).data("$scope", self.$scope);
 
 						var positions = nextPositions;
 						nextPositions = undefined;
@@ -4085,7 +4127,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -4102,11 +4144,10 @@
 
 	module.factory("camelia.components.popup", [ "$log",
 		"$q",
-		"$timeout",
 		"$exceptionHandler",
 		"camelia.core",
 		"cm_popup_rendererProviderName",
-		function($log, $q, $timeout, $exceptionHandler, cc, cm_popup_rendererProviderName) {
+		function($log, $q, $exceptionHandler, cc, cm_popup_rendererProviderName) {
 
 			var anonymousId = 0;
 
@@ -4132,37 +4173,15 @@
 				/**
 				 * @returns {Promise}
 				 */
-				construct: [ "$q",
-					function($q) {
-						this.constructing = true;
-						this.constructed = false;
-						this.element = null;
+				construct: [ function() {
+					this.constructing = true;
+					this.constructed = false;
+					this.element = null;
 
-						var self = this;
+					var self = this;
 
-						return $q.when(function(targetComponent) {
-							cc.Assert(targetComponent && targetComponent.$scope, "pager", "Invalid target component ",
-									targetComponent);
-
-							self.targetComponent = targetComponent;
-
-							var renderContext = {
-								pager: self,
-								target: targetComponent,
-
-								rendererProvider: self.rendererProvider,
-								$scope: self.$scope
-							};
-
-							return self.constructFromTarget(renderContext);
-
-						}, function(reason) {
-							self.constructing = false;
-							self.constructed = false;
-
-							return doc;
-						});
-					} ],
+					return $q.when(false);
+				} ],
 
 				open: function() {
 				},
@@ -4174,7 +4193,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -4187,63 +4206,54 @@
 
 	var module = angular.module("camelia.components.template", [ "camelia.core" ]);
 
-	module.factory("camelia.components.Template", [ "$log",
-		"$timeout",
-		"$exceptionHandler",
-		"$compile",
-		"camelia.core",
-		function($log, $timeout, $exceptionHandler, $compile, cc) {
+	var anonymousId = 0;
 
-			var anonymousId = 0;
+	/*
+	 * ------------------------ Template --------------------------
+	 */
 
-			/*
-			 * ------------------------ Popup --------------------------
+	module.factory("camelia.components.Template", [ "$log", "camelia.core", function($log, cc) {
+
+		var Template = function($scope, element, containerScope, transcludeFunc) {
+			this.$scope = $scope;
+			this._transcludeFunc = transcludeFunc;
+			this.id = $scope.id || ("template_" + (anonymousId++));
+			// element.data("cm_component", this);
+
+			if (!containerScope.templates) {
+				containerScope.templates = [];
+			}
+
+			containerScope.templates.push(this);
+		};
+
+		Template.prototype = {
+
+			/**
+			 * @returns {Element}
 			 */
+			transclude: function(parent, $scope) {
 
-			var Template = function($scope, element, containerScope, transcludeFunc) {
-				this.$scope = $scope;
-				this._transcludeFunc = transcludeFunc;
-				this.id = "template_" + (anonymousId++);
-				// element.data("cm_component", this);
+				var f = this._transcludeFunc;
 
-				if (!containerScope.templates) {
-					containerScope.templates = [];
-				}
+				var clone = f($scope, function(clone, newScope) {
 
-				containerScope.templates.push(this);
-			};
+					// clone.scope=newScope;
 
-			Template.markContainer = function(element, $scope) {
-				element.data('$cmTemplateContainerController', $scope);
-			};
+					parent.append(clone);
+				});
 
-			Template.prototype = {
+				return clone;
+			}
+		};
 
-				/**
-				 * @returns {Promise}
-				 */
-				transclude: function(parent, $scope) {
+		return Template;
 
-					var f = this._transcludeFunc;
-
-					var clone = f($scope, function(clone, newScope) {
-
-						// clone.scope=newScope;
-
-						parent.append(clone);
-					});
-
-					return clone;
-				}
-			};
-
-			return Template;
-
-		} ]);
+	} ]);
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -4255,10 +4265,8 @@
 	"use strict";
 
 	var module = angular.module("camelia.renderers.grid", [ "camelia.dataModel",
-		"camelia.selectionProvider",
-		"camelia.cursorProvider",
-		"camelia.selectionStrategy",
-		"camelia.key",
+		"camelia.selection",
+		"camelia.templateRegistry",
 		"camelia.renderers.popup",
 		"camelia.components.grid",
 		"camelia.animations.grid",
@@ -4286,13 +4294,1410 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
  *          permission.
  * @author olivier.oeuillot@vedana.com
  */
+
+/* jshint sub: true, shadow: true, scripturl: true */
+/* jshint -W080 */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
+	var __DISABLED_POPUP_CLOSE = false;
+
+	var POPUP_OPEN_REQUEST_EVENT = "cm:popup_requestOpen";
+	var POPUP_OPENED_EVENT = "cm:popup_opened";
+	var POPUP_CLOSE_REQUEST_EVENT = "cm:popup_requestClose";
+	var POPUP_CLOSED_EVENT = "cm:popup_closed";
+	var PROPOSE_ITEM_EVENT = "cm:propose_item";
+	var SELECT_ITEM_EVENT = "cm:select_item";
+	var FOCUS_INPUT_EVENT = "cm:focus_input";
+	var NEXT_POPUP_ITEM_EVENT = "cm:next_item";
+	var PREVIOUS_POPUP_ITEM_EVENT = "cm:prev_item";
+	var INPUT_CHANGED_EVENT = "c:inputChanged";
+	var COMPLETE_INPUT_EVENT = "c:completeInput";
+	var FILTER_CHANGED_EVENT = "c:filterChanged";
+
+	var POPUP_OPEN_REQUEST_ACTION_TYPE = "popupRequest";
+
+	var module = angular.module("camelia.renderers.combo", [ "camelia.components.combo",
+		"camelia.i18n.combo",
+		"camelia.renderers.items",
+		"camelia.monitors" ]);
+
+	module.value("cm_combo_className", "cm_combo");
+
+	module.factory("camelia.renderers.Combo", [ "$log",
+		"$q",
+		"$exceptionHandler",
+		"$timeout",
+		"camelia.core",
+		"camelia.cmTypes",
+		"camelia.UI",
+		"cm_combo_className",
+		"camelia.Key",
+		"camelia.i18n.Combo",
+		"camelia.CharsetUtils",
+		"camelia.renderers.Items",
+		"camelia.monitor.ProgressMonitor",
+		function($log, $q, $exceptionHandler, $timeout, cc, cm, cui, cm_combo_className, Key, i18n, c, ItemsRenderer,
+				ProgressMonitor) {
+
+			function searchElements(target) {
+				return cm.SearchElements({
+					icon: null,
+					button: null,
+					input: null,
+					label: null,
+					tags: null,
+					tag: null,
+					tagRemove: null,
+					popup: null,
+					item: null,
+					combo: null
+				}, "combo", target);
+			}
+
+			var ComboRenderer = function(renderContext) {
+				ItemsRenderer.call(this, renderContext);
+			};
+
+			cc.extend(ComboRenderer, ItemsRenderer,
+					{
+						render: function(parent) {
+							var $scope = this.$scope;
+
+							var container = cc.createElement(parent, "div", {
+								id: this.combo.id,
+								$cm_type: "combo"
+							});
+
+							this.containerElement = container[0];
+
+							container.on("mouseover", this._onMouseOver());
+
+							container.on("mouseout", this._onMouseOut());
+
+							container.on("mousedown", this._onMouseDown());
+
+							// container.on("dblclick", OnDoubleClick(renderContext));
+
+							container.on("click", this._onSimpleClick());
+
+							container.on("mouseup", this._onMouseUp());
+
+							container.on("keydown", this._onKeyDown());
+							container.on("keypress", this._onKeyPress());
+							container.on("keyup", this._onKeyUp());
+
+							cc.on(container, "focus", this._onFocus(), true, $scope);
+							cc.on(container, "blur", this._onBlur(), true, $scope);
+
+							var self = this;
+
+							$scope.$watch("style", function onStyleChanged(style) {
+								style = style || "";
+								container.attr("style", style);
+							});
+
+							$scope.$watch("className", function onClassNameChanged() {
+								self.comboStyleUpdate(container);
+							});
+
+							$scope.$watch("selectItem", function onSelectItemChanged(newValue) {
+								$log.debug("SelectItem change detected", newValue);
+
+								$scope.$broadcast(PROPOSE_ITEM_EVENT, "watch", newValue, {});
+							});
+
+							$scope.$on(POPUP_OPENED_EVENT, function() {
+								cm.SwitchOnState(self, {
+									combo: self.containerElement
+								}, "openedPopup");
+							});
+
+							$scope.$on(POPUP_CLOSED_EVENT, function() {
+								if (__DISABLED_POPUP_CLOSE) {
+									return;
+								}
+								cm.ClearState(self, {
+									combo: self.containerElement
+								}, "openedPopup", false);
+							});
+
+							$scope.$on(SELECT_ITEM_EVENT, function($event, reason, item, label, options, event) {
+								var $item = item;
+								if (item && item.$item) {
+									$item = item.$item;
+								}
+
+								if (options && options.updateScope === false) {
+									return;
+								}
+
+								$timeout(function() {
+
+									if ($scope.selectedItem === $item) {
+										return;
+									}
+
+									$log.debug("Apply item=", $item);
+									$scope.$apply(function() {
+										$scope.selectedItem = $item;
+									});
+								}, 0, false);
+							});
+
+							var progressMonitors = [];
+							$scope.$on(ProgressMonitor.BEGIN_PROGRESS_MONITOR_EVENT, function($event, progressMonitor) {
+								progressMonitors.push(progressMonitor);
+
+								container.attr("cm_progressMonitor", true);
+
+								if (progressMonitors.length == 1) {
+									self._showProgressMonitor(progressMonitors[0]);
+								}
+
+								progressMonitor.$on('$destroy', function() {
+									var idx = progressMonitors.indexOf(progressMonitor);
+									if (idx < 0) {
+										return;
+									}
+
+									progressMonitors.splice(idx, 1);
+									if (progressMonitors.length) {
+										self._showProgressMonitor(progressMonitors[0]);
+										return;
+									}
+
+									self._showProgressMonitor(null);
+									container.removeAttr("cm_progressMonitor");
+								});
+
+							});
+
+							container.on("cm_update", this._onStyleUpdate());
+
+							var _containers = [ "begin", "tags", "input", "openButton", "end" ];
+
+							var renderContext = {
+
+								add: function(containerId, promiseFunc, priority) {
+									var pos = -1;
+									if (containerId) {
+										pos = _containers.indexOf(containerId);
+										if (pos < 0) {
+											$log.error("Can not find container Id '" + containerId + "'");
+										}
+									}
+									if (pos < 0) {
+										pos = _containers.length;
+									} else {
+										pos++;
+									}
+
+									if (isNaN(priority)) {
+										priority = 0;
+									}
+
+									for (;; pos++) {
+										var item = _containers[pos];
+										if (!item || typeof (item) === "string") {
+											break;
+										}
+
+										if (_containers[pos].priority < priority) {
+											break;
+										}
+									}
+
+									_containers.splice(pos, 0, {
+										promiseFunc: promiseFunc,
+										priority: priority
+									});
+								}
+							};
+
+							this.comboRenderer(renderContext);
+
+							var bcontainer = cc.createElement(container, "div", {
+								className: "cm_combo_container"
+							});
+
+							var promisesFunc = [];
+							angular.forEach(_containers, function each(item) {
+								if (!item.promiseFunc) {
+									return;
+								}
+								promisesFunc.push(item.promiseFunc);
+							});
+
+							if (false) { // Right To Left
+								promisesFunc.reverse();
+							}
+
+							var retPromise = null;
+
+							for (var i = 0; i < promisesFunc.length; i++) {
+								var f = promisesFunc[i];
+
+								if (!retPromise) {
+									var ret = f(bcontainer);
+
+									if (!cc.isPromise(ret)) {
+										continue;
+									}
+
+									retPromise = ret;
+									continue;
+								}
+
+								retPromise = retPromise.then(cc.callPromise(f, this, bcontainer));
+							}
+
+							retPromise = cc.ensurePromise(retPromise);
+
+							return retPromise.then(function onSuccess(result) {
+
+								self.comboStyleUpdate(container);
+
+								/*
+								 * var selectedItem = $scope.selectedItem; if (selectedItem) {
+								 * $log.debug("Init with selectItem ", selectedItem);
+								 * $scope.$broadcast(PROPOSE_ITEM_EVENT, "init", selectedItem); }
+								 */
+
+								return container;
+							});
+						},
+
+						/**
+						 * @returns {Promise}
+						 */
+						comboRenderer: function(renderContext) {
+							renderContext.add("input", this.inputRenderer.bind(this));
+
+							if (cc.toBoolean(this.$scope.hasOpenPopupButton) === false) {
+								renderContext.add("openButton", this.openButtonRenderer.bind(this));
+							}
+							if (this.$scope.tags !== undefined) {
+								renderContext.add("begin", this.tagsRenderer.bind(this));
+							}
+						},
+
+						inputRenderer: function(parent) {
+							var $scope = this.$scope;
+
+							var self = this;
+							var inputContainer = cc.createElement(parent, "div", {
+								className: "cm_combo_cinput"
+							});
+
+							var shadowInput = cc.createElement(inputContainer, "input", {
+								id: this.combo.id + "_shadowInput",
+								className: "cm_combo_shadowInput",
+								tabIndex: -1,
+								disabled: true,
+								"aria-hidden": true
+							});
+
+							var input = cc.createElement(inputContainer, "input", {
+								id: this.combo.id + "_input",
+								$cm_type: "input",
+								maxlength: this.$scope.maxLength,
+								size: this.$scope.textSize,
+								placeholder: this.$scope.placeholder
+							});
+
+							input.on("scroll", function(event) {
+								shadowInput[0].scrollLeft = input[0].scrollLeft;
+							});
+
+							$scope.$watch("maxTextLength", function onMaxTextLengthChanged(newMaxLength) {
+								input.attr("maxlength", newMaxLength);
+							});
+							$scope.$watch("textSize", function onTextSizeChanged(newTextSize) {
+								input.attr("size", newTextSize);
+							});
+							$scope.$watch("placeholder", function onPlaceholderChanged(newPlaceholder) {
+								input.attr("placeholder", newPlaceholder);
+							});
+
+							var oldValue;
+							$scope.$on(INPUT_CHANGED_EVENT, function($event, reason, event) {
+								var proposal = input.prop("cm_proposalLabel");
+								var value = input.val();
+								if (oldValue === value) {
+									// $log.debug("input#INPUT_CHANGED_EVENT: Input old value ! '"
+									// + value + "' proposal='" + proposal + "'");
+									return;
+								}
+								oldValue = value;
+
+								$log.debug("input#INPUT_CHANGED_EVENT: Input changed ! '" + value + "' proposal='" + proposal + "'");
+
+								$scope.$broadcast(FILTER_CHANGED_EVENT, value, reason, event);
+							});
+
+							$scope.$on(FOCUS_INPUT_EVENT, function($event, reason, event) {
+								// $log.debug("input#FOCUS_INPUT_EVENT: focus");
+								input[0].focus();
+							});
+
+							$scope.$on(SELECT_ITEM_EVENT, function($event, reason, item, label, options, event) {
+								$log.debug("input#SELECT_ITEM_EVENT: item=", item, " options=", options);
+
+								if (!options || options.clearShadow !== false) {
+									shadowInput.val("");
+								}
+
+								if (options && options.updateInput !== true) {
+									return;
+								}
+
+								label = label || (item && item.label);
+
+								// $log.debug("SIE1: SET input '" + label + "'")
+								input.val(label ? label : "");
+								$timeout(function() {
+									var l = input.val().length;
+									input[0].setSelectionRange(l, l);
+								}, 10, false);
+							});
+
+							$scope.$on(PROPOSE_ITEM_EVENT, function($event, reason, item, options, event) {
+								$log.debug("input#PROPOSE_ITEM_EVENT: item=", item, " option=", options);
+
+								if (!item) {
+									input.data("cm_proposal", null);
+									input.prop("cm_proposalLabel", null);
+
+									// $log.debug("SIE4: SET input ''");
+
+									$scope.$broadcast(SELECT_ITEM_EVENT, "propose", null, null, options, event);
+									return;
+								}
+
+								input.prop("cm_proposalLabel", item.label);
+								input.data("cm_proposal", item);
+
+								options = options || {};
+								options.clearShadow = false;
+
+								var value = input.val();
+								if (value) {
+									var label = item.label;
+									if (options && options.mergeInput) {
+										label = value + label.substring(value.length);
+									}
+
+									// $log.debug("SIE2: SET shadow '" + label + "'")
+									shadowInput.val(label);
+									shadowInput[0].scrollLeft = input[0].scrollLeft;
+
+									if (label === value) {
+										$scope.$broadcast(SELECT_ITEM_EVENT, "propose", item, label, options, event);
+										return;
+									}
+								}
+
+								$scope.$broadcast(SELECT_ITEM_EVENT, "propose", null, null, options, event);
+							});
+
+							$scope.$on(COMPLETE_INPUT_EVENT, function($event, reason, event) {
+								// $log.debug("input#COMPLETE_INPUT_EVENT: shadow=",
+								// shadowInput.val());
+
+								var si = shadowInput.val();
+								if (!si || input.val() === si) {
+									return;
+								}
+
+								// $log.debug("SIE3: SET input '" + si + "'");
+								$event.done = true;
+
+								var item = input.data("cm_proposal");
+
+								$scope.$broadcast(SELECT_ITEM_EVENT, "complete", item, si, {
+									clearShadow: true,
+									updateInput: true
+								}, event);
+
+							});
+
+							$scope.$on(POPUP_OPEN_REQUEST_EVENT, function($event, reason, event) {
+								self.processSuggestRequest(input.val(), null, reason);
+							});
+
+							$scope.$on(FILTER_CHANGED_EVENT, function($event, reason, event) {
+
+								shadowInput.val("");
+
+								if (self.isPopupOpened()) {
+									return;
+								}
+
+								var value = input.val();
+								if (!value) {
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, null, {
+										clearShadow: false
+									}, event);
+									return;
+								}
+
+								$log.debug("input#FILTER_CHANGED_EVENT: value=", value, "  listItems ...");
+
+								self.listItems(value, 1, self._buildCriterias()).then(function onSuccess(items) {
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, items[0], {
+										clearShadow: false,
+										mergeInput: true
+									}, event);
+								});
+							});
+
+							this.inputStyleUpdate(input);
+
+							return $q.when(inputContainer);
+						},
+
+						openButtonRenderer: function(parent) {
+
+							var button = cc.createElement(parent, "button", {
+								id: this.combo.id + "_openButton",
+								$cm_type: "button",
+								$cm_actionType: POPUP_OPEN_REQUEST_ACTION_TYPE,
+								$fa_classes: [ "fa", "fa-caret-down" ]
+							});
+
+							this.buttonStyleUpdate(button);
+
+							return $q.when(button);
+						},
+
+						tagsRenderer: function(parent) {
+							var ul = cc.createElement(parent, "ul", {
+								id: "cm_ctags_" + (anonymousId++),
+								$cm_type: "tags",
+								cssDisplay: "none"
+							});
+
+							var self = this;
+							this.$scope.$watchCollection("tags", function onChange(newTags) {
+								self.constructTags(ul, newTags);
+							});
+							if (this.$scope.tags) {
+								this.constructTags(ul, this.$scope.tags);
+							}
+
+							this.tagsStyleUpdate(ul);
+
+							return $q.when(ul);
+						},
+
+						constructTags: function(container, tags) {
+							var self = this;
+
+							var objs = [];
+							var lis = (container[0] || container).querySelectorAll(".cm_combo_tag");
+							for (var i = 0; i < lis.length; i++) {
+								var li = angular.element(lis[i]);
+								objs.push(li.data("cm_tag"));
+							}
+
+							var p = document.createDocumentFragment();
+
+							var expressions = null;
+
+							var cmps = [];
+							angular.forEach(tags, function(tag) {
+								var idx = objs.indexOf(tag);
+								if (idx >= 0) {
+									cmps.push(lis[idx]);
+									objs[idx] = null;
+									return;
+								}
+
+								if (!expressions) {
+									expressions = {};
+									[ "tagLabel", "tagTooltip", "tagClass" ].forEach(function(name) {
+										var expression = self.$scope[name + "RawExpression"];
+										if (!expression) {
+											return;
+										}
+
+										var exp = self.$interpolate(expression);
+
+										expressions[name] = function(tagScope) {
+											return tagScope.$eval(exp);
+										};
+									});
+								}
+
+								var newTagComponent = self.tagRenderer(p, tag, expressions);
+								if (!newTagComponent) {
+									return;
+								}
+
+								cmps.push(newTagComponent);
+							});
+
+							for (var i = 0; i < objs.length; i++) {
+								if (!objs[i]) {
+									continue;
+								}
+								angular.element(lis[i]).remove();
+							}
+
+							if (!cmps.length) {
+								container.css("display", "none");
+								return;
+							}
+							container.css("display", "");
+
+							p = angular.element(document.createDocumentFragment());
+							angular.forEach(cmps, function(cmp) {
+								p.append(cmp);
+							});
+
+							container.append(p);
+						},
+
+						tagRenderer: function(container, tag, expressions) {
+							var li = cc.createElement(container, "li", {
+								id: "cm_ctag_" + (anonymousId++),
+								$cm_type: "tag",
+								tabIndex: -1,
+								$cm_focusable: true
+							});
+
+							var tagScope = this.$scope.$parent.$new();
+							li.on('$destroy', function() {
+								tagScope.$destroy();
+							});
+
+							tagScope.$tag = tag;
+							if (this.$scope.tagVar) {
+								tagScope[this.$scope.tagVar] = tag;
+							}
+
+							var text = "";
+							if (expressions.tagLabel) {
+								text = tagScope.$eval(expressions.tagLabel);
+							}
+							if (typeof (tag.toTagText) === "function") {
+								text = tag.toTagText();
+							}
+							if (!text) {
+								text = tag.toString();
+							}
+
+							li.data("cm_tag", tag);
+
+							cc.createElement(li, "span", {
+								className: "cm_combo_tagBLabel",
+								textNode: text
+							});
+							var removeButton = cc.createElement(li, "a", {
+								$cm_type: "tagRemove",
+								href: "javascript:void(0)",
+								"aria-hidden": true,
+								tabIndex: -1,
+								$cm_classes: "fa fa-times"
+							});
+
+							this.tagRemoveStyleUpdate(removeButton);
+
+							var tooltip = "";
+							if (expressions.tagTooltip) {
+								tooltip = tagScope.$eval(expressions.tagTooltip);
+							}
+							if (typeof (tag.toTagTooltip) === "function") {
+								tooltip = tag.toTagTooltip();
+							}
+							if (tooltip) {
+								li.attr("title", tooltip);
+							}
+
+							var className = "";
+							if (expressions.tagClass) {
+								className = tagScope.$eval(expressions.tagClass);
+							}
+							if (className) {
+								li.prop("cm_classes", className);
+							}
+
+							this.tagStyleUpdate(li);
+							return li;
+						},
+
+						_onMouseOver: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+
+								cm.SwitchOnState(self, elements, "over");
+							};
+						},
+
+						_onMouseOut: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.relatedTarget;
+
+								var elements = searchElements(target);
+								cm.SwitchOffState(self, elements, "over");
+							};
+						},
+
+						_onFocus: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+								cm.SwitchOnState(self, elements, "focus");
+							};
+						},
+
+						_onBlur: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.relatedTarget;
+
+								$log.debug("blur=", event.relatedTarget, event.target, event.source);
+
+								var elements = searchElements(target);
+								cm.SwitchOffState(self, elements, "focus");
+
+								if (!elements.combo && self.isPopupOpened()) {
+									$timeout(function() {
+										if (self.containerElement.hasAttribute("cm_focus")) {
+											return;
+										}
+										self.$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "blur", event);
+									}, 100, false);
+								}
+							};
+						},
+
+						_onMouseDown: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+								cm.SwitchOnState(self, elements, "mouseDown");
+							};
+						},
+
+						_onMouseUp: function() {
+							var self = this;
+
+							return function(event) {
+								var elements = searchElements();
+								cm.ClearState(self, elements, "mouseDown");
+							};
+						},
+
+						_onKeyDown: function() {
+							var self = this;
+							var $scope = this.$scope;
+
+							return function(event) {
+								var target = event.target;
+								var elements = searchElements(target);
+								var cancel = false;
+
+								if (cancel) {
+									event.stopPropagation();
+									event.preventDefault();
+								}
+							};
+						},
+
+						_onKeyPress: function() {
+							var self = this;
+							var $scope = this.$scope;
+
+							return function(event) {
+								var target = event.target;
+								var elements = searchElements(target);
+								var openedPopup = self.isPopupOpened();
+
+								var cancel = false;
+
+								if (elements.input) {
+									var input = elements.input;
+
+									switch (event.keyCode) {
+									case Key.VK_BACK_SPACE:
+										if (!input.selectionStart && !input.selectionEnd) {
+											var prevTag = cui.GetPreviousFocusable(self.containerElement, target);
+											if (prevTag) {
+												var tag = angular.element(prevTag).data("cm_tag");
+												if (!tag) {
+													$log.error("No data associated to tag element " + elements.tag);
+													break;
+												}
+												self.processTagRemove(tag);
+											}
+										}
+										break;
+									}
+								} else {
+
+									switch (event.keyCode) {
+									case Key.VK_DELETE:
+									case Key.VK_BACK_SPACE:
+										cancel = true;
+										break;
+									}
+								}
+
+								if (cancel) {
+									event.stopPropagation();
+									event.preventDefault();
+								}
+							};
+						},
+
+						_onKeyUp: function() {
+							var self = this;
+							var $scope = this.$scope;
+
+							return function(event) {
+								var target = event.target;
+								var elements = searchElements(target);
+								var cancel = false;
+
+								var next;
+
+								var openedPopup = self.isPopupOpened();
+
+								if (elements.input) {
+									var input = elements.input;
+									var inputChanged = false;
+
+									switch (event.keyCode) {
+									case Key.VK_LEFT:
+										if (!input.selectionStart && !input.selectionEnd) {
+											next = cui.GetPreviousFocusable(self.containerElement, target);
+										}
+										break;
+									case Key.VK_RIGHT:
+										if (input.selectionEnd === input.value.length) {
+
+											var $event = $scope.$broadcast(COMPLETE_INPUT_EVENT, "rightKey", event);
+											if (!$event.done) {
+												// next = cui.GetNextFocusable(self.containerElement,
+												// target);
+											}
+										}
+										break;
+
+									case Key.VK_DOWN:
+										cancel = true;
+										if (!openedPopup) {
+											$scope.$broadcast(POPUP_OPEN_REQUEST_EVENT, "downKey", event);
+											break;
+										}
+
+										$scope.$broadcast(NEXT_POPUP_ITEM_EVENT, "downKey", event);
+										break;
+
+									case Key.VK_UP:
+										cancel = true;
+										if (!openedPopup) {
+											$scope.$broadcast(POPUP_OPEN_REQUEST_EVENT, "upKey", event);
+											break;
+										}
+
+										$scope.$broadcast(PREVIOUS_POPUP_ITEM_EVENT, "upKey", event);
+										break;
+
+									case Key.VK_RETURN:
+									case Key.VK_ENTER:
+										if (openedPopup) {
+											$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "enterKey", event);
+
+										} else {
+											$scope.$broadcast("keyEnter", event);
+										}
+										break;
+
+									default:
+										inputChanged = true;
+										break;
+									}
+
+									if (inputChanged) {
+										elements.input.cm_changed = true;
+										$scope.$broadcast(INPUT_CHANGED_EVENT, "key", event);
+									}
+
+								} else if (elements.item) {
+									switch (event.keyCode) {
+									case Key.VK_UP:
+										cancel = true;
+										next = cui.GetPreviousFocusable(elements.items, target);
+										break;
+									case Key.VK_DOWN:
+										cancel = true;
+										next = cui.GetNextFocusable(elements.items, target);
+										break;
+
+									case Key.VK_RETURN:
+									case Key.VK_ENTER:
+										var item = angular.element(elements.item).data("cm_item");
+
+										if (item) {
+											$scope.$broadcast(SELECT_ITEM_EVENT, "itemClick", item, null, {
+												clearShadow: true,
+												updateInput: true
+											}, event);
+										}
+										$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "itemClick", event);
+										$scope.$broadcast(FOCUS_INPUT_EVENT, "itemClick", event);
+										break;
+									}
+
+								} else {
+									switch (event.keyCode) {
+									case Key.VK_RIGHT:
+										cancel = true;
+										next = cui.GetNextFocusable(self.containerElement, target);
+										break;
+
+									case Key.VK_LEFT:
+										cancel = true;
+										next = cui.GetPreviousFocusable(self.containerElement, target);
+										break;
+
+									case Key.VK_DOWN:
+										if (elements.button && elements.button.cm_actionType === POPUP_OPEN_REQUEST_ACTION_TYPE &&
+												!openedPopup) {
+											cancel = true;
+											$scope.$broadcast(POPUP_OPEN_REQUEST_EVENT, "downKey", event);
+											$scope.$broadcast(FOCUS_INPUT_EVENT, "popupOpened", event);
+										}
+										break;
+
+									case Key.VK_UP:
+										if (elements.button && elements.button.cm_actionType === POPUP_OPEN_REQUEST_ACTION_TYPE &&
+												openedPopup) {
+											cancel = true;
+											$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "upKey", event);
+											$scope.$broadcast(FOCUS_INPUT_EVENT, "popupOpened", event);
+										}
+										break;
+
+									case Key.VK_DELETE:
+									case Key.VK_BACK_SPACE:
+										cancel = true;
+										if (elements.tag) {
+											var tag = elements.tag && angular.element(elements.tag).data("cm_tag");
+											if (!tag) {
+												$log.error("No data associated to tag element " + elements.tag);
+												break;
+											}
+
+											next = ((event.keyCode === Key.VK_DELETE) ? cui.GetNextFocusable : cui.GetPreviousFocusable)
+													.bind(cui)(self.containerElement, target);
+
+											self.processTagRemove(tag);
+										}
+										break;
+									}
+								}
+
+								if (!cancel) {
+									switch (event.keyCode) {
+									case Key.VK_ESCAPE:
+										$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "escapeKey", event);
+										break;
+									}
+								}
+
+								if (next) {
+									next.focus();
+								}
+
+								if (cancel) {
+									event.stopPropagation();
+									event.preventDefault();
+								} else {
+									$scope.$broadcast("cm:keyPress", event, elements);
+								}
+							};
+						},
+
+						_onSimpleClick: function() {
+							var self = this;
+							var $scope = this.$scope;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+
+								cc.log("Simple click on ", target, " elements=", elements);
+
+								if (elements.tagRemove) {
+									var tag = elements.tag && angular.element(elements.tag).data("cm_tag");
+									if (!tag) {
+										$log.error("No data associated to tag element " + elements.tag);
+										return;
+									}
+
+									self.processTagRemove(tag);
+
+									$scope.$broadcast(FOCUS_INPUT_EVENT, "tagRemoved", event);
+
+								} else if (elements.button) {
+									if (elements.button.cm_actionType === POPUP_OPEN_REQUEST_ACTION_TYPE) {
+
+										if (!self.isPopupOpened()) {
+											$scope.$broadcast(POPUP_OPEN_REQUEST_EVENT, "buttonClick", event);
+										} else {
+											$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "buttonClick", event);
+										}
+
+										$scope.$broadcast(FOCUS_INPUT_EVENT, "popupOpened", event);
+									}
+
+								} else if (elements.item) {
+									var item = angular.element(elements.item).data("cm_item");
+
+									if (item) {
+										$scope.$broadcast(SELECT_ITEM_EVENT, "itemClick", item, null, {}, event);
+									}
+									$scope.$broadcast(POPUP_CLOSE_REQUEST_EVENT, "itemClick", event);
+									$scope.$broadcast(FOCUS_INPUT_EVENT, "itemClick", event);
+								}
+							};
+						},
+
+						_onStyleUpdate: function() {
+
+							var self = this;
+
+							return function(event) {
+								var target = event.relatedTarget;
+
+								var type = cm.GetCMType(target);
+								if (!type) {
+									return;
+								}
+
+								var elt = angular.element(target);
+
+								var rp = self[type + "StyleUpdate"];
+								if (rp) {
+									rp.call(self, elt);
+									event.stopPropagation();
+									return;
+								}
+
+								$log.error("Can  not find function for " + type);
+							};
+						},
+
+						comboStyleUpdate: function(element) {
+							var classes = cm_combo_className.split(" ");
+
+							var className = this.$scope.className;
+							if (className) {
+								classes.push(className);
+							}
+
+							return cm.MixElementClasses(element, classes);
+						},
+
+						iconStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_icon" ];
+							if (element.iconType) {
+								l.push("cm_combo_icon_" + element.iconType);
+							}
+
+							return cm.MixElementClasses(element, l, element.fa_classes);
+						},
+
+						inputStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							return cm.MixElementClasses(element, [ "cm_combo_input" ]);
+						},
+
+						labelStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_label" ];
+							if (element.labelType) {
+								l.push("cm_combo_label_" + element.labelType);
+							}
+
+							return cm.MixElementClasses(element, l, element.fa_classes);
+						},
+
+						buttonStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_button" ];
+							if (element.cm_actionType) {
+								l.push("cm_combo_button_" + element.cm_actionType);
+							}
+
+							return cm.MixElementClasses(element, l, element.fa_classes);
+						},
+
+						tagsStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_tags" ];
+							return cm.MixElementClasses(element, l, element.fa_classes);
+						},
+
+						tagStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_tag" ];
+							if (element.tagClassName) {
+								l.push("cm_combo_tag_" + element.tagClassName);
+							}
+
+							return cm.MixElementClasses(element, l, element.fa_classes);
+						},
+						tagRemoveStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_tagRemove" ];
+
+							return cm.MixElementClasses(element, l, element.cm_classes);
+						},
+						itemsStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_items" ];
+
+							return cm.MixElementClasses(element, l, element.cm_classes);
+						},
+						itemStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							var l = [ "cm_combo_item" ];
+
+							if (element.hasAttribute("cm_noSelectable")) {
+								l = [ "cm_combo_item_noSelectable" ];
+							}
+
+							return cm.MixElementClasses(element, l, element.cm_classes);
+						},
+
+						processTagRemove: function(tag) {
+							var $scope = this.$scope;
+
+							var tags = $scope.tags;
+							if (!tags) {
+								$log.error("No tags list ?");
+								return;
+							}
+
+							var idx = tags.indexOf(tag);
+							if (idx < 0) {
+								$log.error("Can not find tag '", tag, "' in tags list ", tags);
+								return;
+							}
+
+							$scope.$apply(function() {
+								tags.splice(idx, 1);
+							});
+						},
+
+						isPopupOpened: function() {
+							var items = this.containerElement.querySelector(".cm_combo_items");
+							if (items) {
+								return true;
+							}
+
+							return false;
+						},
+						_renderItems: function(container, items) {
+							container.css("visibility", "hidden");
+
+							var old = container[0].getElementsByTagName("li");
+							angular.element(old).remove();
+
+							var tabIndex = this.$scope.tabIndex || 0;
+
+							var fragment = document.createDocumentFragment();
+
+							var self = this;
+							items.forEach(function(item) {
+								var li = cc.createElement(fragment, "li", {
+									id: "cm_comboItem_" + (anonymousId++),
+									$cm_type: "item",
+									tabIndex: tabIndex,
+									textNode: (item.label || "*** no-label ***")
+								});
+								if (item.className) {
+									li.prop("cm_classes", item.className);
+								}
+
+								li.data("cm_item", item);
+
+								self.itemStyleUpdate(li);
+							});
+
+							if (!fragment.firstChild) {
+								var li = cc.createElement(fragment, "li", {
+									id: "cm_comboItem_" + (anonymousId++),
+									$cm_type: "item",
+									tabIndex: tabIndex,
+									textNode: cc.lang(i18n, "no_result"),
+									cm_noSelectable: true
+								});
+
+								self.itemStyleUpdate(li);
+							}
+
+							container.append(fragment);
+							container.css("visibility", "");
+						},
+
+						_buildCriterias: function() {
+							var scope = this.$scope;
+
+							return {
+								ignoreAccents: scope.suggestIgnoreAccents,
+								ignoreCase: scope.suggestIgnoreCase,
+							};
+						},
+						processSuggestRequest: function(inputValue, selectedItem, reason, event) {
+							var $scope = this.$scope;
+
+							var fragment = document.createDocumentFragment();
+							var ul = cc.createElement(fragment, "ul", {
+								$cm_type: "items"
+							});
+
+							var pmh = $scope.popupMaxHeight;
+							if (pmh) {
+								if (parseFloat(pmh) === pmh) {
+									pmh = pmh + "px";
+								}
+
+								ul.attr("cm_popupHeight", true);
+								ul.css("maxHeight", pmh);
+							}
+
+							var $popupScope = $scope.$new(true);
+							ul.on('$destroy', function() {
+								$popupScope.$destroy();
+							});
+
+							$log.debug("Suggest ", inputValue, " listItems ...");
+
+							var self = this;
+							var selectedId = null;
+							var itemsPromise = this.listItems(inputValue, -1, this._buildCriterias());
+
+							itemsPromise.then(function(items) {
+								self._renderItems(ul, items);
+								if (reason === "downKey") {
+									var selectedLI = cui.GetNextFocusable(ul[0]);
+									selectedLI.setAttribute("cm_selected", true);
+									self.itemStyleUpdate(selectedLI);
+
+									selectedId = selectedLI.id;
+
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, "openPopup", items[0], null, {
+										clearShadow: true,
+										updateInput: false,
+										mergeInput: true
+									}, event);
+								}
+
+								self.itemsStyleUpdate(ul);
+
+								self.containerElement.appendChild(fragment);
+
+								$scope.$broadcast(POPUP_OPENED_EVENT, ul);
+							});
+
+							$popupScope.$on(POPUP_CLOSE_REQUEST_EVENT, function($event, request, event) {
+
+								if (!__DISABLED_POPUP_CLOSE) {
+									ul.remove();
+								}
+								self.containerElement.setAttribute("cm_closedPopup", true);
+
+								$scope.$broadcast(POPUP_CLOSED_EVENT, ul);
+							});
+
+							function selectItem(direction, event) {
+								var selectedLI = selectedId && document.getElementById(selectedId);
+								if (selectedLI) {
+									selectedLI.removeAttribute("cm_selected");
+									self.itemStyleUpdate(selectedLI);
+								}
+								selectedId = null;
+
+								var item = null;
+								var selectedLI = (direction === "down" ? cui.GetNextFocusable : cui.GetPreviousFocusable).bind(cui)(
+										ul[0], selectedLI);
+								if (selectedLI) {
+									selectedId = selectedLI.id;
+
+									selectedLI.setAttribute("cm_selected", true);
+									self.itemStyleUpdate(selectedLI);
+
+									item = angular.element(selectedLI).data("cm_item");
+
+									cui.EnsureVisible(ul[0], selectedLI);
+								}
+
+								$scope.$broadcast(SELECT_ITEM_EVENT, "nextItem", item, null, {
+									clearShadow: true,
+									updateInput: true
+								}, event);
+							}
+
+							$popupScope.$on(NEXT_POPUP_ITEM_EVENT, function($event, reason, event) {
+								// $log.debug("Process NEXT_POPUP_ITEM_EVENT");
+								selectItem("down", event);
+							});
+							$popupScope.$on(PREVIOUS_POPUP_ITEM_EVENT, function($event, reason, event) {
+								// $log.debug("Process PREVIOUS_POPUP_ITEM_EVENT");
+								selectItem("up", event);
+							});
+
+							$popupScope.$on(FILTER_CHANGED_EVENT, function($event, inputValue, reason, event) {
+								$log.debug("Process POPUP FILTER_CHANGED_EVENT '" + inputValue + "'  listItems ...");
+
+								var itemsPromise = self.listItems(inputValue, -1, self._buildCriterias());
+								itemsPromise.then(function(items) {
+									self._renderItems(ul, items);
+
+									$scope.$broadcast(PROPOSE_ITEM_EVENT, reason, items[0], {
+										clearShadow: true,
+										updateInput: false,
+										mergeInput: true
+									}, event);
+								});
+							});
+
+						},
+
+						_showProgressMonitor: function(progressMonitor) {
+							var progressMonitorContainer = this._progressMonitorContainer;
+							if (!progressMonitor) {
+								if (!progressMonitorContainer) {
+									return;
+								}
+								this._progressMonitorContainer = undefined;
+
+								angular.element(progressMonitorContainer).remove();
+								return $q.when(false);
+							}
+
+							var self = this;
+							function updateLabel($event, progressMonitor, work) {
+								var pmc = self._progressMonitorContainer;
+
+								var elt = pmc && pmc.querySelector(".cm_combo_pm_label");
+								if (!elt) {
+									return;
+								}
+
+								var label;
+
+								if (typeof (work) === "string") {
+									label = work;
+								} else {
+									label = progressMonitor.getTaskName();
+								}
+
+								if (!isNaN(work)) {
+									label += " (" + Math.floor(work * 100) + "%)";
+								}
+
+								angular.element(elt).text(label);
+							}
+
+							progressMonitor.$on(ProgressMonitor.TASKNAME_CHANGED_EVENT, updateLabel);
+							progressMonitor.$on(ProgressMonitor.WORK_EVENT, updateLabel);
+
+							if (progressMonitorContainer) {
+								updateLabel(null, progressMonitor);
+								return $q.when(true);
+							}
+
+							return this._constructProgressMonitor(this.containerElement).then(function(elt) {
+								self._progressMonitorContainer = elt[0] || elt;
+
+								updateLabel(null, progressMonitor);
+
+								return true;
+							});
+						},
+						_constructProgressMonitor: function(parent) {
+							var pm = cc.createElement(parent, "div", {
+								id: "cm_cpm_" + (anonymousId++),
+								className: "cm_combo_pm"
+							});
+
+							cc.createElement(pm, "span", {
+								className: "cm_combo_pm_waitingCircle fa fa-circle-o-notch fa-spin"
+							});
+
+							cc.createElement(pm, "label", {
+								className: "cm_combo_pm_label"
+							});
+
+							return $q.when(pm);
+						}
+					});
+
+			return ComboRenderer;
+		} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+/* jshint shadow: true */
 
 (function(window, angular, undefined) {
 	"use strict";
@@ -4315,1159 +5720,1296 @@
 
 	module.factory("camelia.renderers.grid.core",
 			[ "$log",
-				"$q",
-				"$window",
-				"$timeout",
-				"$exceptionHandler",
-				"camelia.core",
-				"camelia.cmTypes",
-				"camelia.animations.Animation",
-				"cm_grid_className",
-				"cm_grid_rowIndentPx",
-				"camelia.Key",
-				"camelia.SelectionProvider",
-				"camelia.CursorProvider",
-				"camelia.renderers.FiltersPopup",
-				"cm_grid_sizerPx",
-				"cm_grid_animation_pageChange",
-				function($log, $q, $window, $timeout, $exceptionHandler, cc, cm, Animation, cm_dataGrid_className,
-						cm_dataGrid_rowIndentPx, Key, SelectionProvider, CursorProvider, FiltersPopupRenderer, cm_grid_sizerPx,
-						cm_grid_animation_pageChange) {
+			  "$q",
+			  "$window",
+			  "$timeout",
+			  "$exceptionHandler",
+			  "camelia.core",
+			  "camelia.cmTypes",
+			  "camelia.animations.Animation",
+			  "cm_grid_className",
+			  "cm_grid_rowIndentPx",
+			  "camelia.Key",
+			  "camelia.SelectionProvider",
+			  "camelia.CursorProvider",
+			  "camelia.renderers.FiltersPopup",
+			  "cm_grid_sizerPx",
+			  "cm_grid_animation_pageChange",
+			  function($log, $q, $window, $timeout, $exceptionHandler, cc, cm, Animation, cm_dataGrid_className,
+			  		cm_dataGrid_rowIndentPx, Key, SelectionProvider, CursorProvider, FiltersPopupRenderer, cm_grid_sizerPx,
+			  		cm_grid_animation_pageChange) {
 
-					function searchElements(node) {
-						var ret = cm.SearchElements({
-							tcell: null,
-							title: null,
-							cell: null,
-							row: null,
-							table: null,
-							grid: null,
-							group: null,
-							groupExpand: null
-						}, "grid", node);
+				function searchElements(node) {
+					var ret = cm.SearchElements({
+						tcell: null,
+						title: null,
+						cell: null,
+						row: null,
+						table: null,
+						grid: null,
+						group: null,
+						groupExpand: null
+					}, "grid", node);
 
-						return ret;
-					}
+					return ret;
+				}
 
-					var GridRenderer = function(renderContext) {
-						angular.extend(this, renderContext);
-					};
+				function GridRenderer(renderContext) {
+					angular.extend(this, renderContext);
+				}
 
-					GridRenderer.prototype = {
-						render: function(parent) {
-							var $scope = this.$scope;
+				GridRenderer.prototype = {
+					render: function(parent) {
+						var $scope = this.$scope;
 
-							$scope.$broadcast("cm:dataGrid_rendering");
+						$scope.$broadcast("cm:dataGrid_rendering");
 
-							var container = cc.createElement(parent, "div", {
-								id: this.dataGrid.id,
-								$cm_type: "grid"
-							});
-							this.container = container[0];
+						var container = cc.createElement(parent, "div", {
+							id: this.dataGrid.id,
+							$cm_type: "grid"
+						});
+						this.container = container[0];
 
-							$scope.$watch("style", function(style) {
-								style = style || "";
-								container.attr("style", style);
-							});
+						$scope.$watch("style", function onStyleChanged(style) {
+							style = style || "";
+							container.attr("style", style);
+						});
 
-							var self = this;
-							$scope.$watch("className", function() {
-								self.gridStyleUpdate(container);
-							});
+						var self = this;
+						$scope.$watch("className", function onClassNameChanged() {
+							self.gridStyleUpdate(container);
+						});
 
-							var tabIndex = $scope.tabIndex;
-							if (!tabIndex || tabIndex < 0) {
-								tabIndex = 0;
+						var tabIndex = $scope.tabIndex;
+						if (!tabIndex || tabIndex < 0) {
+							tabIndex = 0;
+						}
+						this.tabIndex = tabIndex;
+						this.rowIndent = 0;
+
+						this.setupGroupProviders();
+
+						this.tableInstallWatchs();
+
+						$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
+
+							var sourceEvent = self._selectionSourceEvent;
+
+							$log.debug("GridRenderer.CURSOR_CHANGED SourceEvent=", sourceEvent);
+
+							if (data.oldRow) {
+								// BLUR event update the element
+								var oldElement = self.getElementFromValue(data.oldRow, ROW_OR_GROUP);
+								if (oldElement && oldElement.hasAttribute("cm_cursor")) {
+									oldElement.removeAttribute("cm_cursor");
+									cc.BubbleEvent(oldElement, "cm_update");
+								}
 							}
-							this.tabIndex = tabIndex;
-							this.rowIndent = 0;
-
-							this.setupGroupProviders();
-
-							this.tableInstallWatchs();
-
-							$scope.$on(CursorProvider.CURSOR_CHANGED, function(event, data) {
-
-								var sourceEvent = self._selectionSourceEvent;
-
-								console.log("GridRenderer.CURSOR_CHANGED SourceEvent=", sourceEvent);
-
-								if (data.oldRow) {
-									// BLUR event update the element
-									var oldElement = self.getElementFromValue(data.oldRow, ROW_OR_GROUP);
-									if (oldElement && oldElement._cursor) {
-										oldElement._cursor = undefined;
-										cc.BubbleEvent(oldElement, "cm_update");
-									}
-								}
-								if (data.row) {
-									var element = self.getElementFromValue(data.row, ROW_OR_GROUP);
-									if (element && !element._cursor) {
-										element._cursor = true;
-										cc.BubbleEvent(element, "cm_update");
-									}
-								}
-
-								var selectionProvider = self.selectionProvider;
-								if (!selectionProvider) {
-									return;
-								}
-
-								var cursorValue = data.row;
-								var rowValue = cursorValue;
-
-								if (self.groupProviders) {
-									var groupElement = self.getElementFromValue(cursorValue, "group");
-									if (groupElement) {
-										rowValue = angular.element(groupElement).data("cm_rowValues");
-									}
-								}
-
-								selectionProvider.run(function() {
-
-									self.selectionStrategy.select(selectionProvider, rowValue, cursorValue, sourceEvent, function(
-											cursorRowId) {
-										return self._computeRowRangeFromCursor(cursorValue, cursorRowId);
-									});
-								});
-							});
-
-							container.on("mouseover", this._onMouseOver());
-
-							container.on("mouseout", this._onMouseOut());
-
-							container.on("mousedown", this._onMouseDown());
-
-							container.on("dblclick", this._onDoubleClick());
-
-							container.on("click", this._onSimpleClick());
-
-							container.on("mouseup", this._onMouseUp());
-
-							container.on("keydown", this._onKeyPress());
-							// container.on("keypress", OnKeyPress(renderContext));
-
-							this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
-							this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
-
-							$scope.$on("$destroy", function() {
-								self._offFocus();
-								self._offBlur();
-
-								self.tableDestroy();
-							});
-
-							container.on("cm_update", this._onGridStyleUpdate());
-
-							$scope.$broadcast("cm:dataGrid_title_rendering");
-
-							var titlePromise = this.titleRenderer(container);
-							if (!cc.isPromise(titlePromise)) {
-								titlePromise = $q.when(titlePromise);
-							}
-
-							return titlePromise.then(function(title) {
-								$scope.$broadcast("cm:dataGrid_title_rendered");
-
-								self._title = title;
-
-								$scope.$broadcast("cm:dataGrid_body_rendering");
-
-								self._monitorPositions(function() {
-
-									var fragment = angular.element(document.createDocumentFragment());
-
-									var bodyContainer = cc.createElement(fragment, "div", {
-										styleClass: "cm_dataGrid_bcontainer"
-									});
-									self.bodyContainer = bodyContainer[0];
-
-									var tablePromise = self.tableRenderer(bodyContainer);
-									if (!cc.isPromise(tablePromise)) {
-										tablePromise = $q.when(tablePromise);
-									}
-
-									tablePromise.then(function(body) {
-										// self._body = body;
-										// self._hideBody(); // TODO Verify
-
-										container.append(fragment);
-
-										$scope.$broadcast("cm:dataGrid_body_rendered");
-
-										var win = angular.element($window);
-
-										var resizeHandler = self._onResize();
-										win.on("resize", resizeHandler);
-
-										$scope.$on("$destroy", function() {
-											win.off("resize", resizeHandler);
-										});
-
-										var layoutPromise = self.gridLayout();
-										if (!cc.isPromise(layoutPromise)) {
-											layoutPromise = $q.when(layoutPromise);
-										}
-
-										layoutPromise.then(function() {
-											$scope.$broadcast("cm:dataGrid_rendered");
-
-											$scope.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self._onSelectionChanged());
-
-											self._gridReady(container);
-
-											$scope.$broadcast("cm:dataGrid_ready");
-										});
-									});
-								});
-
-								return container;
-							});
-						},
-
-						setupGroupProviders: function() {
-							this.selectedGroupProvider = null;
-
-							var groupProviders = this.groupProviders;
-							if (groupProviders) {
-								for (var i = 0; i < groupProviders.length; i++) {
-									var groupProvider = groupProviders[i];
-									if (cc.toBoolean(groupProvider.disabled)) {
-										continue;
-									}
-									this.selectedGroupProvider = groupProvider;
-									break;
+							if (data.row) {
+								var element = self.getElementFromValue(data.row, ROW_OR_GROUP);
+								if (element && !element.hasAttribute("cm_cursor")) {
+									element.setAttribute("cm_cursor", true);
+									cc.BubbleEvent(element, "cm_update");
 								}
 							}
 
-							if (!this.selectedGroupProvider) {
+							var selectionProvider = self.selectionProvider;
+							if (!selectionProvider) {
 								return;
 							}
 
-							this.rowIndent = 1;
-							var self = this;
-							this.selectedGroupProvider.collapsedProvider.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self
-									._onCollapsedChanged());
+							var cursorValue = data.row;
+							var rowValue = cursorValue;
 
-						},
-
-						_gridReady: function(element, focusFirstCell) {
-
-							var row;
-							var cell;
-
-							if (this.focusCellId) {
-								cell = document.getElementById(this.focusCellId);
-								if (cell) {
-									row = cell.parentNode;
+							if (self.groupProviders) {
+								var groupElement = self.getElementFromValue(cursorValue, "group");
+								if (groupElement) {
+									rowValue = angular.element(groupElement).data("cm_rowValues");
 								}
 							}
 
-							if (!row && this.selectionProvider) {
-								var rowValue = this.selectionProvider.getFirstElement();
-								if (rowValue) {
-									row = this.getElementFromValue(rowValue, "row");
-								}
-							}
+							selectionProvider.run(function() {
 
+								self.selectionStrategy.select(selectionProvider, rowValue, cursorValue, sourceEvent, function(
+										cursorRowId) {
+									return self._computeRowRangeFromCursor(cursorValue, cursorRowId);
+								});
+							});
+						});
+
+						container.on("mouseover", this._onMouseOver());
+
+						container.on("mouseout", this._onMouseOut());
+
+						container.on("mousedown", this._onMouseDown());
+
+						container.on("dblclick", this._onDoubleClick());
+
+						container.on("click", this._onSimpleClick());
+
+						container.on("mouseup", this._onMouseUp());
+
+						container.on("keydown", this._onKeyPress());
+						// container.on("keypress", OnKeyPress(renderContext));
+
+						cc.on(container, "focus", this._onFocus(), true, $scope);
+						cc.on(container, "blur", this._onBlur(), true, $scope);
+
+						$scope.$on("$destroy", function() {
+							self.tableDestroy();
+
+							var dr = self._deferredRefresh;
+							if (dr) {
+								self._deferredRefresh = null;
+								dr.reject({
+									code: "DESTROYED",
+									message: "Component is destroyed"
+								});
+							}
+						});
+
+						container.on("cm_update", this._onGridStyleUpdate());
+
+						$scope.$broadcast("cm:gridTitleRendering");
+
+						var titlePromise = this.titleRenderer(container);
+						titlePromise = cc.ensurePromise(titlePromise);
+
+						return titlePromise.then(function onSuccess(title) {
+							$scope.$broadcast("cm:gridTitleRendered");
+
+							self._title = title;
+
+							$scope.$broadcast("cm:gridBodyRendering");
+
+							self._monitorPositions(function() {
+
+								var fragment = angular.element(document.createDocumentFragment());
+
+								var bodyContainer = cc.createElement(fragment, "div", {
+									styleClass: "cm_dataGrid_bcontainer"
+								});
+								self.bodyContainer = bodyContainer[0];
+
+								var tablePromise = self.tableViewPortRenderer(bodyContainer);
+								tablePromise = cc.ensurePromise(tablePromise);
+
+								tablePromise.then(function onSuccess(tableViewPort) {
+									// self._body = body;
+									// self._hideBody(); // TODO Verify
+									self.tableViewPort = tableViewPort;
+
+									container.append(fragment);
+
+									$scope.$broadcast("cm:gridBodyRendered");
+
+									var win = angular.element($window);
+
+									var resizeHandler = self._onResize();
+									win.on("resize", resizeHandler);
+
+									$scope.$on("$destroy", function() {
+										win.off("resize", resizeHandler);
+									});
+
+									var layoutPromise = self.gridLayout();
+									layoutPromise = cc.ensurePromise(layoutPromise);
+
+									layoutPromise.then(function onSuccess(result) {
+										$scope.$broadcast("cm:gridRendered");
+
+										$scope.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self._onSelectionChanged());
+
+										self._gridReady(container).then(function onSuccess() {
+											$scope.$broadcast("cm:gridReady", true);
+
+											return $q.when(true);
+
+										}, function onError(reason) {
+											$scope.$broadcast("cm:gridReady", false, reason);
+
+											$log.error("GridReady error ", reason);
+
+											return $q.reject(reason);
+										});
+									});
+								});
+							});
+
+							return container;
+						});
+					},
+
+					setupGroupProviders: function() {
+						this.selectedGroupProvider = null;
+
+						var groupProviders = this.groupProviders;
+						if (groupProviders) {
+							for (var i = 0; i < groupProviders.length; i++) {
+								var groupProvider = groupProviders[i];
+								if (cc.toBoolean(groupProvider.disabled)) {
+									continue;
+								}
+								this.selectedGroupProvider = groupProvider;
+								break;
+							}
+						}
+
+						if (!this.selectedGroupProvider) {
+							return;
+						}
+
+						this.rowIndent = 1;
+						var self = this;
+						this.selectedGroupProvider.collapsedProvider.$on(SelectionProvider.SELECTION_CHANGED_EVENT, self
+								._onCollapsedChanged());
+
+					},
+
+					/**
+					 * @returns {Promise}
+					 */
+					_gridReady: function(element, focusFirstCell) {
+
+						$log.debug("Grid ready element=", element, " focus=", focusFirstCell);
+
+						var row;
+						var cell;
+
+						if (this.focusCellId) {
+							cell = document.getElementById(this.focusCellId);
+							if (cell) {
+								row = cell.parentNode;
+							}
+						}
+
+						if (!row && this.selectionProvider) {
+							var rowValue = this.selectionProvider.getFirstElement();
+							if (rowValue) {
+								row = this.getElementFromValue(rowValue, "row");
+							}
+						}
+
+						if (!row) {
+							row = this.getFirstRow();
 							if (!row) {
-								row = this.getFirstRow();
-								if (!row) {
-									return false;
-								}
+								return $q.when(false);
 							}
+						}
 
+						if (!cell) {
+							cell = cm.GetNextType(row.firstChild, CELL_OR_GROUPTITLE);
 							if (!cell) {
-								cell = cm.GetNextType(row.firstChild, CELL_OR_GROUPTITLE);
-								if (!cell) {
-									return false;
-								}
+								return $q.when(false);
 							}
+						}
 
-							if (!focusFirstCell) {
-								this._setCursor(cell);
-								return true;
-							}
+						if (!focusFirstCell) {
+							this._setCursor(cell);
+							return $q.when(true);
+						}
+
+						var cnt = 10;
+						return $timeout(function onTimer() {
 
 							// Sometime, it is not yet drawn !
-							if (cell.getBoundingClientRect().width) {
-								cc.setFocus(cell);
-								return true;
+							if (!cell.getBoundingClientRect().width) {
+								if (--cnt > 0) {
+									return $timeout(onTimer, 100, false);
+								}
+
+								return $q.reject({
+									code: "COMPONENT_NOT_DRAWN",
+									message: "The specified component is not drawn"
+								});
 							}
 
-							$timeout(function() {
-								cc.setFocus(cell);
-							}, 50, false);
-
+							cc.setFocus(cell);
 							return true;
-						},
+						}, 100, false);
+					},
 
-						_setCursor: function(element, event) {
+					_setCursor: function(element, event) {
 
-							cc.log("SetCursor ", element);
+						// cc.log("SetCursor ", element);
 
-							var cid = this.focusCellId;
-							if (cid && (!element || element.id != cid)) {
-								this.focusCellId = null;
+						var cid = this.focusCellId;
+						if (cid && (!element || element.id !== cid)) {
+							this.focusCellId = null;
 
-								var oldCursor = document.getElementById(cid);
-								if (oldCursor) {
-									oldCursor.tabIndex = -1;
-								}
+							var oldCursor = document.getElementById(cid);
+							if (oldCursor) {
+								oldCursor.tabIndex = -1;
 							}
+						}
 
-							if (element) {
-								this.focusCellId = element.id;
+						if (element) {
+							this.focusCellId = element.id;
 
-								element.tabIndex = this.tabIndex;
+							element.tabIndex = this.tabIndex;
 
-								if (this.cursorProvider) {
-									var tr = element.parentNode;
+							if (this.cursorProvider) {
+								var tr = element.parentNode;
 
-									var cursorValue = angular.element(tr).data("cm_value");
-									this.registerElement(tr, cursorValue);
+								var cursorValue = angular.element(tr).data("cm_value");
+								this.registerElement(tr, cursorValue);
 
-									var logicalIndex = element.cm_lindex;
-									var column = this.columns[logicalIndex];
+								var logicalIndex = element.cm_lindex;
+								var column = this.columns[logicalIndex];
 
-									this.cursorProvider.requestCursor(cursorValue, column, event);
-								}
+								this.cursorProvider.requestCursor(cursorValue, column, event);
 							}
-						},
+						}
+					},
 
-						gridStyleUpdate: function(element) {
-							var classes = cm_dataGrid_className.split(" ");
+					gridStyleUpdate: function(element) {
+						var classes = cm_dataGrid_className.split(" ");
 
-							var className = this.$scope.className;
-							if (className) {
-								classes.push(className);
-							}
+						var className = this.$scope.className;
+						if (className) {
+							classes.push(className);
+						}
 
-							return cm.MixElementClasses(element, classes);
-						},
+						return cm.MixElementClasses(element, classes);
+					},
 
-						gridLayout: function() {
-							var container = this.container;
-							this.layoutState = "uninitialized";
+					/**
+					 * @returns {Promise}
+					 */
+					gridLayout: function() {
+						var container = this.container;
+						var oldLayoutState = this.layoutState;
+						this.layoutState = "uninitialized";
 
-							$log.debug("GridLayout beginning (containerSize=" + this._containerSizeSetted + ")");
+						$log.debug("GridLayout beginning (containerSize=" + this._containerSizeSetted + ")");
 
-							if (!this._containerSizeSetted) {
-								var containerStyle = this.container.style;
-								if (containerStyle.width || containerStyle.height) {
-									var dr = this.container.getBoundingClientRect();
-									if (dr.height && dr.width) {
-										this._containerSizeSetted = true;
-										var hr = this.titleViewPort.getBoundingClientRect();
+						var self = this;
+						var cr;
 
-										var ts = this.tableViewPort.style;
-										ts.width = dr.width + "px";
-										// ts.height = (dr.height - hr.height) + "px";
-									}
-								} else {
-									this._containerSizeSetted = true;
-								}
-							}
+						var $container = angular.element(container);
 
-							var self = this;
+						if (!this.tableViewPort) {
+							$log.error("Table view port is NULL");
+							// TODO Align columns to default values
 
-							var cr = this.tableViewPort.getBoundingClientRect();
-							if (!cr || (cr.width < 1 && cr.height < 1)) {
-								$log.debug("No bounding client rect ", cr, "  => timeout 10ms");
-								this._hideBody();
+							cr = this.bodyContainer.getBoundingClientRect();
 
-								return $timeout(function() {
-									self.gridLayout();
-								}, 10, false);
-							}
+							var promise = this.titleLayout($container, cr.width);
+							promise = cc.ensurePromise(promise);
 
-							if (this.gridWidth == cr.width && this.gridHeight == cr.height) {
-								$log.debug("Begin layout : Already done");
+							return promise.then(function() {
+								self.layoutState = "bodyDone";
 
 								self._alignColumns(true);
 
 								self._showBody();
 
-								this.layoutState = "complete";
-								return true;
-							}
-							$log.debug("Begin layout to " + cr.width + "," + cr.height);
-
-							this.gridWidth = cr.width;
-							this.gridHeight = cr.height;
-
-							this.$scope.$broadcast("cm:dataGrid_layout_begin");
-
-							var $container = angular.element(container);
-
-							var promise = this.titleLayout($container, cr.width);
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
-
-							return promise.then(function() {
-								self.layoutState = "titleDone";
-
-								var promise2 = self.tableLayout($container, cr.width, cr.height);
-
-								if (!cc.isPromise(promise2)) {
-									promise2 = $q.when(promise2);
-								}
-
-								promise2.then(function() {
-									self.layoutState = "bodyDone";
-
-									self._alignColumns(true);
-
-									self._showBody();
-
-									var cursor = self._cursor;
-									if (cursor) {
-										var p = cursor.parentNode;
-										for (; p && p.nodeType == 1; p = p.parentNode)
-											;
-										if (!p || p.nodeType != 9) {
-											cursor = null;
-											self._cursor = null;
-										}
-									}
-
-									self.layoutState = "complete";
-
-									self.$scope.$broadcast("cm:dataGrid_layout_end");
-								});
+								self.layoutState = "complete";
+								return $q.when(true);
 							});
-						},
+						}
 
-						_hasData: function() {
-							var tbody = this.getTableBody();
+						if (!this._containerSizeSetted) {
+							var containerStyle = this.container.style;
+							if (containerStyle.width || containerStyle.height) {
+								var dr = this.container.getBoundingClientRect();
+								if (dr.height && dr.width) {
+									this._containerSizeSetted = true;
+									var hr = this.titleViewPort.getBoundingClientRect();
 
-							return tbody && tbody.firstChild;
-						},
-
-						_alignColumns: function(columnConstraints) {
-							var total = 0;
-							var invalidLayout = false;
-
-							var rowIndent = this.rowIndent;
-
-							var self = this;
-							angular.forEach(this.visibleColumns, function(column) {
-
-								var titleStyle = column.titleElement.style;
-
-								var width = column.width;
-								if (width === undefined) {
-									invalidLayout = true;
-									titleStyle.width = "auto";
-									return;
+									var ts = this.tableViewPort.style;
+									ts.width = dr.width + "px";
+									// ts.height = (dr.height - hr.height) + "px";
 								}
-
-								var bodyWidth = width;
-								if (!column.visibleIndex && rowIndent) {
-									bodyWidth -= rowIndent * cm_dataGrid_rowIndentPx;
-								}
-								titleStyle.width = width + "px";
-								// titleStyle.position = "static";
-
-								column.bodyColElement.style.width = (columnConstraints) ? (bodyWidth + "px") : "auto";
-								total += width;
-
-								$log.debug("GridWidth[" + column.id + "] width=" + width + " total=" + total);
-
-							});
-
-							$log.debug("GridWidth=" + this.gridWidth + " total=" + total);
-
-							if (invalidLayout) {
-								this.tableElement.style.width = "auto";
-								$log.debug("AlignColumns ... Invalid layout");
-								return;
-							}
-
-							var gridWidth = this.gridWidth;
-
-							var sizer = 0;
-							if (false && total < gridWidth) {
-
-								sizer = gridWidth - total;
-								total -= sizer;
-
-							} else if (this.hasResizableColumnVisible) {
-								sizer = cm_grid_sizerPx;
-							}
-
-							if (this.rightColElement) {
-								this.rightColElement.style.width = (sizer) + "px";
-
-								total += sizer;
-							}
-
-							this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
-							// this.tableElement.style.tableLayout = "fixed";
-
-							$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer + " columnConstraints=" +
-									columnConstraints);
-						},
-
-						_computeRowRangeFromCursor: function(rowValue, cursorRowValue) {
-
-							var mark1;
-							var mark2;
-
-							var ret = [];
-
-							var tbody = this.getTableBody();
-							if (!tbody) {
-								return null;
-							}
-
-							var r = tbody.firstChild;
-							for (; r; r = r.nextSibling) {
-								if (r.nodeType != 1) {
-									continue;
-								}
-
-								var ctype = cm.GetCMType(r);
-								if (!ROW_OR_GROUP[ctype]) {
-									continue;
-								}
-
-								var rValue = angular.element(r).data("cm_value");
-
-								if (!mark1 && rValue === cursorRowValue) {
-									mark1 = true;
-								}
-								if (!mark2 && rValue === rowValue) {
-									mark2 = true;
-								}
-
-								if (mark1 || mark2) {
-									ret.push(rValue);
-								}
-
-								if (mark1 && mark2) {
-									return ret;
-								}
-							}
-
-							return null;
-						},
-
-						_emitClick: function(elements, eventName, event) {
-
-							var row = elements.row;
-							if (!row) {
-								return;
-							}
-							var rowValue = angular.element(row).data("cm_value");
-
-							var params = {
-								grid: this.grid,
-								event: event,
-								row: row,
-								rowValue: rowValue
-							};
-
-							var cell = elements.cell;
-							if (cell) {
-								params.cell = cell;
-
-								var logicalIndex = cell.cm_lindex;
-								params.column = this.columns[logicalIndex];
-							}
-
-							this.$scope.$emit(eventName, params);
-						},
-
-						onKeyPress_Cell: function(cell, event, groupElement) {
-							var row = cell.parentNode;
-							var parentNode = row.parentNode;
-							var columnLogicalIndex = cell.cm_lindex;
-							var next = row;
-							var cancel = false;
-							var activate = false;
-							var focusCell = false;
-							var viewPort = this.tableViewPort;
-
-							var group;
-							var collapsedProvider;
-							if (groupElement) {
-								group = angular.element(groupElement).data("cm_value");
-								collapsedProvider = this.selectedGroupProvider.getCollapsedProvider();
-							}
-
-							var dataGrid = this.dataGrid;
-							function prevPage() {
-								if ((!next || next.id == row.id) && dataGrid.rows > 0) {
-									var nextFirst = dataGrid.first - dataGrid.rows;
-									if (nextFirst < 0) {
-										nextFirst = 0;
-									}
-									if (dataGrid.first > nextFirst) {
-										dataGrid.setFirst(nextFirst);
-									}
-
-									next = null;
-								}
-							}
-
-							function nextPage() {
-								if ((!next || next.id == row.id) && dataGrid.rows > 0) {
-									var nextFirst = dataGrid.first + dataGrid.rows;
-									if (dataGrid.rowCount < 0 || nextFirst < dataGrid.rowCount) {
-										dataGrid.setFirst(nextFirst);
-									}
-
-									next = null;
-								}
-							}
-
-							switch (event.keyCode) {
-							case Key.VK_DOWN:
-								cancel = true;
-								next = cm.GetNextType(row.nextSibling, ROW_OR_GROUP);
-								nextPage();
-								break;
-
-							case Key.VK_PAGE_DOWN:
-								cancel = true;
-								next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
-								if (next && next.id == row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
-									viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
-
-									next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
-								}
-								nextPage();
-								break;
-
-							case Key.VK_END:
-								cancel = true;
-								next = cm.GetPreviousType(parentNode.lastChild, ROW_OR_GROUP);
-								nextPage();
-								break;
-
-							case Key.VK_UP:
-								cancel = true;
-								next = cm.GetPreviousType(row.previousSibling, ROW_OR_GROUP);
-								prevPage();
-								break;
-
-							case Key.VK_PAGE_UP:
-								cancel = true;
-								next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
-								if (next && next.id == row.id) {
-									viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
-
-									next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
-								}
-								prevPage();
-								break;
-
-							case Key.VK_HOME:
-								cancel = true;
-								next = cm.GetNextType(parentNode.firstChild, ROW_OR_GROUP);
-								prevPage();
-								break;
-
-							case Key.VK_SPACE:
-								cancel = true;
-								activate = true;
-								break;
-
-							case Key.VK_RIGHT:
-								cancel = true;
-								if (groupElement) {
-									if (collapsedProvider.contains(group)) {
-										this._toggleGroupExpand(groupElement);
-									}
-
-								} else if (angular.isNumber(columnLogicalIndex)) {
-									var column = this.columns[columnLogicalIndex];
-
-									var nextColumn = this.visibleColumns[column.visibleIndex + 1];
-									if (nextColumn) {
-										columnLogicalIndex = nextColumn.logicalIndex;
-										focusCell = true;
-									}
-								}
-
-								break;
-
-							case Key.VK_LEFT:
-								cancel = true;
-								if (groupElement) {
-									if (!collapsedProvider.contains(group)) {
-										this._toggleGroupExpand(groupElement);
-									}
-
-								} else if (angular.isNumber(columnLogicalIndex)) {
-									var column = this.columns[columnLogicalIndex];
-
-									if (column.visibleIndex > 0) {
-										var nextColumn = this.visibleColumns[column.visibleIndex - 1];
-										columnLogicalIndex = nextColumn.logicalIndex;
-
-										focusCell = true;
-									}
-								}
-								break;
-							}
-
-							var self = this;
-							if (activate) {
-								var selectionStrategy = this.selectionStrategy;
-								if (selectionStrategy) {
-									var rowValue = angular.element(next).data("cm_value");
-									this.registerElement(next, rowValue);
-
-									var cursorValue = rowValue;
-
-									if (this.groupProviders) {
-										var groupElement = this.getElementFromValue(cursorValue, "group");
-										if (groupElement) {
-											rowValue = angular.element(groupElement).data("cm_rowValues");
-										}
-									}
-
-									selectionStrategy.select(this.selectionProvider, rowValue, cursorValue, event, function(cursorRowId) {
-										return self._computeRowRangeFromCursor(cursorValue, cursorRowId);
-									}, true);
-								}
-							}
-
-							if (next && next.id != row.id) {
-								this.registerElement(next);
-
-								focusCell = true;
-							}
-
-							if (focusCell) {
-								var cell = cm.GetNextType(next.firstChild, CELL_OR_GROUPTITLE, function(c, type) {
-									if (c.cm_lindex === undefined || columnLogicalIndex === undefined) {
-										return true;
-									}
-									return c.cm_lindex == columnLogicalIndex;
-								});
-
-								if (cell) {
-									this._registerSelectionEvent(event);
-
-									cc.setFocus(cell);
-								}
-							}
-
-							if (cancel) {
-								event.stopPropagation();
-								event.preventDefault();
-							}
-						},
-
-						_onCollapsedChanged: function() {
-							var self = this;
-
-							return function(event, params) {
-								self._switchElementsFromEvent(params, "group", "_collapsed", function(groupElement, group) {
-									// Add the group to the collapse list, remove all rows of
-									// group
-									self.removeRowsOfGroup(group, groupElement);
-
-								}, function(groupElement) {
-									// Remove the group to the collapse list, show all rows of
-									// this
-									// group
-
-									var group = angular.element(groupElement).data("cm_value");
-
-									self.addRowsOfGroup(group, groupElement);
-								});
-							};
-						},
-
-						_onSelectionChanged: function() {
-							var self = this;
-							return function(event, params) {
-								self._switchElementsFromEvent(params, "row", "_selected");
-							};
-						},
-
-						_switchElementsFromEvent: function(params, type, propertyName, funcAdd, funcRemove) {
-							var size = params.removed.length + params.added.length;
-							var cache = (size > 1) ? {} : null;
-
-							var self = this;
-							if (params.clearAll && !params.removed.length) {
-								this.forEachBodyElement(type, function(element) {
-									if (!element[propertyName]) {
-										return;
-									}
-									element[propertyName] = undefined;
-									cc.BubbleEvent(element, "cm_update");
-
-									if (funcRemove) {
-										funcRemove(element);
-									}
-								}, type);
-
 							} else {
-								angular.forEach(params.removed, function(rowValue) {
-									var element = self.getElementFromValue(rowValue, type, cache);
-									if (!element || !element[propertyName]) {
-										return;
-									}
+								this._containerSizeSetted = true;
+							}
+						}
 
-									element[propertyName] = undefined;
-									cc.BubbleEvent(element, "cm_update");
+						cr = this.tableViewPort.getBoundingClientRect();
+						if (!cr || (cr.width < 1 && cr.height < 1)) {
+							$log.debug("No bounding client rect ", cr, "  => timeout 10ms");
 
-									if (funcRemove) {
-										funcRemove(element);
-									}
-								});
+							if (oldLayoutState !== "uninitialized") {
+								this._hideBody();
 							}
 
-							angular.forEach(params.added, function(rowValue) {
-								var element = self.getElementFromValue(rowValue, type, cache);
-								if (!element || element[propertyName]) {
-									return;
+							return $timeout(function() {
+								return self.gridLayout();
+							}, 10, false);
+						}
+
+						if (this.gridWidth === cr.width && this.gridHeight === cr.height) {
+							$log.debug("Begin layout : Already done");
+
+							self._alignColumns(true);
+
+							self._showBody();
+
+							this.layoutState = "complete";
+							return $q.when(true);
+						}
+
+						$log.debug("Begin layout to " + cr.width + "," + cr.height);
+
+						this.gridWidth = cr.width;
+						this.gridHeight = cr.height;
+
+						this.$scope.$broadcast("cm:dataGrid_layout_begin");
+
+						var promise = this.titleLayout($container, cr.width);
+						promise = cc.ensurePromise(promise);
+
+						return promise.then(function() {
+							self.layoutState = "titleDone";
+
+							var promise2 = self.tableLayout($container, cr.width, cr.height);
+							promise2 = cc.ensurePromise(promise2);
+
+							return promise2.then(function() {
+								self.layoutState = "bodyDone";
+
+								self._alignColumns(true);
+
+								self._showBody();
+
+								/*
+								 * var cursor = self._cursor; if (cursor) { var p =
+								 * cursor.parentNode; for (; p && p.nodeType ===
+								 * Node.ELEMENT_NODE; p = p.parentNode) { }
+								 * 
+								 * if (!p || p.nodeType !== Node.DOCUMENT_NODE) { cursor =
+								 * null; self._cursor = null; } }
+								 */
+
+								self.layoutState = "complete";
+
+								self.$scope.$broadcast("cm:gridLayoutEnd");
+
+								return $q.when(true);
+							});
+						});
+					},
+
+					_hasData: function() {
+						var tbody = this.getTableBody();
+
+						return tbody && tbody.firstChild;
+					},
+
+					_alignColumns: function(columnConstraints) {
+						var total = 0;
+						var invalidLayout = false;
+
+						var rowIndent = this.rowIndent;
+
+						var self = this;
+						angular.forEach(this.visibleColumns, function(column) {
+
+							var titleStyle = column.titleElement.style;
+
+							var width = column.width;
+							if (width === undefined) {
+								invalidLayout = true;
+								titleStyle.width = "auto";
+								return;
+							}
+
+							var bodyWidth = width;
+							if (!column.visibleIndex && rowIndent) {
+								bodyWidth -= rowIndent * cm_dataGrid_rowIndentPx;
+							}
+							titleStyle.width = width + "px";
+							// titleStyle.position = "static";
+
+							if (self.tableViewPort) {
+								column.bodyColElement.style.width = (columnConstraints) ? (bodyWidth + "px") : "auto";
+							}
+							total += width;
+
+							// $log.debug("GridWidth[" + column.id + "] width=" + width + "
+							// total=" + total);
+						});
+
+						$log.debug("GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
+
+						if (invalidLayout) {
+							this.tableElement.style.width = "auto";
+							$log.debug("AlignColumns ... Invalid layout");
+							return;
+						}
+
+						var gridWidth = this.gridWidth;
+
+						var sizer = 0;
+						if (false && total < gridWidth) {
+
+							sizer = gridWidth - total;
+							total -= sizer;
+
+						} else if (this.hasResizableColumnVisible) {
+							sizer = cm_grid_sizerPx;
+						}
+
+						if (this.rightColElement) {
+							this.rightColElement.style.width = (sizer) + "px";
+
+							total += sizer;
+						}
+
+						this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
+						// this.tableElement.style.tableLayout = "fixed";
+
+						$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer + " columnConstraints=" +
+								columnConstraints);
+					},
+
+					_computeRowRangeFromCursor: function(rowValue, cursorRowValue) {
+
+						var mark1;
+						var mark2;
+
+						var ret = [];
+
+						var tbody = this.getTableBody();
+						if (!tbody) {
+							return null;
+						}
+
+						var r = tbody.firstChild;
+						for (; r; r = r.nextSibling) {
+							if (r.nodeType !== Node.ELEMENT_NODE) {
+								continue;
+							}
+
+							var ctype = cm.GetCMType(r);
+							if (!ROW_OR_GROUP[ctype]) {
+								continue;
+							}
+
+							var rValue = angular.element(r).data("cm_value");
+
+							if (!mark1 && rValue === cursorRowValue) {
+								mark1 = true;
+							}
+							if (!mark2 && rValue === rowValue) {
+								mark2 = true;
+							}
+
+							if (mark1 || mark2) {
+								ret.push(rValue);
+							}
+
+							if (mark1 && mark2) {
+								return ret;
+							}
+						}
+
+						return null;
+					},
+
+					_emitClick: function(elements, eventName, event) {
+
+						var row = elements.row;
+						if (!row) {
+							return;
+						}
+						var rowValue = angular.element(row).data("cm_value");
+
+						var params = {
+							grid: this.grid,
+							event: event,
+							row: row,
+							rowValue: rowValue
+						};
+
+						var cell = elements.cell;
+						if (cell) {
+							params.cell = cell;
+
+							var logicalIndex = cell.cm_lindex;
+							params.column = this.columns[logicalIndex];
+						}
+
+						this.$scope.$emit(eventName, params);
+					},
+
+					onKeyPress_Cell: function(cell, event, groupElement) {
+						var row = cell.parentNode;
+						var parentNode = row.parentNode;
+						var columnLogicalIndex = cell.cm_lindex;
+						var next = row;
+						var cancel = false;
+						var activate = false;
+						var focusCell = false;
+						var viewPort = this.tableViewPort;
+
+						var group;
+						var collapsedProvider;
+						if (groupElement) {
+							group = angular.element(groupElement).data("cm_value");
+							collapsedProvider = this.selectedGroupProvider.getCollapsedProvider();
+						}
+
+						var dataGrid = this.dataGrid;
+						function prevPage() {
+							if ((!next || next.id === row.id) && dataGrid.rows > 0) {
+								var nextFirst = dataGrid.first - dataGrid.rows;
+								if (nextFirst < 0) {
+									nextFirst = 0;
+								}
+								if (dataGrid.first > nextFirst) {
+									dataGrid.setFirst(nextFirst);
 								}
 
-								element[propertyName] = true;
+								next = null;
+							}
+						}
+
+						function nextPage() {
+							if ((!next || next.id === row.id) && dataGrid.rows > 0) {
+								var nextFirst = dataGrid.first + dataGrid.rows;
+								if (dataGrid.rowCount < 0 || nextFirst < dataGrid.rowCount) {
+									dataGrid.setFirst(nextFirst);
+								}
+
+								next = null;
+							}
+						}
+
+						switch (event.keyCode) {
+						case Key.VK_DOWN:
+							cancel = true;
+							next = cm.GetNextType(row.nextSibling, ROW_OR_GROUP);
+							nextPage();
+							break;
+
+						case Key.VK_PAGE_DOWN:
+							cancel = true;
+							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
+							if (next && next.id === row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
+								viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
+
+								next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_OR_GROUP);
+							}
+							nextPage();
+							break;
+
+						case Key.VK_END:
+							cancel = true;
+							next = cm.GetPreviousType(parentNode.lastChild, ROW_OR_GROUP);
+							nextPage();
+							break;
+
+						case Key.VK_UP:
+							cancel = true;
+							next = cm.GetPreviousType(row.previousSibling, ROW_OR_GROUP);
+							prevPage();
+							break;
+
+						case Key.VK_PAGE_UP:
+							cancel = true;
+							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
+							if (next && next.id === row.id) {
+								viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
+
+								next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_OR_GROUP);
+							}
+							prevPage();
+							break;
+
+						case Key.VK_HOME:
+							cancel = true;
+							next = cm.GetNextType(parentNode.firstChild, ROW_OR_GROUP);
+							prevPage();
+							break;
+
+						case Key.VK_SPACE:
+							cancel = true;
+							activate = true;
+							break;
+
+						case Key.VK_RIGHT:
+							cancel = true;
+							if (groupElement) {
+								if (collapsedProvider.contains(group)) {
+									this._toggleGroupExpand(groupElement);
+								}
+
+							} else if (angular.isNumber(columnLogicalIndex)) {
+								var column = this.columns[columnLogicalIndex];
+
+								var nextColumn = this.visibleColumns[column.visibleIndex + 1];
+								if (nextColumn) {
+									columnLogicalIndex = nextColumn.logicalIndex;
+									focusCell = true;
+								}
+							}
+
+							break;
+
+						case Key.VK_LEFT:
+							cancel = true;
+							if (groupElement) {
+								if (!collapsedProvider.contains(group)) {
+									this._toggleGroupExpand(groupElement);
+								}
+
+							} else if (angular.isNumber(columnLogicalIndex)) {
+								var column = this.columns[columnLogicalIndex];
+
+								if (column.visibleIndex > 0) {
+									var nextColumn = this.visibleColumns[column.visibleIndex - 1];
+									columnLogicalIndex = nextColumn.logicalIndex;
+
+									focusCell = true;
+								}
+							}
+							break;
+						}
+
+						var self = this;
+						if (activate) {
+							var selectionStrategy = this.selectionStrategy;
+							if (selectionStrategy) {
+								var rowValue = angular.element(next).data("cm_value");
+								this.registerElement(next, rowValue);
+
+								var cursorValue = rowValue;
+
+								if (this.groupProviders) {
+									var groupElement = this.getElementFromValue(cursorValue, "group");
+									if (groupElement) {
+										rowValue = angular.element(groupElement).data("cm_rowValues");
+									}
+								}
+
+								selectionStrategy.select(this.selectionProvider, rowValue, cursorValue, event, function(cursorRowId) {
+									return self._computeRowRangeFromCursor(cursorValue, cursorRowId);
+								}, true);
+							}
+						}
+
+						if (next && next.id !== row.id) {
+							this.registerElement(next);
+
+							focusCell = true;
+						}
+
+						if (focusCell) {
+							var cell = cm.GetNextType(next.firstChild, CELL_OR_GROUPTITLE, function(c, type) {
+								if (c.cm_lindex === undefined || columnLogicalIndex === undefined) {
+									return true;
+								}
+								return c.cm_lindex === columnLogicalIndex;
+							});
+
+							if (cell) {
+								this._registerSelectionEvent(event);
+
+								cc.setFocus(cell);
+							}
+						}
+
+						if (cancel) {
+							event.stopPropagation();
+							event.preventDefault();
+						}
+					},
+
+					_onCollapsedChanged: function() {
+						var self = this;
+
+						return function(event, params) {
+							self._switchElementsFromEvent(params, "group", "_collapsed", function(groupElement, group) {
+								// Add the group to the collapse list, remove all rows of
+								// group
+								self.removeRowsOfGroup(group, groupElement);
+
+							}, function(groupElement) {
+								// Remove the group to the collapse list, show all rows of
+								// this
+								// group
+
+								var group = angular.element(groupElement).data("cm_value");
+
+								self.addRowsOfGroup(group, groupElement);
+							});
+						};
+					},
+
+					_onSelectionChanged: function() {
+						var self = this;
+						return function(event, params) {
+							self._switchElementsFromEvent(params, "row", "_selected");
+						};
+					},
+
+					_switchElementsFromEvent: function(params, type, propertyName, funcAdd, funcRemove) {
+						var size = params.removed.length + params.added.length;
+						var cache = (size > 1) ? {} : null;
+
+						var attr = "cm" + propertyName;
+
+						var self = this;
+						if (params.clearAll && !params.removed.length) {
+							this.forEachBodyElement(type, function(element) {
+								if (!element.hasAttribute(attr)) {
+									return;
+								}
+								element.removeAttribute(attr);
 								cc.BubbleEvent(element, "cm_update");
 
-								if (funcAdd) {
-									funcAdd(element, rowValue);
+								if (funcRemove) {
+									funcRemove(element);
 								}
-							});
-						},
+							}, type);
 
-						_onResizeColumnMoving: function(column, event) {
-							var dx = event.clientX - this.columnMoveClientX;
-
-							var newWidth = this.columnResizingWidth + dx;
-
-							if (newWidth < column.computedMinWidth) {
-								newWidth = column.computedMinWidth;
-							}
-							if (column.maxWidth && newWidth > column.maxWidth) {
-								newWidth = column.maxWidth;
-							}
-
-							if (newWidth != column.width) {
-								column.width = newWidth;
-								column.specifiedWidthPx = newWidth + "px";
-								this._alignColumns(true);
-							}
-
-							event.preventDefault();
-							event.stopPropagation();
-						},
-
-						_onResizeColumnMouseUp: function(column, event) {
-							console.log("On resize column mouse up");
-
-							this._onResizeColumnRelease();
-							this.$scope.$broadcast("cm:dataGrid_resized", column);
-
-							event.preventDefault();
-							event.stopPropagation();
-						},
-
-						_onResizeColumnRelease: function() {
-							console.log("On resize column release");
-
-							if (this.columnMouseMoveListener) {
-								document.removeEventListener("mousemove", this.columnMouseMoveListener, true);
-								this.columnMouseMoveListener = undefined;
-							}
-
-							if (this.columnMouseUpListener) {
-								document.removeEventListener("mouseup", this.columnMouseUpListener, true);
-								this.columnMouseUpListener = undefined;
-							}
-
-							this.columnResizing = undefined;
-							this.columnResizingWidth = undefined;
-						},
-
-						_onResizeColumn: function(column, tsizer, event) {
-							console.log("On resize column " + column);
-
-							// All Column sizes become specified
-							if (!this._allWidthSpecified) {
-								this._allWidthSpecified = true;
-
-								angular.forEach(this.visibleColumns, function(column) {
-									column.specifiedWidthPx = column.width + "px";
-								});
-							}
-
-							this.$scope.$broadcast("cm:dataGrid_resizing", column);
-
-							if (this.columnResizing) {
-								this._onResizeColumnRelease();
-							}
-
-							var self = this;
-							this.columnMouseUpListener = function(event) {
-								return self._onResizeColumnMouseUp(column, event);
-							};
-
-							this.columnMouseMoveListener = function(event) {
-								return self._onResizeColumnMoving(column, event);
-							};
-
-							document.addEventListener("mousemove", this.columnMouseMoveListener, true);
-							document.addEventListener("mouseup", this.columnMouseUpListener, true);
-
-							this.columnResizing = true;
-							this.columnResizingWidth = column.width;
-							this.columnMoveClientX = event.clientX;
-
-							event.preventDefault();
-							event.stopPropagation();
-						},
-
-						_toggleColumnSort: function(column, event) {
-
-							this.$scope.$broadcast("cm:dataGrid_sorting");
-
-							var old = this.sorters;
-
-							var updatedColumns = {};
-
-							var ascending = true;
-							if (old) {
-								angular.forEach(old, function(sorter) {
-									var scol = sorter.column;
-
-									if (scol === column) {
-										ascending = !sorter.ascending;
-									}
-
-									var element = scol.titleElement;
-									if (element) {
-										element._ascending = undefined;
-										element._descending = undefined;
-									}
-
-									updatedColumns[scol.columnId] = scol;
-								});
-							}
-
-							var sorters = [];
-							this.sorters = sorters;
-
-							sorters.push({
-								column: column,
-								ascending: ascending
-							});
-
-							angular.forEach(sorters, function(sorter) {
-								var column = sorter.column;
-								var element = column.titleElement;
-								var ascending = !!sorter.ascending;
-
-								element._ascending = ascending;
-								element._descending = !ascending;
-
-								updatedColumns[column.columnId] = column;
-							});
-
-							angular.forEach(updatedColumns, function(column) {
-								var element = column.titleElement;
-
-								if (element) {
-									cc.BubbleEvent(element, "cm_update");
-								}
-							});
-
-							var promise = this._refreshRows();
-
-							var self = this;
-							return promise.then(function() {
-								self.$scope.$broadcast("cm:dataGrid_sorted");
-							});
-						},
-
-						_monitorPositions: function(func) {
-
-							var oldFirst = this.dataGrid.first;
-							var oldRows = this.dataGrid.rows;
-							var oldRowCount = this.dataGrid.rowCount;
-							var oldMaxRows = this.dataGrid.maxRows;
-
-							var promise = func.call(this);
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
-
-							var self = this;
-							return promise.then(function() {
-
-								var dataGrid = self.dataGrid;
-								var $scope = self.$scope;
-
-								var first = dataGrid.first;
-								var rows = dataGrid.rows;
-								var rowCount = dataGrid.rowCount;
-								var maxRows = dataGrid.maxRows;
-								var event = {
-									first: first,
-									rows: rows,
-									rowCount: rowCount,
-									maxRows: maxRows
-								};
-								var sendEvent = false;
-
-								if (oldFirst != dataGrid.first) {
-									event.firstChanged = true;
-									sendEvent = true;
-
-									$scope.$broadcast("cm:firstChanged", dataGrid.first);
+						} else {
+							angular.forEach(params.removed, function(rowValue) {
+								var element = self.getElementFromValue(rowValue, type, cache);
+								if (!element || !element.hasAttribute(attr)) {
+									return;
 								}
 
-								if (oldRows != dataGrid.rows) {
-									event.rowsChanged = true;
-									sendEvent = true;
+								element.removeAttribute(attr);
+								cc.BubbleEvent(element, "cm_update");
 
-									$scope.$broadcast("cm:rowsChanged", dataGrid.rows);
-								}
-
-								if (oldRowCount != dataGrid.rowCount) {
-									event.rowCountChanged = true;
-									sendEvent = true;
-									$scope.rowCount = rowCount;
-
-									$scope.$broadcast("cm:rowCountChanged", dataGrid.rowCount);
-								}
-
-								if (oldMaxRows != dataGrid.maxRows) {
-									event.maxRowsChanged = true;
-									sendEvent = true;
-									$scope.maxRows = maxRows;
-
-									$scope.$broadcast("cm:maxRowsChanged", dataGrid.maxRows);
-								}
-
-								if (sendEvent) {
-									$scope.$broadcast("cm:positionsChanged", event);
+								if (funcRemove) {
+									funcRemove(element);
 								}
 							});
-						},
+						}
 
-						updateData: function(updateColumnWidths) {
-
-							if (updateColumnWidths === undefined) {
-								updateColumnWidths = true;
-							}
-
-							var self = this;
-							this._monitorPositions(function() {
-								return self._refreshRows(updateColumnWidths);
-
-							}).then(function() {
-								// self.gridLayout();
-							});
-						},
-
-						_hideBody: function() {
-							var ts = this.tableViewPort.style;
-							ts.width = "auto";
-							// ts.height = "auto";
-							ts.visibility = "hidden";
-							// this.tableElement.style.tableLayout = "";
-
-							$log.debug("DatagridRenderer.Hide body");
-						},
-						_showBody: function() {
-							var ts = this.tableViewPort.style;
-
-							// this.tableElement.style.tableLayout = "fixed";
-							ts.visibility = "";
-							$log.debug("Show body");
-						},
-
-						_clearPageAnimation: function() {
-							var animation = this._pageAnimation;
-							if (!animation) {
+						angular.forEach(params.added, function(rowValue) {
+							var element = self.getElementFromValue(rowValue, type, cache);
+							if (!element || element.hasAttribute(attr)) {
 								return;
 							}
-							this._pageAnimation = undefined;
+
+							element.setAttribute(attr, true);
+							cc.BubbleEvent(element, "cm_update");
+
+							if (funcAdd) {
+								funcAdd(element, rowValue);
+							}
+						});
+					},
+
+					_onResizeColumnMoving: function(column, event) {
+						var dx = event.clientX - this.columnMoveClientX;
+
+						var newWidth = this.columnResizingWidth + dx;
+
+						if (newWidth < column.computedMinWidth) {
+							newWidth = column.computedMinWidth;
+						}
+						if (column.maxWidth && newWidth > column.maxWidth) {
+							newWidth = column.maxWidth;
+						}
+
+						if (newWidth !== column.width) {
+							column.width = newWidth;
+							column.specifiedWidthPx = newWidth + "px";
+							this._alignColumns(true);
+						}
+
+						event.preventDefault();
+						event.stopPropagation();
+					},
+
+					_onResizeColumnMouseUp: function(column, event) {
+						$log.debug("On resize column mouse up");
+
+						this._onResizeColumnRelease();
+						this.$scope.$broadcast("cm:dataGrid_resized", column);
+
+						event.preventDefault();
+						event.stopPropagation();
+					},
+
+					_onResizeColumnRelease: function() {
+						$log.debug("On resize column release");
+
+						if (this.columnMouseMoveListener) {
+							document.removeEventListener("mousemove", this.columnMouseMoveListener, true);
+							this.columnMouseMoveListener = undefined;
+						}
+
+						if (this.columnMouseUpListener) {
+							document.removeEventListener("mouseup", this.columnMouseUpListener, true);
+							this.columnMouseUpListener = undefined;
+						}
+
+						this.columnResizing = undefined;
+						this.columnResizingWidth = undefined;
+					},
+
+					_onResizeColumn: function(column, tsizer, event) {
+						$log.debug("On resize column " + column);
+
+						// All Column sizes become specified
+						if (!this._allWidthSpecified) {
+							this._allWidthSpecified = true;
+
+							angular.forEach(this.visibleColumns, function(column) {
+								column.specifiedWidthPx = column.width + "px";
+							});
+						}
+
+						this.$scope.$broadcast("cm:dataGrid_resizing", column);
+
+						if (this.columnResizing) {
+							this._onResizeColumnRelease();
+						}
+
+						var self = this;
+						this.columnMouseUpListener = function(event) {
+							return self._onResizeColumnMouseUp(column, event);
+						};
+
+						this.columnMouseMoveListener = function(event) {
+							return self._onResizeColumnMoving(column, event);
+						};
+
+						document.addEventListener("mousemove", this.columnMouseMoveListener, true);
+						document.addEventListener("mouseup", this.columnMouseUpListener, true);
+
+						this.columnResizing = true;
+						this.columnResizingWidth = column.width;
+						this.columnMoveClientX = event.clientX;
+
+						event.preventDefault();
+						event.stopPropagation();
+					},
+
+					_toggleColumnSort: function(column, event) {
+						$log.debug("Toggle column sort column=",column);
+						
+						this.$scope.$broadcast("cm:dataGrid_sorting");
+
+						var old = this.sorters;
+
+						var updatedColumns = {};
+
+						var ascending = true;
+						if (old) {
+							angular.forEach(old, function(sorter) {
+								var scol = sorter.column;
+
+								if (scol === column) {
+									ascending = !sorter.ascending;
+								}
+
+								var element = scol.titleElement;
+								if (element) {
+									element.removeAttribute("cm_ascending");
+									element.removeAttribute("cm_descending");
+								}
+
+								updatedColumns[scol.columnId] = scol;
+							});
+						}
+
+						var sorters = [];
+						this.sorters = sorters;
+
+						sorters.push({
+							column: column,
+							ascending: ascending
+						});
+
+						angular.forEach(sorters, function(sorter) {
+							var column = sorter.column;
+							var element = column.titleElement;
+							var ascending = !!sorter.ascending;
+
+							if (ascending) {
+								element.setAttribute("cm_ascending", true);
+								element.removeAttribute("cm_descending");
+							} else {
+								element.setAttribute("cm_descending", true);
+								element.removeAttribute("cm_ascending");
+							}
+
+							updatedColumns[column.columnId] = column;
+						});
+
+						angular.forEach(updatedColumns, function(column) {
+							var element = column.titleElement;
+
+							if (element) {
+								cc.BubbleEvent(element, "cm_update");
+							}
+						});
+
+						var promise = this._refreshRows();
+
+						var self = this;
+						return promise.then(function onSuccess() {
+							self.$scope.$broadcast("cm:gridSorted", true);
+
+							return true;
+
+						}, function onError(reason) {
+							self.$scope.$broadcast("cm:gridSorted", false, reason);
+
+							return $q.reject(reason);
+						});
+					},
+
+					_monitorPositions: function(func) {
+
+						var oldFirst = this.dataGrid.first;
+						var oldRows = this.dataGrid.rows;
+						var oldRowCount = this.dataGrid.rowCount;
+						var oldMaxRows = this.dataGrid.maxRows;
+
+						var promise = func.call(this);
+						promise = cc.ensurePromise(promise);
+
+						var self = this;
+						return promise.then(function() {
+
+							var dataGrid = self.dataGrid;
+							var $scope = self.$scope;
+
+							var first = dataGrid.first;
+							var rows = dataGrid.rows;
+							var rowCount = dataGrid.rowCount;
+							var maxRows = dataGrid.maxRows;
+							var event = {
+								first: first,
+								rows: rows,
+								rowCount: rowCount,
+								maxRows: maxRows
+							};
+							var sendEvent = false;
+
+							if (oldFirst !== dataGrid.first) {
+								event.firstChanged = true;
+								sendEvent = true;
+
+								$scope.$broadcast("cm:firstChanged", dataGrid.first);
+							}
+
+							if (oldRows !== dataGrid.rows) {
+								event.rowsChanged = true;
+								sendEvent = true;
+
+								$scope.$broadcast("cm:rowsChanged", dataGrid.rows);
+							}
+
+							if (oldRowCount !== dataGrid.rowCount) {
+								event.rowCountChanged = true;
+								sendEvent = true;
+								$scope.rowCount = rowCount;
+
+								$scope.$broadcast("cm:rowCountChanged", dataGrid.rowCount);
+							}
+
+							if (oldMaxRows !== dataGrid.maxRows) {
+								event.maxRowsChanged = true;
+								sendEvent = true;
+								$scope.maxRows = maxRows;
+
+								$scope.$broadcast("cm:maxRowsChanged", dataGrid.maxRows);
+							}
+
+							if (sendEvent) {
+								$scope.$broadcast("cm:positionsChanged", event);
+							}
+						});
+					},
+
+					/**
+					 * Called when first, rows, dataModel changed
+					 */
+					updateData: function(updateColumnWidths, setFocus) {
+
+						$log.debug("UpdateData updateColumnWidths=" + updateColumnWidths + " setFocus=" + setFocus);
+
+						if (updateColumnWidths === undefined) {
+							updateColumnWidths = true;
+						}
+
+						var self = this;
+
+						return this._monitorPositions(function() {
+							return self._refreshRows(updateColumnWidths, setFocus).then(null, function onError(reason) {
+								$log.error("UpdateData failed ", reason);
+
+								return $q.reject(reason);
+							});
+						});
+					},
+
+					_hideBody: function() {
+						if (!this.tableViewPort) {
+							return;
+						}
+
+						var ts = this.tableViewPort.style;
+						ts.width = "auto";
+						// ts.height = "auto";
+						ts.visibility = "hidden";
+						// this.tableElement.style.tableLayout = "";
+
+						$log.debug("DatagridRenderer.Hide body");
+					},
+					_showBody: function() {
+						if (!this.tableViewPort) {
+							return;
+						}
+
+						var ts = this.tableViewPort.style;
+
+						// this.tableElement.style.tableLayout = "fixed";
+						ts.visibility = "";
+						$log.debug("DatagridRenderer.Show body");
+					},
+
+					_clearPageAnimation: function() {
+						var animation = this._pageAnimation;
+						if (!animation) {
+							return;
+						}
+						this._pageAnimation = undefined;
+
+						try {
+							animation.cancel();
+
+						} catch (x) {
+							$exceptionHandler(x, "Page Animation cancel() error");
+
+						} finally {
 
 							try {
-								animation.cancel();
+								animation.$destroy();
 
 							} catch (x) {
-								$exceptionHandler(x, "Page Animation cancel() error");
-
-							} finally {
-
-								try {
-									animation.$destroy();
-
-								} catch (x) {
-								}
 							}
-						},
-						/**
-						 * @returns {Promise}
-						 */
-						_refreshRows: function(updateColumnWidths, focus) {
-							$log.debug("Refresh rows");
+						}
+					},
 
-							if (updateColumnWidths) {
-								this._naturalWidths = undefined;
-								this._containerSizeSetted = undefined;
-								this.gridWidth = -1;
+					/**
+					 * @returns {Promise}
+					 */
+					runPromise: function(fct) {
+						if (!this._refreshing) {
+							try {
+								var ret = fct();
+								return cc.ensurePromise(ret);
 
-								// this._alignColumns(false); // TODO sans animation !
+							} catch (x) {
+								return $q.reject(x);
 							}
+						}
 
-							this._clearPageAnimation();
+						if (this._deferredRefresh) {
+							return this._deferredRefresh;
+						}
 
-							var dataGrid = this.dataGrid;
-							var first = this.$scope.first;
-							if (!angular.isNumber(first) || first < 0) {
-								first = 0;
-							}
-							dataGrid.first = first;
+						this._deferredRefresh = $q.defer();
+						return this._deferredRefresh;
+					},
+					/**
+					 * @returns {Promise}
+					 */
+					_refreshRows: function(updateColumnWidths, focus) {
+						$log.debug("Refresh rows");
 
-							var rows = this.$scope.rows;
-							if (!angular.isNumber(rows)) {
-								rows = -1;
-							}
-							dataGrid.rows = rows;
-
-							var animation = Animation.newInstance(cm_grid_animation_pageChange, this.$scope, {
-								first: first,
-								oldFirst: this._renderedFirst,
-								rows: rows,
-								renderer: this
+						if (this.$scope.refreshing) {
+							return $q.reject({
+								code: "ALREADY_REFRESHING",
+								message: "Already refreshing"
 							});
-							this._pageAnimation = animation;
-							animation.start();
+						}
+						this.$scope.refreshing = true;
 
-							var promise = this.tableRowsRenderer();
+						if (updateColumnWidths) {
+							this._naturalWidths = undefined;
+							this._containerSizeSetted = undefined;
+							this.gridWidth = -1;
 
-							var self = this;
+							// this._alignColumns(false); // TODO sans animation !
+						}
 
-							function processResult(eventName) {
-								animation.end();
+						this._clearPageAnimation();
 
-								self._gridReady(self.container, focus !== false);
+						var dataGrid = this.dataGrid;
+						var first = this.$scope.first;
+						if (!angular.isNumber(first) || first < 0) {
+							first = 0;
+						}
+						dataGrid.first = first;
 
-								self.$scope.$broadcast(eventName || "cm:dataGrid_refreshed");
+						var rows = this.$scope.rows;
+						if (!angular.isNumber(rows)) {
+							rows = -1;
+						}
+						dataGrid.rows = rows;
+
+						var oldTableViewPort = this.tableViewPort;
+						this.tableViewPort = null;
+
+						var oldErrorPage = this.errorPage;
+						this.errorPage = null;
+
+						var animation = Animation.newInstance(cm_grid_animation_pageChange, this.$scope, {
+							first: first,
+							oldFirst: this._renderedFirst,
+							rows: rows,
+							renderer: this,
+							oldTableViewPort: oldTableViewPort,
+							oldErrorPage: oldErrorPage
+						});
+
+						var self = this;
+
+						this._pageAnimation = animation;
+
+						var startPromise = animation.start();
+						startPromise = cc.ensurePromise(startPromise);
+
+						return startPromise.then(function onSuccess() {
+
+							function processResult(eventName, param) {
+								animation.end().then(function onSuccess(newTableViewPort) {
+									self.tableViewPort = newTableViewPort;
+
+									return self.gridLayout().then(function onSuccess(result) {
+
+										var p = self._gridReady(self.container, !!focus);
+
+										self.$scope.$broadcast(eventName || "cm:gridRefreshed", param);
+
+										if (self.container._errored) {
+											self.container._errored = false;
+											cc.BubbleEvent(self.container, "cm_update");
+
+											self.$scope.$emit("cm:error", {
+												source: self.dataGrid,
+												error: false
+											});
+										}
+
+										return p;
+									});
+								});
 							}
 
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
+							var promise = self.tableRowsRenderer();
+							promise = cc.ensurePromise(promise);
 
-							return promise.then(function() {
+							return promise.then(function onSuccess(newTableViewPort) {
+								if (newTableViewPort[0]) {
+									newTableViewPort = newTableViewPort[0];
+								}
 
 								var dataGrid = self.dataGrid;
-								console.log("first=" + dataGrid.first + " visibleRows=" + dataGrid.visibleRows + " rows=" +
-										dataGrid.rows + " maxRows=" + dataGrid.maxRows + " rowCount=" + dataGrid.rowCount);
+								$log.debug("first=" , dataGrid.first , "visibleRows=" , dataGrid.visibleRows , "rows=" +
+										dataGrid.rows , "maxRows=", dataGrid.maxRows, "rowCount=" + dataGrid.rowCount);
 
 								if (!dataGrid.visibleRows && dataGrid.first) {
 									var newFirst = 0;
@@ -5479,7 +7021,7 @@
 									}
 
 									$timeout(function() {
-										console.log("Change first to " + newFirst);
+										$log.debug("Change first to " + newFirst);
 										self.$scope.first = newFirst;
 
 										self.$scope.$digest();
@@ -5488,586 +7030,634 @@
 
 								return processResult();
 
-							}, function(msg) {
+							}, function onError(reason) {
 								// Failed
-								console.error("Catch process failed message " + msg);
+								$log.error("Catch process failed message ", reason);
 
-								return processResult("cm_dataGrid_errored");
+								// Show error page
+								animation.showErrorPage(reason).then(function onSuccess(errorPage) {
+									if (errorPage[0]) {
+										errorPage = errorPage[0];
+									}
+									self.errorPage = errorPage;
 
-							}, function(update) {
+									return self.gridLayout().then(function onSuccess(result) {
+
+										var p = self._gridReady(self.container, focus !== false);
+
+										self.$scope.$broadcast("cm:gridErrored", reason);
+
+										if (!self.container._errored) {
+											self.container._errored = true;
+											cc.BubbleEvent(self.container, "cm_update");
+
+											self.$scope.$emit("cm:error", {
+												source: self.dataGrid,
+												error: false
+											});
+										}
+
+										return $q.reject(reason);
+									});
+								});
+
+							}, function onNotification(notification) {
 								// $log.debug("Update", update);
+								return notification;
+
+							})['finally'](function onFinally() {
+								$log.debug("Refresh: finally ...");
+								self.$scope.refreshing = false;
+
+								var df = self._deferredRefresh;
+								if (df) {
+									self._deferredRefresh = undefined;
+
+									$timeout(function() {
+										df.resolve(true);
+									}, 0, false);
+								}
 							});
-						},
+						});
+					},
 
-						_moveColumn: function(column, targetIndex, giveFocus) {
+					_moveColumn: function(column, targetIndex, giveFocus) {
 
-							var visibleColumns = this.visibleColumns;
-							var beforeColumn = visibleColumns[targetIndex + ((targetIndex > column.visibleIndex) ? 1 : 0)];
+						var visibleColumns = this.visibleColumns;
+						var beforeColumn = visibleColumns[targetIndex + ((targetIndex > column.visibleIndex) ? 1 : 0)];
 
-							this._lastVisibleColumn = visibleColumns[visibleColumns.length - 1];
+						this._lastVisibleColumn = visibleColumns[visibleColumns.length - 1];
 
-							visibleColumns.splice(column.visibleIndex, 1);
-							visibleColumns.splice(targetIndex, 0, column);
+						visibleColumns.splice(column.visibleIndex, 1);
+						visibleColumns.splice(targetIndex, 0, column);
 
-							var idx = 0;
-							angular.forEach(visibleColumns, function(column) {
-								column.beforeMovingVisibleIndex = column.visibleIndex;
-								column.visibleIndex = idx++;
-							});
+						var idx = 0;
+						angular.forEach(visibleColumns, function(column) {
+							column.beforeMovingVisibleIndex = column.visibleIndex;
+							column.visibleIndex = idx++;
+						});
 
-							var titlePromise = this.moveColumnTitle(column, beforeColumn);
-							if (!cc.isPromise(titlePromise)) {
-								titlePromise = $q.when(titlePromise);
-							}
+						var titlePromise = this.moveColumnTitle(column, beforeColumn);
+						titlePromise = cc.ensurePromise(titlePromise);
 
-							var self = this;
-							titlePromise.then(function() {
+						var self = this;
+						titlePromise.then(function onSuccess() {
 
-								var tablePromise = self.moveColumnTable(column, beforeColumn);
-								if (!cc.isPromise(tablePromise)) {
-									tablePromise = $q.when(tablePromise);
+							var tablePromise = self.moveColumnTable(column, beforeColumn);
+							tablePromise = cc.ensurePromise(tablePromise);
+
+							tablePromise.then(function onSuccess() {
+								self._lastVisibleColumn = undefined;
+
+								if (!column.beforeMovingVisibleIndex || !column.visibleIndex) {
+									self._alignColumns(true);
 								}
 
-								tablePromise.then(function() {
-									self._lastVisibleColumn = undefined;
-
-									if (!column.beforeMovingVisibleIndex || !column.visibleIndex) {
-										self._alignColumns(true);
-									}
-
-									if (giveFocus !== false) {
-										column.buttonElement.focus();
-									}
-								});
+								if (giveFocus !== false) {
+									column.buttonElement.focus();
+								}
 							});
-						},
+						});
+					},
 
-						_registerSelectionEvent: function(event) {
+					_registerSelectionEvent: function(event) {
 
-							console.log("Register event ", event);
+						$log.debug("Register event ", event);
 
-							this._selectionSourceEvent = event;
-							var self = this;
-							$timeout(function() {
-								console.log("Unregister event ", event);
+						this._selectionSourceEvent = event;
+						var self = this;
+						$timeout(function() {
+							$log.debug("Unregister event ", event);
 
-								self._selectionSourceEvent = undefined;
-							}, 10, false);
-						},
+							self._selectionSourceEvent = undefined;
+						}, 10, false);
+					},
 
-						_toggleGroupExpand: function(element) {
-							var groupElement = angular.element(element);
-							var group = groupElement.data("cm_value");
+					_toggleGroupExpand: function(element) {
+						var groupElement = angular.element(element);
+						var group = groupElement.data("cm_value");
 
-							var collapsedProvider = this.selectedGroupProvider.getCollapsedProvider();
+						var collapsedProvider = this.selectedGroupProvider.getCollapsedProvider();
 
-							var collapsed = !collapsedProvider.contains(group);
+						var collapsed = !collapsedProvider.contains(group);
 
-							if (collapsed) {
-								collapsedProvider.add(group);
+						if (collapsed) {
+							collapsedProvider.add(group);
 
-							} else {
-								collapsedProvider.remove(group);
+						} else {
+							collapsedProvider.remove(group);
+						}
+					},
+
+					_onTitleCellMouseDown: function(event, tcell) {
+						var clientX = event.clientX;
+						var column = angular.element(tcell).data("cm_column");
+
+						this._onTitleCellClear();
+
+						this.titleCellMoving = true;
+						this.titleCellMovingClientX = clientX;
+						this.titleCellMovingLayerX = event.layerX;
+						// console.log("Target=" + event.target.tagName + "/" +
+						// event.target.id + " " + event.layerX);
+
+						var self = this;
+						this.titleCellMouseUpListener = function(event) {
+							return self._onTitleCellMouseUp(tcell, event, column);
+						};
+
+						this.titleCellMouseMoveListener = function(event) {
+							return self._onTitleCellMouseMoving(tcell, event, column);
+						};
+
+						document.addEventListener("mousemove", this.titleCellMouseMoveListener, true);
+						document.addEventListener("mouseup", this.titleCellMouseUpListener, true);
+					},
+
+					_onTitleCellMouseMoving: function(tcell, event, column) {
+						var dx = event.clientX - this.titleCellMovingClientX;
+
+						if (dx < -20 || dx > 20) {
+							if (!this.titleCellColumnMoving) {
+								this.titleCellColumnMoving = column;
+
+								// Move cell title !
+								this.beginMovingTitleCell(column, event, dx, this.titleCellMovingLayerX);
 							}
-						},
+						}
+						if (this.titleCellColumnMoving) {
+							this.movingTitleCell(column, event, dx, this.titleCellMovingLayerX);
+						}
+					},
 
-						_onTitleCellMouseDown: function(event, tcell) {
-							var clientX = event.clientX;
-							var column = angular.element(tcell).data("cm_column");
+					_onTitleCellMouseUp: function(tcell, event, column) {
 
-							this._onTitleCellClear();
+						var elements = searchElements(event.target);
 
-							this.titleCellMoving = true;
-							this.titleCellMovingClientX = clientX;
-							this.titleCellMovingLayerX = event.layerX;
-							// console.log("Target=" + event.target.tagName + "/" +
-							// event.target.id + " " + event.layerX);
+						if (!this.titleCellColumnMoving) {
+							if (elements.tcell && elements.tcell.id === tcell.id) {
+								if (elements.tparams) {
+									this._showFilterPopup(column, elements.tparams, event, elements);
 
-							var self = this;
-							this.titleCellMouseUpListener = function(event) {
-								return self._onTitleCellMouseUp(tcell, event, column);
-							};
+								} else if (tcell.hasAttribute("cm_sortable")) {
+									this._toggleColumnSort(column, event);
+								}
+							}
 
-							this.titleCellMouseMoveListener = function(event) {
-								return self._onTitleCellMouseMoving(tcell, event, column);
-							};
+						} else {
+							// Redraw the table body
 
-							document.addEventListener("mousemove", this.titleCellMouseMoveListener, true);
-							document.addEventListener("mouseup", this.titleCellMouseUpListener, true);
-						},
-
-						_onTitleCellMouseMoving: function(tcell, event, column) {
 							var dx = event.clientX - this.titleCellMovingClientX;
 
-							if (dx < -20 || dx > 20) {
-								if (!this.titleCellColumnMoving) {
-									this.titleCellColumnMoving = column;
-
-									// Move cell title !
-									this.beginMovingTitleCell(column, event, dx, this.titleCellMovingLayerX);
-								}
+							var targetIndex = this.endMovingTitleCell(column, event, dx);
+							if (angular.isNumber(targetIndex)) {
+								this._moveColumn(column, targetIndex);
 							}
-							if (this.titleCellColumnMoving) {
-								this.movingTitleCell(column, event, dx, this.titleCellMovingLayerX);
-							}
-						},
+						}
 
-						_onTitleCellMouseUp: function(tcell, event, column) {
+						this._onTitleCellClear();
 
-							var elements = searchElements(event.target);
+						cm.ClearState(this, elements, "mouseDown");
+						event.stopPropagation();
+						return false;
+					},
 
-							if (!this.titleCellColumnMoving) {
-								if (elements.tcell && elements.tcell.id == tcell.id) {
-									if (elements.tparams) {
-										this._showFilterPopup(column, elements.tparams, event, elements);
+					_showFilterPopup: function(column, filterButton, event, elements) {
+						var dataModel = this.dataModel;
 
-									} else if (tcell._sortable) {
-										this._toggleColumnSort(column, event);
-									}
+						var self = this;
+						var popup = new FiltersPopupRenderer(this.$scope, {}, column, dataModel, function() {
+
+							var promise = self._monitorPositions(function() {
+								return self._refreshRows(false, false);
+							});
+
+							return promise.then(function onSuccess() {
+								return self.gridLayout().then(function onSuccess(result) {
+									self.$scope.$broadcast("cm:gridFiltred", true);
+
+									return result;
+								});
+
+							}, function onError(reason) {
+								$log.error("Can not refreshRows failed ", reason);
+								self.$scope.$broadcast("cm:gridFiltred", false, reason);
+
+								return $q.reject(reason);
+							});
+						});
+
+						popup.$scope.$on("cm:popup_opened", function() {
+							cm.SwitchOnState(self, elements, "openedPopup");
+						});
+
+						popup.$scope.$on("cm:popup_closed", function() {
+							cm.ClearState(self, elements, "openedPopup");
+						});
+
+						return popup.open({
+							reference: filterButton,
+							valign: "bottom",
+							deltaY: 2
+						});
+					},
+
+					_onTitleCellClear: function() {
+
+						if (this.titleCellColumnMoving) {
+							// Move cell title !
+							this.endMovingTitleCell(this.titleCellColumnMoving);
+
+							this.titleCellColumnMoving = undefined;
+						}
+
+						if (this.titleCellMouseMoveListener) {
+							document.removeEventListener("mousemove", this.titleCellMouseMoveListener, true);
+							this.titleCellMouseMoveListener = undefined;
+						}
+
+						if (this.titleCellMouseUpListener) {
+							document.removeEventListener("mouseup", this.titleCellMouseUpListener, true);
+							this.titleCellMouseUpListener = undefined;
+						}
+
+						this.titleCellMoving = undefined;
+						this.titleCellColumnMoving = undefined;
+					},
+
+					onKeyPress_Title: function(tcell, event, elements) {
+						var next = tcell;
+						var cancel = false;
+						var column = angular.element(tcell).data("cm_column");
+
+						switch (event.keyCode) {
+						case Key.VK_LEFT:
+							cancel = true;
+
+							if (event.ctrlKey) {
+								// Move column !
+								if (column.visibleIndex) {
+									this._moveColumn(column, column.visibleIndex - 1);
 								}
 
 							} else {
-								// Redraw the table body
-
-								var dx = event.clientX - this.titleCellMovingClientX;
-
-								var targetIndex = this.endMovingTitleCell(column, event, dx);
-								if (angular.isNumber(targetIndex)) {
-									this._moveColumn(column, targetIndex);
+								next = cm.GetPreviousType(tcell.previousSibling, "tcell");
+								if (!next) {
+									next = cm.GetPreviousType(tcell.parentNode.lastChild, "tcell");
 								}
 							}
+							break;
 
-							this._onTitleCellClear();
+						case Key.VK_RIGHT:
+							cancel = true;
 
-							cm.ClearState(this, elements, "mouseDown");
+							if (event.ctrlKey) {
+								// Move column !
+								if (column.visibleIndex < this.visibleColumns.length - 1) {
+									this._moveColumn(column, column.visibleIndex + 1);
+								}
+							} else {
+								next = cm.GetNextType(tcell.nextSibling, "tcell");
+								if (!next) {
+									next = cm.GetNextType(tcell.parentNode.firstChild, "tcell");
+								}
+							}
+							break;
+
+						case Key.VK_HOME:
+							cancel = true;
+							next = cm.GetNextType(tcell.parentNode.firstChild, "tcell");
+							break;
+
+						case Key.VK_END:
+							cancel = true;
+							next = cm.GetPreviousType(tcell.parentNode.lastChild, "tcell");
+							break;
+
+						case Key.VK_SPACE:
+							cancel = true;
+
+							this._toggleColumnSort(column, event);
+							break;
+
+						case Key.VK_DOWN:
+							cancel = true;
+
+							if (column.titleElement._filtreable) {
+								elements.tparams = column.parametersElement;
+
+								this._showFilterPopup(column, elements.tparams, event, elements);
+							}
+							break;
+						}
+
+						if (next && next.id !== tcell.id) {
+							var column = angular.element(next).data("cm_column");
+							column.buttonElement.focus();
+						}
+
+						if (cancel) {
 							event.stopPropagation();
-							return false;
-						},
+							event.preventDefault();
+						}
+					},
 
-						_showFilterPopup: function(column, filterButton, event, elements) {
-							var dataModel = this.dataModel;
+					_onResize: function() {
+						$log.debug("On resize ...");
+						var self = this;
+						return function resizeHandler(event) {
+							try {
+								self.gridLayout();
 
-							var self = this;
-							var popup = new FiltersPopupRenderer(this.$scope, {}, column, dataModel, function() {
+							} catch (x) {
+								$exceptionHandler(x, "Exception while resizing");
+							}
+						};
+					},
 
-								var promise = self._monitorPositions(function() {
-									return self._refreshRows(false, false);
-								});
+					_onMouseOver: function() {
+						var self = this;
+						return function(event) {
+							var target = event.target;
 
-								return promise.then(function() {
-									self.gridLayout();
-									self.$scope.$broadcast("cm_dataGrid_filtred");
-								});
+							if (self.columnResizing || self.titleCellMoving) {
+								return;
+							}
+
+							var elements = searchElements(target);
+							cm.SwitchOnState(self, elements, "over");
+						};
+					},
+
+					_onMouseOut: function() {
+						var self = this;
+						return function(event) {
+							var target = event.relatedTarget;
+
+							var elements = searchElements(target);
+							cm.SwitchOffState(self, elements, "over");
+						};
+					},
+
+					_onFocus: function() {
+						var self = this;
+						return function(event) {
+							var target = event.target;
+
+							var elements = searchElements(target);
+
+							self._lastFocusEventData = Date.now();
+
+							// cc.log("Grid.OnFocus ", target, elements);
+
+							cm.SwitchOnState(self, elements, "focus", function(elements) {
+								var cell = elements.cell || elements.groupTitle;
+								if (cell) {
+									self._setCursor(cell, event);
+								}
 							});
+						};
+					},
 
-							popup.$scope.$on("cm:popup_opened", function() {
-								cm.SwitchOnState(self, elements, "openedPopup");
-							});
+					_onBlur: function() {
+						var self = this;
+						return function(event) {
+							var target = event.relatedTarget;
 
-							popup.$scope.$on("cm:popup_closed", function() {
-								cm.ClearState(self, elements, "openedPopup");
-							});
+							// cc.log("BLUR ", target);
 
-							popup.open({
-								reference: filterButton,
-								valign: "bottom",
-								deltaY: 2
-							});
-						},
+							var elements = searchElements(target);
+							cm.SwitchOffState(self, elements, "focus");
+						};
+					},
 
-						_onTitleCellClear: function() {
+					_onDoubleClick: function() {
+						var self = this;
 
-							if (this.titleCellColumnMoving) {
-								// Move cell title !
-								this.endMovingTitleCell(this.titleCellColumnMoving);
+						return function(event) {
+							var target = event.target;
+							var elements = searchElements(target);
 
-								this.titleCellColumnMoving = undefined;
-							}
+							// cc.log("Double click on ", target, " elements=", elements);
 
-							if (this.titleCellMouseMoveListener) {
-								document.removeEventListener("mousemove", this.titleCellMouseMoveListener, true);
-								this.titleCellMouseMoveListener = undefined;
-							}
+							if (elements.group) {
+								var promise = self._groupSimpleClickPromise;
+								if (promise) {
+									self._groupSimpleClickPromise = undefined;
 
-							if (this.titleCellMouseUpListener) {
-								document.removeEventListener("mouseup", this.titleCellMouseUpListener, true);
-								this.titleCellMouseUpListener = undefined;
-							}
-
-							this.titleCellMoving = undefined;
-							this.titleCellColumnMoving = undefined;
-						},
-
-						onKeyPress_Title: function(tcell, event, elements) {
-							var next = tcell;
-							var cancel = false;
-							var column = angular.element(tcell).data("cm_column");
-
-							switch (event.keyCode) {
-							case Key.VK_LEFT:
-								cancel = true;
-
-								if (event.ctrlKey) {
-									// Move column !
-									if (column.visibleIndex) {
-										this._moveColumn(column, column.visibleIndex - 1);
-									}
-
-								} else {
-									next = cm.GetPreviousType(tcell.previousSibling, "tcell");
-									if (!next) {
-										next = cm.GetPreviousType(tcell.parentNode.lastChild, "tcell");
-									}
-								}
-								break;
-
-							case Key.VK_RIGHT:
-								cancel = true;
-
-								if (event.ctrlKey) {
-									// Move column !
-									if (column.visibleIndex < this.visibleColumns.length - 1) {
-										this._moveColumn(column, column.visibleIndex + 1);
-									}
-								} else {
-									next = cm.GetNextType(tcell.nextSibling, "tcell");
-									if (!next) {
-										next = cm.GetNextType(tcell.parentNode.firstChild, "tcell");
-									}
-								}
-								break;
-
-							case Key.VK_HOME:
-								cancel = true;
-								next = cm.GetNextType(tcell.parentNode.firstChild, "tcell");
-								break;
-
-							case Key.VK_END:
-								cancel = true;
-								next = cm.GetPreviousType(tcell.parentNode.lastChild, "tcell");
-								break;
-
-							case Key.VK_SPACE:
-								cancel = true;
-
-								this._toggleColumnSort(column, event);
-								break;
-
-							case Key.VK_DOWN:
-								cancel = true;
-
-								if (column.titleElement._filtreable) {
-									elements.tparams = column.parametersElement;
-
-									this._showFilterPopup(column, elements.tparams, event, elements);
-								}
-								break;
-							}
-
-							if (next && next.id != tcell.id) {
-								var column = angular.element(next).data("cm_column");
-								column.buttonElement.focus();
-							}
-
-							if (cancel) {
-								event.stopPropagation();
-								event.preventDefault();
-							}
-						},
-
-						_onResize: function() {
-							$log.debug("On resize ...");
-							var self = this;
-							return function resizeHandler(event) {
-								try {
-									self.gridLayout();
-
-								} catch (x) {
-									$exceptionHandler(x, "Exception while resizing");
-								}
-							};
-						},
-
-						_onMouseOver: function() {
-							var self = this;
-							return function(event) {
-								var target = event.target;
-
-								if (self.columnResizing || self.titleCellMoving) {
-									return;
+									$timeout.cancel(promise);
 								}
 
-								var elements = searchElements(target);
-								cm.SwitchOnState(self, elements, "over");
-							};
-						},
+								self._toggleGroupExpand(elements.group);
+								return;
+							}
 
-						_onMouseOut: function() {
-							var self = this;
-							return function(event) {
-								var target = event.relatedTarget;
+							self._emitClick(elements, "RowDoubleClick", event);
+						};
+					},
 
-								var elements = searchElements(target);
-								cm.SwitchOffState(self, elements, "over");
-							};
-						},
+					_onSimpleClick: function() {
+						var self = this;
+						return function(event) {
+							var target = event.target;
 
-						_onFocus: function() {
-							var self = this;
-							return function(event) {
-								var target = event.target;
+							var elements = searchElements(target);
 
-								var elements = searchElements(target);
+							// cc.log("Simple click on ", target, " elements=", elements);
 
-								self._lastFocusEventData = Date.now();
+							if (!self._lastFocusEventData && elements.row && elements.cell) {
+								var row = angular.element(elements.row).data("cm_value");
+								self.registerElement(elements.row, row);
 
-								// cc.log("Grid.OnFocus ", target, elements);
+								var logicalIndex = elements.cell.cm_lindex;
+								var column = self.columns[logicalIndex];
 
-								cm.SwitchOnState(self, elements, "focus", function(elements) {
-									var cell = elements.cell || elements.groupTitle;
-									if (cell) {
-										self._setCursor(cell, event);
+								var cursorProvider = self.cursorProvider;
+								var cursorRow = cursorProvider.getRow();
+								var cursorColumn = cursorProvider.getColumn();
+
+								if (column === cursorColumn && row === cursorRow) {
+									var selectionProvider = self.selectionProvider;
+
+									if (selectionProvider) {
+										selectionProvider.run(function() {
+											self.selectionStrategy.select(selectionProvider, row, row, event, function(cursorRowId) {
+												return self._computeRowRangeFromCursor(row, cursorRowId);
+											});
+										});
 									}
-								});
-							};
-						},
+								}
+							}
 
-						_onBlur: function() {
-							var self = this;
-							return function(event) {
-								var target = event.relatedTarget;
+							self._lastFocusEventData = 0;
 
-								// cc.log("BLUR ", target);
+							self._emitClick(elements, "RowClick", event);
+						};
+					},
 
-								var elements = searchElements(target);
-								cm.SwitchOffState(self, elements, "focus");
-							};
-						},
+					_onMouseDown: function() {
+						var self = this;
 
-						_onDoubleClick: function() {
-							var self = this;
+						return function(event) {
+							var target = event.target;
 
-							return function(event) {
-								var target = event.target;
-								var elements = searchElements(target);
+							// cc.log("Mouse down on ", target);
 
-								// cc.log("Double click on ", target, " elements=", elements);
+							var elements = searchElements(target);
+							cm.SwitchOnState(self, elements, "mouseDown", function(elements) {
+
+								var tsizer = elements.tsizer;
+								if (tsizer) {
+									var targetColumn;
+
+									if (elements.tcell) {
+										var c = angular.element(elements.tcell).data("cm_column");
+										var vi = c.visibleIndex;
+
+										targetColumn = self.visibleColumns[vi - 1];
+
+									} else {
+										targetColumn = self.visibleColumns[self.visibleColumns.length - 1];
+									}
+
+									self._onResizeColumn(targetColumn, tsizer, event);
+
+									// event.stopPropagation();
+									return false;
+								}
+
+								var groupExpand = elements.groupExpand;
+								if (groupExpand) {
+									self._toggleGroupExpand(elements.group);
+
+									return false;
+								}
+
+								var row = elements.row;
+								if (row) {
+									self.registerElement(row);
+
+									self._registerSelectionEvent(event, false);
+								}
+
+								var tcell = elements.tcell;
+								if (tcell) {
+									self._onTitleCellMouseDown(event, tcell);
+									event.stopPropagation();
+									return false;
+								}
 
 								if (elements.group) {
 									var promise = self._groupSimpleClickPromise;
 									if (promise) {
 										self._groupSimpleClickPromise = undefined;
-
 										$timeout.cancel(promise);
 									}
 
-									self._toggleGroupExpand(elements.group);
-									return;
-								}
+									self._groupSimpleClickPromise = $timeout(function() {
+										self._groupSimpleClickPromise = undefined;
 
-								self._emitClick(elements, "RowDoubleClick", event);
-							};
-						},
-
-						_onSimpleClick: function() {
-							var self = this;
-							return function(event) {
-								var target = event.target;
-
-								var elements = searchElements(target);
-
-								// cc.log("Simple click on ", target, " elements=", elements);
-
-								if (!self._lastFocusEventData && elements.row && elements.cell) {
-									var row = angular.element(elements.row).data("cm_value");
-									self.registerElement(elements.row, row);
-
-									var logicalIndex = elements.cell.cm_lindex;
-									var column = self.columns[logicalIndex];
-
-									var cursorProvider = self.cursorProvider;
-									var cursorRow = cursorProvider.getRow();
-									var cursorColumn = cursorProvider.getColumn();
-
-									if (column === cursorColumn && row === cursorRow) {
-										var selectionProvider = self.selectionProvider;
-
-										if (selectionProvider) {
-											selectionProvider.run(function() {
-												self.selectionStrategy.select(selectionProvider, row, row, event, function(cursorRowId) {
-													return self._computeRowRangeFromCursor(row, cursorRowId);
-												});
-											});
-										}
-									}
-								}
-
-								self._lastFocusEventData = 0;
-
-								self._emitClick(elements, "RowClick", event);
-							};
-						},
-
-						_onMouseDown: function() {
-							var self = this;
-
-							return function(event) {
-								var target = event.target;
-
-								// cc.log("Mouse down on ", target);
-
-								var elements = searchElements(target);
-								cm.SwitchOnState(self, elements, "mouseDown", function(elements) {
-
-									var tsizer = elements.tsizer;
-									if (tsizer) {
-										var targetColumn;
-
-										if (elements.tcell) {
-											var c = angular.element(elements.tcell).data("cm_column");
-											var vi = c.visibleIndex;
-
-											targetColumn = self.visibleColumns[vi - 1];
-
-										} else {
-											targetColumn = self.visibleColumns[self.visibleColumns.length - 1];
-										}
-
-										self._onResizeColumn(targetColumn, tsizer, event);
-
-										// event.stopPropagation();
-										return false;
-									}
-
-									var groupExpand = elements.groupExpand;
-									if (groupExpand) {
-										self._toggleGroupExpand(elements.group);
-
-										return false;
-									}
-
-									var row = elements.row;
-									if (row) {
-										self.registerElement(row);
+										self.registerElement(elements.group);
 
 										self._registerSelectionEvent(event, false);
-									}
 
-									var tcell = elements.tcell;
-									if (tcell) {
-										self._onTitleCellMouseDown(event, tcell);
-										event.stopPropagation();
-										return false;
-									}
-
-									if (elements.group) {
-										var promise = self._groupSimpleClickPromise;
-										if (promise) {
-											self._groupSimpleClickPromise = undefined;
-											$timeout.cancel(promise);
+										if (elements.groupTitle) {
+											elements.groupTitle.focus();
 										}
-
-										self._groupSimpleClickPromise = $timeout(function() {
-											self._groupSimpleClickPromise = undefined;
-
-											self.registerElement(elements.group);
-
-											self._registerSelectionEvent(event, false);
-
-											if (elements.groupTitle) {
-												elements.groupTitle.focus();
-											}
-										}, DOUBLE_CLICK_DELAY_MS, false);
-
-										event.stopPropagation();
-										event.preventDefault();
-										return false;
-									}
+									}, DOUBLE_CLICK_DELAY_MS, false);
 
 									event.stopPropagation();
+									event.preventDefault();
 									return false;
-								});
-							};
-						},
-
-						_onMouseUp: function() {
-							var self = this;
-
-							return function(event) {
-								var elements = searchElements();
-								cm.ClearState(self, elements, "mouseDown", function(elements) {
-								});
-							};
-						},
-
-						_onKeyPress: function() {
-							var self = this;
-							return function(event) {
-								var target = event.target;
-								var elements = searchElements(target);
-
-								// cc.log("KeyPress ", target, " event=", event, " elements=",
-								// elements);
-
-								if (elements.tcell) {
-									// Le titre
-									return self.onKeyPress_Title(elements.tcell, event, elements);
 								}
 
-								if (elements.cell) {
-									// Cellule
-									return self.onKeyPress_Cell(elements.cell, event);
-								}
+								event.stopPropagation();
+								return false;
+							});
+						};
+					},
 
-								if (elements.groupTitle) {
-									// Cellule
-									return self.onKeyPress_Cell(elements.groupTitle, event, elements.group);
-								}
-							};
-						},
+					_onMouseUp: function() {
+						var self = this;
 
-						_onGridStyleUpdate: function() {
-							var _styleUpdateMapper = {
-								grid: "gridStyleUpdate",
-								table: "tableStyleUpdate",
-								row: "rowStyleUpdate",
-								cell: "cellStyleUpdate",
-								title: "titleStyleUpdate",
-								tcell: "titleCellStyleUpdate",
-								group: "groupStyleUpdate"
-							};
+						return function(event) {
+							var elements = searchElements();
+							cm.ClearState(self, elements, "mouseDown", function(elements) {
+							});
+						};
+					},
 
-							var self = this;
-							return function(event) {
-								var target = event.relatedTarget;
+					_onKeyPress: function() {
+						var self = this;
+						return function(event) {
+							var target = event.target;
+							var elements = searchElements(target);
 
-								var type = cm.GetCMType(target);
-								if (!type) {
-									return;
-								}
+							// cc.log("KeyPress ", target, " event=", event, " elements=",
+							// elements);
 
-								var elt = angular.element(target);
+							if (elements.tcell) {
+								// Le titre
+								return self.onKeyPress_Title(elements.tcell, event, elements);
+							}
 
-								// cc.log("Update relatedTarget=", target, " type=" + type + "
-								// over="
-								// + target._over + " mouseDown="+ target._mouseDown);
+							if (elements.cell) {
+								// Cellule
+								return self.onKeyPress_Cell(elements.cell, event);
+							}
 
-								var rp = self[_styleUpdateMapper[type]];
-								if (rp) {
-									rp.call(self, elt);
-									event.stopPropagation();
-									return;
-								}
-							};
-						}
+							if (elements.groupTitle) {
+								// Cellule
+								return self.onKeyPress_Cell(elements.groupTitle, event, elements.group);
+							}
+						};
+					},
 
-					};
+					_onGridStyleUpdate: function() {
+						var _styleUpdateMapper = {
+							grid: "gridStyleUpdate",
+							table: "tableStyleUpdate",
+							row: "rowStyleUpdate",
+							cell: "cellStyleUpdate",
+							title: "titleStyleUpdate",
+							tcell: "titleCellStyleUpdate",
+							group: "groupStyleUpdate"
+						};
 
-					return GridRenderer;
-				} ]);
+						var self = this;
+						return function(event) {
+							var target = event.relatedTarget;
+
+							var type = cm.GetCMType(target);
+
+							// $log.debug("Type of ", target, " => ", type);
+
+							if (!type) {
+								return;
+							}
+
+							var elt = angular.element(target);
+
+							// cc.log("Update relatedTarget=", target, " type=" + type + "
+							// over="
+							// + target._over + " mouseDown="+ target._mouseDown);
+
+							var rp = self[_styleUpdateMapper[type]];
+							if (rp) {
+								rp.call(self, elt);
+								event.stopPropagation();
+								return;
+							}
+						};
+					}
+
+				};
+
+				return GridRenderer;
+			} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -6080,9 +7670,10 @@
 
 	var module = angular.module("camelia.renderers.grid");
 
-	module.factory("camelia.renderers.grid.group", [ "$log", "camelia.core", "camelia.cmTypes", function($log, cc, cm) {
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
 
-		var anonymousId = 0;
+	module.factory("camelia.renderers.grid.group", [ "$log", "camelia.core", "camelia.cmTypes", function($log, cc, cm) {
 
 		return {
 			groupRenderer: function(parentElement, groupProvider, groupScope, index, collapsed, destroyScopeRef) {
@@ -6093,11 +7684,11 @@
 					role: "row",
 					// "aria-hidden": "true",
 					tabIndex: -1,
-					$cm_groupIndex: index
+					$cm_groupIndex: index,
+					cm_collapsed: (collapsed) ? true : undefined
 				});
 
 				var groupElement = tr[0];
-				groupElement._collapsed = collapsed;
 
 				var groupClassMode = groupProvider.titleClassMode;
 				if (groupClassMode === undefined) {
@@ -6113,7 +7704,7 @@
 							groupClassMode = 1;
 							groupClassExpression = this.$interpolate(expression);
 
-						} else if (expression.charAt(0) == '{' && expression.charAt(expression.length - 1) == '}') {
+						} else if (expression.charAt(0) === '{' && expression.charAt(expression.length - 1) === '}') {
 							// ng-class expression !
 							groupClassMode = 2;
 						}
@@ -6126,7 +7717,7 @@
 
 				if (groupClassMode) {
 					var obj = groupProvider.titleClassExpression;
-					if (groupClassMode != 3) {
+					if (groupClassMode !== 3) {
 						obj = groupScope.$eval(obj);
 					}
 
@@ -6180,7 +7771,6 @@
 					className: "cm_dataGrid_glabel"
 				});
 
-				var value = null;
 				var interpolatedExpression = groupProvider.interpolatedTitleExpression;
 				if (!interpolatedExpression) {
 					var expression = groupProvider.$scope.titleRawExpression;
@@ -6222,7 +7812,7 @@
 	} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -6235,13 +7825,14 @@
 
 	var module = angular.module("camelia.renderers.grid");
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory("camelia.renderers.grid.row", [ "$log",
 		"$interpolate",
 		"camelia.core",
 		"camelia.cmTypes",
 		function($log, $interpolate, cc, cm) {
-
-			var anonymousId = 0;
 
 			return {
 				rowRenderer: function(parentElement, rowScope, index, rowIdent, destroyScopeRef) {
@@ -6275,7 +7866,7 @@
 								rowClassMode = 1;
 								rowClassExpression = this.$interpolate(expression);
 
-							} else if (expression.charAt(0) == '{' && expression.charAt(expression.length - 1) == '}') {
+							} else if (expression.charAt(0) === '{' && expression.charAt(expression.length - 1) === '}') {
 								// ng-class expression !
 								rowClassMode = 2;
 							}
@@ -6288,7 +7879,7 @@
 
 					if (rowClassMode) {
 						var obj = this.rowClassExpression;
-						if (rowClassMode != 3) {
+						if (rowClassMode !== 3) {
 							obj = rowScope.$eval(obj);
 						}
 
@@ -6314,7 +7905,7 @@
 
 					var selectionProvider = this.selectionProvider;
 					if (selectionProvider && selectionProvider.contains(rowScope.$row)) {
-						rowElement._selected = true;
+						rowElement.setAttribute("cm_selected", true);
 					}
 
 					this.rowStyleUpdate(tr);
@@ -6340,6 +7931,14 @@
 							role: "gridcell",
 							$cm_lindex: column.logicalIndex
 						});
+						td.attr("cm_" + (column.cellAlign || "left"), true);
+
+						if (!column.visibleIndex) {
+							td.attr("cm_first", true);
+						}
+						if (column.visibleIndex === self.visibleColumns.length - 1) {
+							td.attr("cm_last", true);
+						}
 
 						if (column.scope) {
 							td.attr("scope", "row");
@@ -6372,15 +7971,16 @@
 						classes.push.apply(classes, tr.cm_rowClasses);
 					}
 
+					var trSelected = tr.hasAttribute("cm_selected");
 					var ariaState = 0;
-					if (tr._selected) {
+					if (trSelected) {
 						ariaState |= 0x01;
 					}
-					if (tr.ariaState != ariaState) {
+					if (tr.ariaState !== ariaState) {
 						tr.ariaState = ariaState;
 
-						if (tr._selected) {
-							tr.setAttribute("aria-selected", tr._selected);
+						if (trSelected) {
+							tr.setAttribute("aria-selected", true);
 						} else {
 							tr.removeAttribute("aria-selected");
 						}
@@ -6392,14 +7992,16 @@
 				cellRenderer: function(td, rowScope, index, column, columnIndex, destroyScopeRef) {
 					var value;
 
-					var templates = column.templates;
-					if (templates) {
+					var cellTemplates = column.cellTemplates;
+					if (cellTemplates) {
+						var templates = cellTemplates.templates;
+
 						for (var i = 0; i < templates.length; i++) {
 							var template = templates[i];
 
-							var templateIE = column.templatesIE[template.id];
-							if (templateIE) {
-								if (rowScope.$eval(templateIE) === false) {
+							var enabledExpression = cellTemplates.enabledExpressions[template.id];
+							if (enabledExpression) {
+								if (rowScope.$eval(enabledExpression) === false) {
 									continue;
 								}
 							}
@@ -6431,7 +8033,7 @@
 						destroyScopeRef.value = false;
 
 						rowScope.$watch(column.interpolatedExpression, function(newText) {
-							label.text((newText == undefined) ? '' : newText);
+							label.text((newText === undefined) ? '' : newText);
 						});
 
 					} else {
@@ -6458,24 +8060,13 @@
 					var cts = [];
 
 					var classes = [ "cm_dataGrid_cell" ];
-					if (!column.visibleIndex) {
-						classes.push("cm_dataGrid_cfirst");
-
-					}
-					if (column.visibleIndex == this.visibleColumns.length - 1) {
-						classes.push("cm_dataGrid_clast");
-					}
-
-					if (column.cellAlign) {
-						cts.push("cm_dataGrid_calign_" + column.cellAlign);
-					}
 
 					if (column.cellClasses) {
 						classes.push.apply(classes, column.cellClasses);
 					}
 
 					if (cell.cm_cellClasses) {
-						classes.push.apply(classes, tr.cm_cellClasses);
+						classes.push.apply(classes, cell.cm_cellClasses);
 					}
 
 					return cm.MixElementClasses(cell, classes, cts);
@@ -6520,19 +8111,19 @@
 					row.insertBefore(cell, beforeCell);
 
 					if (!column.visibleIndex) {
-						this.cellStyleUpdate(cell);
+						cell.setAttribute("cm_first", true);
 
 						var firstCell = cells[rowIdent];
-						if (!beforeColumn || firstCell.id != beforeColumn.id) {
-							this.cellStyleUpdate(firstCell);
+						if (!beforeColumn || firstCell.id !== beforeColumn.id) {
+							firstCell.removeAttribute("cm_first");
 						}
-
-					} else if (column.visibleIndex == visibleColumns.length - 1) {
-						this.cellStyleUpdate(cell);
+					}
+					if (column.visibleIndex === visibleColumns.length - 1) {
+						cell.setAttribute("cm_last", true);
 
 						var lastCell = cells[rowIdent + visibleColumns.length - 1];
-						if (!beforeColumn || lastCell.id != beforeColumn.id) {
-							this.cellStyleUpdate(lastCell);
+						if (!beforeColumn || lastCell.id !== beforeColumn.id) {
+							lastCell.removeAttribute("cm_last");
 						}
 					}
 				}
@@ -6540,7 +8131,7 @@
 		} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -6557,6 +8148,9 @@
 
 	var PROGRESS_DELAY_MS = 200;
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory('camelia.renderers.grid.table', [ "$log",
 		"$q",
 		"$timeout",
@@ -6567,10 +8161,9 @@
 		"camelia.cmTypes",
 		"cm_grid_rowIndentPx",
 		"cm_grid_group_animation",
+		"camelia.TemplateRegistry",
 		function($log, $q, $timeout, $injector, $interpolate, $exceptionHandler, cc, cm, cm_dataGrid_rowIndentPx,
-				cm_dataGrid_group_animation) {
-
-			var anonymousId = 0;
+				cm_dataGrid_group_animation, TemplateRegistry) {
 
 			function _destroyScope($scope) {
 				return function() {
@@ -6617,17 +8210,17 @@
 					});
 				},
 
-				tableRenderer: function(parent) {
-
+				tableViewPortRenderer: function(parent) {
+					var i;
 					var viewPort = cc.createElement(parent, "div", {
 						id: "cm_table_" + (anonymousId++),
 						className: "cm_dataGrid_table"
 					});
-					this.tableViewPort = viewPort[0];
+					var tableViewPort = viewPort[0];
 
 					var self = this;
 					viewPort.on("scroll", function(event) {
-						self.titleViewPort.scrollLeft = self.tableViewPort.scrollLeft;
+						self.titleViewPort.scrollLeft = tableViewPort.scrollLeft;
 					});
 
 					var table = cc.createElement(viewPort, "table", {
@@ -6654,7 +8247,7 @@
 							"aria-hidden": "true"
 						});
 
-						for (var i = 0; i < rowIndent; i++) {
+						for (i = 0; i < rowIndent; i++) {
 							var co = cc.createElement(colgroupIndent, "col", {
 								className: "cm_dataGrid_colIndent"
 							});
@@ -6691,7 +8284,7 @@
 
 					var titleRow = cc.createElement(thead, "tr");
 
-					for (var i = 0; i < rowIndent; i++) {
+					for (i = 0; i < rowIndent; i++) {
 						cc.createElement(titleRow, "th", {
 							className: "cm_dataGrid_thIndent",
 							"aria-hidden": "true"
@@ -6717,7 +8310,7 @@
 
 					this.tableStyleUpdate(viewPort);
 
-					return viewPort;
+					return tableViewPort;
 				},
 				tableDestroy: function() {
 					this.lastDataModel = undefined;
@@ -6845,8 +8438,12 @@
 
 						var filtredState = !!count;
 						var titleElement = column.titleElement;
-						if (titleElement._filtred != filtredState) {
-							titleElement._filtred = filtredState;
+						if (titleElement.hasAttribute("cm_filtred") !== filtredState) {
+							if (filtredState) {
+								titleElement.setAttribute("cm_filtred", true);
+							} else {
+								titleElement.removeAttribute("cm_filtred");
+							}
 
 							cc.BubbleEvent(titleElement, "cm_update");
 						}
@@ -6891,7 +8488,7 @@
 
 							dataModelSorters.push({
 								expression: columnSorters,
-								column: column,
+								column: column.$scope.id || column.$scope.fieldName || column.id,
 								ascending: sorter.ascending
 							});
 
@@ -6909,7 +8506,7 @@
 					}
 
 					var parametersKey = angular.toJson(key);
-					if (this.lastDataModel === dataModel && this.lastParametersKey == parametersKey) {
+					if (this.lastDataModel === dataModel && this.lastParametersKey === parametersKey) {
 						return this.lastDecoratedDataModel;
 					}
 					this.lastDataModel = dataModel;
@@ -7001,34 +8598,10 @@
 							column.valueExpression = valueExpression;
 						}
 
-						var templates = column.templates;
+						var templates = column.cellTemplates;
 						if (templates === undefined) {
-							templates = [];
-
-							var ts = column.$scope.templates;
-							if (ts) {
-								var templatesIE = {};
-								column.templatesIE = templatesIE;
-
-								angular.forEach(ts, function(t) {
-									if (t.$scope.name != "cell") {
-										return;
-									}
-
-									var enabledE = t.$scope.enabledExpresion;
-									if (enabledE) {
-										if (enabledE === "false") {
-											return;
-										}
-
-										templatesIE[t.id] = self.$interpolate(enabledE);
-									}
-
-									templates.push(t);
-								});
-							}
-
-							column.templates = (templates.length) ? templates : false;
+							column.cellTemplates = TemplateRegistry.PrepareTemplates(column.$scope.templates, self.$interpolate,
+									"cell");
 						}
 					});
 				},
@@ -7043,19 +8616,41 @@
 
 					var fragment = angular.element(document.createDocumentFragment());
 
-					var oldTableViewPort = this.tableViewPort;
+					var tableViewPortPromise = this.tableViewPortRenderer(fragment);
+					tableViewPortPromise = cc.ensurePromise(tableViewPortPromise);
 
-					var tablePromise = this.tableRenderer(fragment);
-					if (!cc.isPromise(tablePromise)) {
-						tablePromise = $q.when(tablePromise);
-					}
+					return tableViewPortPromise.then(function(newTableViewPort) {
+						self.$scope.$broadcast("cm:tableViewPortCreated", {
+							newTableViewPort: newTableViewPort
+						});
 
-					return tablePromise.then(function() {
-						return self._tableRowsRenderer1(self.tableViewPort, oldTableViewPort, fragment);
+						return self._tableRowsRenderer1(fragment).then(function processSuccess(result) {
+
+							$log.debug("Receive promise success ", result);
+
+							return newTableViewPort;
+
+						}, function processError(error) {
+							$log.debug("Receive promise error ", error);
+							self.$scope.$broadcast("cm:pageError", {
+								error: error
+							});
+
+							return $q.reject(error);
+
+						}, function processNotification(notification) {
+							$log.debug("Receive promise notification ", notification);
+							self.$scope.$broadcast(notification.type, notification);
+
+							return notification;
+						});
 					});
 				},
 
-				_tableRowsRenderer1: function(tableViewPort, oldTableViewPort, fragment) {
+				/**
+				 * @returns {{Promise}}
+				 */
+				_tableRowsRenderer1: function(fragment) {
 					var self = this;
 					var table = this.tableElement;
 
@@ -7067,12 +8662,6 @@
 					});
 
 					this._alignColumns(true);
-
-					this.$scope.$broadcast("cm:pageCreated", {
-						tableViewPort: tableViewPort,
-						oldTableViewPort: oldTableViewPort,
-						fragment: fragment
-					});
 
 					this.tablePrepareColumns();
 
@@ -7100,170 +8689,59 @@
 					}
 
 					var rowCount = dataModel.getRowCount(false);
-					if (rowCount < 0) {
-						rowCount = -1;
-					}
-					dataGrid.rowCount = rowCount;
-					// console.log("Return rowCount=" + rowCount + " from model");
+					rowCount = cc.ensurePromise(rowCount);
 
-					var visibleIndex = 0;
-					var tbodyElement = tbody[0] || tbody;
+					return rowCount.then(function onSuccess(rowCount) {
+						if (rowCount < 0) {
+							rowCount = -1;
+						}
+						dataGrid.rowCount = rowCount;
+						// console.log("Return rowCount=" + rowCount + " from model");
 
-					var rowScope = null;
-					var groupScope = null;
-					var currentGroup = null;
-					var groupIndex = -1;
+						var visibleIndex = 0;
+						var tbodyElement = tbody[0] || tbody;
 
-					var progressDefer = null;
-					var progressDate = 0;
+						var rowScope = null;
+						var groupScope = null;
+						var currentGroup = null;
+						var groupIndex = -1;
 
-					function setupDataGrid(lastRowReached) {
+						var progressDefer = $q.defer();
+						var progressDate = 0;
 
-						self._renderedFirst = first;
+						function setupDataGrid(lastRowReached) {
 
-						if (!visibleIndex) {
-							if (!first) {
-								dataGrid.rowCount = 0;
-								dataGrid.maxRows = 0;
+							self._renderedFirst = first;
 
-								// console.log("Reset rowCount and maxRows");
+							if (!visibleIndex) {
+								if (!first) {
+									dataGrid.rowCount = 0;
+									dataGrid.maxRows = 0;
+
+									// console.log("Reset rowCount and maxRows");
+								}
+
+							} else {
+								if (lastRowReached) {
+									dataGrid.rowCount = first + visibleIndex;
+								}
+								dataGrid.maxRows = Math.max(dataGrid.maxRows, first + visibleIndex);
 							}
 
-						} else {
-							if (lastRowReached) {
-								dataGrid.rowCount = first + visibleIndex;
-							}
-							dataGrid.maxRows = Math.max(dataGrid.maxRows, first + visibleIndex);
+							dataGrid.visibleRows = visibleIndex;
 						}
 
-						dataGrid.visibleRows = visibleIndex;
-					}
+						var varName = self.$scope.varName;
+						var groupProvider = self.selectedGroupProvider;
 
-					var varName = this.$scope.varName;
-					var groupProvider = this.selectedGroupProvider;
+						function availablePromise(available) {
+							if (!available) {
 
-					function availablePromise(available) {
-						if (!available) {
-							dataModel.setRowIndex(-1);
+								progressDefer.notify({
+									type: "rowRendered",
+									count: visibleIndex
+								});
 
-							if (rowScope) {
-								rowScope.$destroy();
-							}
-							if (groupScope) {
-								groupScope.$destroy();
-							}
-
-							setupDataGrid(true);
-							return false;
-						}
-
-						var groupCollapsed = false;
-
-						for (; rows < 0 || visibleIndex < rows;) {
-							var nextAvailable;
-
-							if (progressDefer) {
-								var now = Date.now();
-								if (now > progressDate) {
-									progressDate = now + PROGRESS_DELAY_MS;
-
-									progressDefer.notify({
-										count: visibleIndex,
-										rows: rows
-									});
-								}
-							}
-
-							try {
-								var rowData = dataModel.getRowData();
-								if (groupDataModel) {
-									if (!groupScope) {
-										groupScope = self.$scope.$parent.$new();
-									}
-
-									groupScope.$group = null;
-									groupScope.$count = null;
-									groupScope.$row = rowData;
-									if (varName) {
-										groupScope[varName] = rowData;
-									}
-
-									var group = groupDataModel.getGroup(groupScope, rowData);
-									if (group !== currentGroup) {
-										currentGroup = group;
-										groupIndex++;
-
-										groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
-
-										groupScope.$group = group;
-										groupScope.$count = groupDataModel.getGroupCount(group);
-
-										var destroyGroupScopeRef = {
-											value: true
-										};
-										var groupTR = self.groupRenderer(tbodyElement, groupProvider, groupScope, groupIndex,
-												groupCollapsed, destroyGroupScopeRef);
-										groupTR.data("cm_rowValues", groupDataModel.getGroupValues(group));
-										groupTR.data("cm_value", group);
-
-										if (!destroyGroupScopeRef.value) {
-											groupTR.on('$destroy', _destroyScope(groupScope));
-											groupTR.data('$isolateScope', groupScope);
-											groupScope.$digest();
-											groupScope = null;
-										}
-
-										var trElement = groupTR[0];
-										trElement._visibleIndex = visibleIndex;
-										trElement._rowIndex = rowIndex;
-									}
-								}
-
-								if (!groupCollapsed) {
-									if (!rowScope) {
-										rowScope = self.$scope.$parent.$new();
-									}
-
-									rowScope.$index = visibleIndex;
-									rowScope.$odd = !(visibleIndex & 1);
-									rowScope.$even = !rowScope.$odd;
-									rowScope.$first = (visibleIndex === 0);
-									rowScope.$pageNumber = -1;
-									rowScope.$pageCount = -1;
-									rowScope.$rowIndex = rowIndex;
-									rowScope.$row = rowData;
-									if (varName) {
-										rowScope[varName] = rowData;
-									}
-
-									var destroyRowScopeRef = {
-										value: true
-									};
-
-									var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent, destroyRowScopeRef);
-
-									tr.data("cm_value", rowData);
-
-									if (!destroyRowScopeRef.value) {
-										tr.on('$destroy', _destroyScope(rowScope));
-										tr.data('$isolateScope', rowScope);
-										rowScope.$digest();
-										rowScope = null;
-									}
-								}
-
-								rowIndex++;
-								visibleIndex++;
-
-								if (rows > 0 && visibleIndex >= rows) {
-									break;
-								}
-
-								dataModel.setRowIndex(rowIndex);
-
-								nextAvailable = dataModel.isRowAvailable();
-
-							} catch (x) {
 								dataModel.setRowIndex(-1);
 
 								if (rowScope) {
@@ -7273,57 +8751,196 @@
 									groupScope.$destroy();
 								}
 
-								throw x;
+								setupDataGrid(true);
+								return false;
 							}
 
-							if (cc.isPromise(nextAvailable)) {
-								return nextAvailable.then(availablePromise);
+							var groupCollapsed = false;
+
+							for (; rows < 0 || visibleIndex < rows;) {
+								var nextAvailable;
+
+								if (progressDefer) {
+									var now = Date.now();
+									if (now > progressDate) {
+										progressDate = now + PROGRESS_DELAY_MS;
+
+										progressDefer.notify({
+											type: "rowRendering",
+											count: visibleIndex,
+											rows: rows
+										});
+									}
+								}
+
+								try {
+									var rowData = dataModel.getRowData();
+									if (groupDataModel) {
+										if (!groupScope) {
+											groupScope = self.$scope.$parent.$new();
+										}
+
+										groupScope.$group = null;
+										groupScope.$count = null;
+										groupScope.$row = rowData;
+										if (varName) {
+											groupScope[varName] = rowData;
+										}
+
+										var group = groupDataModel.getGroup(groupScope, rowData);
+										if (group !== currentGroup) {
+											currentGroup = group;
+											groupIndex++;
+
+											groupCollapsed = groupProvider.getCollapsedProvider().contains(group);
+
+											groupScope.$group = group;
+											groupScope.$count = groupDataModel.getGroupCount(group);
+
+											var destroyGroupScopeRef = {
+												value: true
+											};
+											var groupTR = self.groupRenderer(tbodyElement, groupProvider, groupScope, groupIndex,
+													groupCollapsed, destroyGroupScopeRef);
+											groupTR.data("cm_rowValues", groupDataModel.getGroupValues(group));
+											groupTR.data("cm_value", group);
+
+											if (!destroyGroupScopeRef.value) {
+												groupTR.on('$destroy', _destroyScope(groupScope));
+												groupScope.$digest();
+												groupScope = null;
+											}
+
+											var trElement = groupTR[0];
+											trElement._visibleIndex = visibleIndex;
+											trElement._rowIndex = rowIndex;
+										}
+									}
+
+									if (!groupCollapsed) {
+										if (!rowScope) {
+											rowScope = self.$scope.$parent.$new();
+										}
+
+										rowScope.$index = visibleIndex;
+										rowScope.$odd = !(visibleIndex & 1);
+										rowScope.$even = !rowScope.$odd;
+										rowScope.$first = (visibleIndex === 0);
+										rowScope.$pageNumber = -1;
+										rowScope.$pageCount = -1;
+										rowScope.$rowIndex = rowIndex;
+										rowScope.$row = rowData;
+										if (varName) {
+											rowScope[varName] = rowData;
+										}
+
+										var destroyRowScopeRef = {
+											value: true
+										};
+
+										var tr = self.rowRenderer(tbodyElement, rowScope, rowIndex, rowIndent, destroyRowScopeRef);
+
+										tr.data("cm_value", rowData);
+
+										if (!destroyRowScopeRef.value) {
+											tr.on('$destroy', _destroyScope(rowScope));
+											rowScope.$digest();
+											rowScope = null;
+										}
+									}
+
+									rowIndex++;
+									visibleIndex++;
+
+									if (rows > 0 && visibleIndex >= rows) {
+										break;
+									}
+
+									dataModel.setRowIndex(rowIndex);
+
+									nextAvailable = dataModel.isRowAvailable();
+
+								} catch (x) {
+									dataModel.setRowIndex(-1);
+
+									if (rowScope) {
+										rowScope.$destroy();
+									}
+									if (groupScope) {
+										groupScope.$destroy();
+									}
+
+									$log.error("isRowAvailable() returns error ", x);
+
+									throw x;
+								}
+
+								if (cc.isPromise(nextAvailable)) {
+									return nextAvailable.then(function(result) {
+										return availablePromise(result);
+
+									});
+								}
+
+								if (nextAvailable !== true) {
+									break;
+								}
 							}
 
-							if (nextAvailable !== true) {
-								break;
+							progressDefer.notify({
+								type: "rowRendered",
+								rows: rows
+							});
+
+							dataModel.setRowIndex(-1);
+							if (rowScope) {
+								rowScope.$destroy();
 							}
+							if (groupScope) {
+								groupScope.$destroy();
+							}
+
+							setupDataGrid(rows > 0 && visibleIndex < rows);
+
+							return progressDefer.resolve(visibleIndex);
 						}
 
-						dataModel.setRowIndex(-1);
-						if (rowScope) {
-							rowScope.$destroy();
-						}
-						if (groupScope) {
-							groupScope.$destroy();
-						}
+						var nextAvailable;
+						try {
+							dataModel.setRowIndex(rowIndex);
 
-						setupDataGrid(rows > 0 && visibleIndex < rows);
+							nextAvailable = dataModel.isRowAvailable();
 
-						return $q.when(false);
-					}
+						} catch (x) {
+							dataModel.setRowIndex(-1);
+							if (rowScope) {
+								rowScope.$destroy();
+							}
 
-					var nextAvailable;
-					try {
-						dataModel.setRowIndex(rowIndex);
+							dataGrid.rowCount = -1;
+							dataGrid.maxRows = -1;
+							dataGrid.visibleRows = visibleIndex;
 
-						nextAvailable = dataModel.isRowAvailable();
-
-					} catch (x) {
-						dataModel.setRowIndex(-1);
-						if (rowScope) {
-							rowScope.$destroy();
+							return $q.reject(x);
 						}
 
-						dataGrid.rowCount = -1;
-						dataGrid.maxRows = -1;
-						dataGrid.visibleRows = visibleIndex;
+						nextAvailable = cc.ensurePromise(nextAvailable);
 
-						throw x;
-					}
+						nextAvailable.then(function(result) {
+							// $log.debug("First: success ", result);
+							return availablePromise(result);
 
-					if (!cc.isPromise(nextAvailable)) {
-						return availablePromise(nextAvailable);
-					}
+						}, function(reason) {
+							$log.debug("First: error ", reason);
+							return progressDefer.reject(reason);
 
-					progressDefer = null;
+						}, function(progress) {
+							// $log.debug("First: Progress notification ", progress);
+							return progressDefer.notify(progress);
+						});
 
-					return nextAvailable.then(availablePromise);
+						return progressDefer.promise;
+					});
 				},
 
 				tableStyleUpdate: function(body) {
@@ -7362,7 +8979,7 @@
 						var next = e.nextSibling;
 						var type = cm.GetCMType(e);
 
-						if (type == "group") {
+						if (type === "group") {
 							break;
 						}
 
@@ -7437,7 +9054,6 @@
 
 							if (!destroyRowScopeRef.value) {
 								tr.on('$destroy', _destroyScope(rowScope));
-								tr.data('$isolateScope', rowScope);
 								rowScope.$digest();
 								rowScope = null;
 							}
@@ -7475,7 +9091,7 @@
 		} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -7491,6 +9107,9 @@
 
 	var module = angular.module("camelia.renderers.grid");
 
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
+
 	module.factory("camelia.renderers.grid.title", [ "$log",
 		"$timeout",
 		"camelia.core",
@@ -7499,8 +9118,6 @@
 		"cm_grid_sizerPx",
 		"camelia.i18n.Grid",
 		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx, i18n) {
-
-			var anonymousId = 0;
 
 			return {
 
@@ -7572,8 +9189,9 @@
 					}
 
 					var cellElement = cc.createElement(ul, "li", {
-						className: [ "cm_dataGrid_tcell", "cm_dataGrid_tcell_right" ],
-						"aria-hidden": true
+						className: [ "cm_dataGrid_tcell", "cm_dataGrid_tcell" ],
+						"aria-hidden": true,
+						cm_align: "right"
 					});
 					cc.createElement(cellElement, "span");
 					this.titleCellRenderer(cellElement);
@@ -7614,7 +9232,7 @@
 								className: "cm_dataGrid_tcursor"
 							});
 
-							titleCell._sortable = true;
+							titleCell.setAttribute("cm_sortable", true);
 						}
 
 						var title = column.$scope.title;
@@ -7646,16 +9264,16 @@
 							button.attr("aria-expanded", false);
 
 							cc.createElement(parameters, "div", {
-								className: "cm_dataGrid_tpArrow"
+								className: "cm_dataGrid_tpArrow fa fa-caret-down"
 							});
 
 							cc.createElement(parameters, "div", {
-								className: "cm_dataGrid_tpFiltred"
+								className: "cm_dataGrid_tpFiltred fa fa-check"
 							});
 
 							hasParams = true;
 
-							titleCell._filtreable = true;
+							titleCell.setAttribute("cm_filtreable", true);
 						}
 
 						var prevIndex = column.visibleIndex - 1;
@@ -7708,20 +9326,20 @@
 
 					var newAriaSorter = 0;
 					var messageSorter = null;
-					if (element._sortable) {
+					if (element.hasAttribute("cm_sortable")) {
 						newAriaSorter |= 0x01;
 						messageSorter = "sortableColumn";
 
-						if (element._ascending) {
+						if (element.hasAttribute("cm_ascending")) {
 							newAriaSorter |= 0x02;
 							messageSorter = "sortAscending";
 
-						} else if (element._descending) {
+						} else if (element.hasAttribute("cm_descending")) {
 							newAriaSorter |= 0x04;
 							messageSorter = "sortDescending";
 						}
 					}
-					if (reset || column._ariaSorter != newAriaSorter) {
+					if (reset || column._ariaSorter !== newAriaSorter) {
 						column._ariaSorter = newAriaSorter;
 
 						cc.setAudioDescription(column.buttonElement, messageSorter && cc.lang(i18n, messageSorter), "sorter");
@@ -7729,16 +9347,16 @@
 
 					var newAriaFiltred = 0;
 					var messageFiltred = null;
-					if (element._filtreable) {
+					if (element.hasAttribute("cm_filtreable")) {
 						newAriaFiltred |= 0x01;
 						messageFiltred = "filtreableColumn";
 
-						if (element._filtred) {
+						if (element.hasAttribute("cm_filtred")) {
 							newAriaSorter |= 0x02;
 							messageFiltred = "filtredColumn";
 						}
 					}
-					if (reset || column._ariaFiltred != newAriaFiltred) {
+					if (reset || column._ariaFiltred !== newAriaFiltred) {
 						column._ariaFiltred = newAriaFiltred;
 
 						cc.setAudioDescription(column.buttonElement, messageFiltred && cc.lang(i18n, messageFiltred), "filtred");
@@ -7865,7 +9483,7 @@
 									nw = column.maxWidth;
 								}
 
-								if (nw == column.width) {
+								if (nw === column.width) {
 									column.layoutFinished = true;
 									return;
 								}
@@ -7898,15 +9516,16 @@
 
 					var visibleColumns = this.visibleColumns;
 					var i = 0;
+					var resizeable;
 					for (; i < visibleColumns.length; i++) {
 						var sizerElement = visibleColumns[i].sizerElement;
 
-						var resizeable = (i && cc.toBoolean(visibleColumns[i - 1].$scope.resizeable));
+						resizeable = (i && cc.toBoolean(visibleColumns[i - 1].$scope.resizeable));
 						sizerElement.style.display = (resizeable) ? "block" : "none";
 					}
 
 					if (this.lastSizerElement) {
-						var resizeable = cc.toBoolean(visibleColumns[i - 1].$scope.resizeable);
+						resizeable = cc.toBoolean(visibleColumns[i - 1].$scope.resizeable);
 
 						this.lastSizerElement.style.display = (resizeable) ? "block" : "none";
 					}
@@ -7955,7 +9574,7 @@
 					var self = this;
 					angular.forEach(this.visibleColumns, function(col) {
 						var titleElement = col.titleElement;
-						if (titleElement.id == column.titleElement.id) {
+						if (titleElement.id === column.titleElement.id) {
 							return;
 						}
 
@@ -8016,7 +9635,7 @@
 		} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -8103,7 +9722,7 @@
 								var etype = cm.GetCMType(elt);
 
 								if (angular.isString(type)) {
-									if (etype != type) {
+									if (etype !== type) {
 										return null;
 									}
 
@@ -8146,7 +9765,7 @@
 		} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -8161,9 +9780,10 @@
 
 	module.value("cm_filtersPopup_className", "cm_popup cm_filtersPopup");
 
+	// Caution, it is not a singleton if $injector is used !
 	var anonymousId = 0;
 
-	var ROW_TYPE = "rfilter";
+	var ITEM_TYPE = "rfilter";
 
 	module.factory("camelia.renderers.FiltersPopup", [ "$log",
 		"$q",
@@ -8174,7 +9794,8 @@
 		"cm_filtersPopup_className",
 		"camelia.Key",
 		"camelia.renderers.Popup",
-		function($log, $q, $exceptionHandler, $timeout, cc, cm, cm_filtersPopup_className, Key, PopupRenderer) {
+		"camelia.i18n.Grid",
+		function($log, $q, $exceptionHandler, $timeout, cc, cm, cm_filtersPopup_className, Key, PopupRenderer, i18n) {
 
 			function searchElements(target) {
 				return cm.SearchElements({
@@ -8205,7 +9826,8 @@
 				_fillBody: function(container) {
 
 					var ul = cc.createElement(container, "ul", {
-						className: "cm_filtersPopup_list"
+						className: "cm_filtersPopup_list",
+						role: "group"
 					});
 
 					var criterias = this._column._criterias;
@@ -8236,7 +9858,7 @@
 
 							var idx = (anonymousId++);
 							var li = cc.createElement(ul, "li", {
-								id: "cm_" + ROW_TYPE + "_" + idx
+								id: "cm_" + ITEM_TYPE + "_" + idx
 							});
 
 							li.data("context", fContext);
@@ -8245,7 +9867,6 @@
 								id: "cm_ifilter_" + idx,
 								type: "checkbox",
 								className: "cm_filtersPopup_input",
-								"aria-labelledby": "cm_llfilter_" + idx,
 								name: id
 							});
 							if (fContext.enabled) {
@@ -8257,6 +9878,11 @@
 								$inputTarget: input[0].id
 							});
 
+							/*
+							 * var span = cc.createElement(right, "span", { className:
+							 * "cm_filtersPopup_licon fa fa-files-o" });
+							 */
+
 							var label = cc.createElement(right, "label", {
 								id: "cm_llfilter_" + idx,
 								className: "cm_filtersPopup_label",
@@ -8265,7 +9891,7 @@
 							});
 
 							if (filter.contributeDOM) {
-								filter.contributeDOM(ul, fContext, criteria, column);
+								filter.contributeDOM(ul, fContext, criteria, self._column);
 							}
 
 							self._labelStyleUpdate(right);
@@ -8274,7 +9900,18 @@
 						});
 					});
 
+					var d = cc.createElement(ul, "abbr", {
+						id: "cm_filtersPopup_desc_" + (anonymousId)++,
+						className: "cm_audioDescription",
+						textNode: cc.lang(i18n, "criteriaList", {
+							title: this._column.$scope.title
+						})
+					});
+					ul.attr("aria-describedby", d[0].id);
+
 					this._popupStyleUpdate(container);
+
+					return ul;
 				},
 
 				_open: function(container) {
@@ -8464,7 +10101,7 @@
 							$timeout(function() {
 								self.close();
 
-							}, false);
+							}, 0, false);
 						}
 
 						cm.SwitchOnState(self, elements, "mouseDown", function(elements) {
@@ -8529,49 +10166,49 @@
 					case Key.VK_DOWN:
 						cancel = true;
 
-						var next = cm.GetNextType(row.nextSibling, ROW_TYPE);
+						next = cm.GetNextType(row.nextSibling, ITEM_TYPE);
 						if (!next) {
-							next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+							next = cm.GetNextType(parentNode.firstChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_PAGE_DOWN:
 						cancel = true;
-						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
-						if (next && next.id == row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
+						next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ITEM_TYPE);
+						if (next && next.id === row.id && (viewPort.scrollHeight > viewPort.offsetHeight)) {
 							viewPort.scrollTop += viewPort.clientHeight - row.offsetHeight;
 
-							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ROW_TYPE);
+							next = cm.GetPreviousVisibleType(viewPort, parentNode.lastChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_END:
 						cancel = true;
-						next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
+						next = cm.GetPreviousType(parentNode.lastChild, ITEM_TYPE);
 						break;
 
 					case Key.VK_UP:
 						cancel = true;
 
-						var next = cm.GetPreviousType(row.previousSibling, ROW_TYPE);
+						next = cm.GetPreviousType(row.previousSibling, ITEM_TYPE);
 						if (!next) {
-							next = cm.GetPreviousType(parentNode.lastChild, ROW_TYPE);
+							next = cm.GetPreviousType(parentNode.lastChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_PAGE_UP:
 						cancel = true;
-						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
-						if (next && next.id == row.id) {
+						next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ITEM_TYPE);
+						if (next && next.id === row.id) {
 							viewPort.scrollTop -= viewPort.clientHeight - row.offsetHeight;
 
-							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ROW_TYPE);
+							next = cm.GetNextVisibleType(viewPort, parentNode.firstChild, ITEM_TYPE);
 						}
 						break;
 
 					case Key.VK_HOME:
 						cancel = true;
-						next = cm.GetNextType(parentNode.firstChild, ROW_TYPE);
+						next = cm.GetNextType(parentNode.firstChild, ITEM_TYPE);
 						break;
 
 					case Key.VK_ESCAPE:
@@ -8584,9 +10221,9 @@
 					}
 
 					if (next) {
-						var input = next.querySelector(".cm_filtersPopup_input");
-						if (input) {
-							cc.setFocus(input);
+						var filterInput = next.querySelector(".cm_filtersPopup_input");
+						if (filterInput) {
+							cc.setFocus(filterInput);
 						}
 					}
 
@@ -8602,567 +10239,864 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
  *          permission.
  * @author olivier.oeuillot@vedana.com
  */
+
+/* jshint sub: true, shadow: true, scripturl: true */
+/* jshint -W080 */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.renderers.items", [ "camelia.core", "camelia.monitors", "camelia.i18n.items" ]);
+
+	var MAX_ITEMS = 64;
+
+	module.factory("camelia.renderers.Items", [ "$log",
+		"$q",
+		"$exceptionHandler",
+		"camelia.core",
+		"camelia.CharsetUtils",
+		"camelia.monitor.ProgressMonitor",
+		"camelia.i18n.Items",
+		function($log, $q, $exceptionHandler, cc, CharsetUtils, ProgressMonitor, i18n) {
+
+			function ItemsRenderer(renderContext) {
+				angular.extend(this, renderContext);
+			}
+
+			ItemsRenderer.prototype = {
+
+				listItems: function(inputValue, maxItems, criterias) {
+
+					if (!maxItems || maxItems < 0 || maxItems > MAX_ITEMS) {
+						maxItems = MAX_ITEMS;
+					}
+
+					var key = {
+						inputValue: inputValue,
+						maxItems: maxItems,
+						criterias: criterias
+					};
+					var jsonKey = angular.toJson(key);
+					if (this._lastKey === jsonKey) {
+						return $q.when(this._lastItems);
+					}
+
+					criterias = criterias || {};
+
+					var ret = [];
+					var itemsContext = {
+						list: ret,
+						ignoreAccents: criterias.ignoreAccents,
+						ignoreCase: criterias.ignoreCase,
+						maxItems: maxItems || this.$scope.maxItems || -1,
+						offset: 0,
+						$interpolate: this.$interpolate,
+						$scope: this.$scope
+					};
+
+					if (itemsContext.ignoreAccents) {
+						inputValue = CharsetUtils.removeAccents(inputValue);
+					}
+
+					if (inputValue) {
+						itemsContext.filterRegexp = new RegExp("^" + cc.escapeRegexp(inputValue) + ".*$",
+								(itemsContext.ignoreCase) ? "i" : "");
+					}
+
+					var items = this.$scope.items || [];
+
+					var pm = new ProgressMonitor(this.$scope);
+
+					pm.beginTask(cc.lang(i18n, "searching"), items.length);
+
+					var retPromise = null;
+					var self = this;
+					for (var i = 0; i < items.length; i++) {
+						var item = items[i];
+
+						if (item.isVisible() === false) {
+							pm.worked(1);
+							continue;
+						}
+
+						var promise = item.filter(itemsContext, inputValue);
+
+						if (!retPromise) {
+							if (!cc.isPromise(promise)) {
+								if (itemsContext.maxItems > 0 && itemsContext.list.length >= itemsContext.maxItems) {
+									break;
+								}
+								pm.worked(1);
+								continue;
+							}
+
+							retPromise = pm.then(promise, 1);
+							continue;
+						}
+
+						retPromise = pm.then(promise, 1);
+
+						retPromise = retPromise.then(function() {
+							if (itemsContext.maxItems > 0 && itemsContext.list.length >= itemsContext.maxItems) {
+								return;
+							}
+							return cc.callPromise(promise, self);
+						});
+					}
+
+					if (!retPromise) {
+						retPromise = $q.when(ret);
+					}
+
+					return retPromise.then(function() {
+						pm.done();
+
+						$log.debug("Search of '" + inputValue + "' maxItems=" + itemsContext.maxItems + " returns " + ret.length +
+								" items");
+
+						self._lastKey = jsonKey;
+						self._lastItems = ret;
+
+						return ret;
+					});
+				}
+			};
+
+			return ItemsRenderer;
+
+		} ]);
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+/* jshint sub: true, shadow: true */
+/* jshint -W080 */
 
 (function(window, angular, undefined) {
 	"use strict";
 
 	var module = angular.module("camelia.renderers.pager", [ "camelia.components.pager",
-		"camelia.key",
 		"camelia.i18n.pager" ]);
 
 	module.value("cm_pager_className", "cm_pager");
 
-	module.factory("camelia.renderers.Pager", [ "$log",
-		"$q",
-		"$exceptionHandler",
-		"camelia.core",
-		"camelia.cmTypes",
-		"cm_pager_className",
-		"camelia.Key",
-		"camelia.i18n.Pager",
-		function($log, $q, $exceptionHandler, cc, cm, cm_pager_className, Key, i18n) {
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
 
-			var anonymousId = 0;
+	module.factory("camelia.renderers.Pager",
+			[ "$log",
+				"$q",
+				"$exceptionHandler",
+				"camelia.core",
+				"camelia.cmTypes",
+				"camelia.UI",
+				"cm_pager_className",
+				"camelia.Key",
+				"camelia.i18n.Pager",
+				function($log, $q, $exceptionHandler, cc, cm, cui, cm_pager_className, Key, i18n) {
 
-			function searchElements(target) {
-				return cm.SearchElements({
-					lpager: null,
-					vpager: null,
-					bpager: null,
-					pager: null
-				}, "pager", target);
-			}
+					function searchElements(target) {
+						return cm.SearchElements({
+							lpager: null,
+							vpager: null,
+							bpager: null,
+							pager: null
+						}, "pager", target);
+					}
 
-			var PagerRenderer = function(renderContext) {
-				angular.extend(this, renderContext);
-			};
-
-			PagerRenderer.prototype = {
-				render: function(parent) {
-					var $scope = this.$scope;
-
-					var container = cc.createElement(parent, "div", {
-						id: this.pager.id,
-						$cm_type: "pager"
-					});
-
-					this.containerElement = container[0];
-
-					container.on("mouseover", this._onMouseOver());
-
-					container.on("mouseout", this._onMouseOut());
-
-					container.on("mousedown", this._onMouseDown());
-
-					// container.on("dblclick", OnDoubleClick(renderContext));
-
-					container.on("click", this._onSimpleClick());
-
-					container.on("mouseup", this._onMouseUp());
-
-					container.on("keydown", this._onKeyPress());
-					// container.on("keypress", OnKeyPress(renderContext));
-
-					this._offFocus = cc.on(container, "focus", this._onFocus(), true, $scope);
-					this._offBlur = cc.on(container, "blur", this._onBlur(), true, $scope);
-
-					$scope.$on("$destroy", function() {
-						self._offFocus();
-
-						self._offBlur();
-					});
-
-					container.on("cm_update", this._onStyleUpdate());
-
-					return container;
-				},
-
-				_onMouseOver: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.target;
-
-						var elements = searchElements(target);
-						cm.SwitchOnState(self, elements, "over");
-					};
-				},
-
-				_onMouseOut: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.relatedTarget;
-
-						var elements = searchElements(target);
-						cm.SwitchOffState(self, elements, "over");
-					};
-				},
-
-				_onFocus: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.target;
-
-						var elements = searchElements(target);
-						cm.SwitchOnState(self, elements, "focus");
-					};
-				},
-
-				_onBlur: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.relatedTarget;
-
-						var elements = searchElements(target);
-						cm.SwitchOffState(self, elements, "focus");
-					};
-				},
-
-				_onMouseDown: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.target;
-
-						var elements = searchElements(target);
-						cm.SwitchOnState(self, elements, "mouseDown");
-					};
-				},
-
-				_onMouseUp: function() {
-					var self = this;
-
-					return function(event) {
-						var elements = searchElements();
-						cm.ClearState(self, elements, "mouseDown");
-					};
-				},
-
-				_onKeyPress: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.target;
-						var elements = searchElements(target);
-					};
-				},
-
-				_onSimpleClick: function() {
-					var self = this;
-
-					return function(event) {
-						var target = event.target;
-
-						var elements = searchElements(target);
-
-						// cc.log("Simple click on ", target, " elements=", elements);
-
-						var button = elements.bpager;
-						if (button && button.value) {
-							self.targetScope.first = parseInt(button.value, 10);
-
-							self.targetScope.$digest();
-						}
-					};
-				},
-
-				_onStyleUpdate: function() {
-
-					var _styleUpdateMapper = {
-						pager: "pagerStyleUpdate",
-						vpager: "valueStyleUpdate",
-						bpager: "buttonStyleUpdate",
-						lpager: "labelStyleUpdate"
+					var PagerRenderer = function(renderContext) {
+						angular.extend(this, renderContext);
 					};
 
-					var self = this;
+					PagerRenderer.prototype = {
+						render: function(parent) {
+							var $scope = this.$scope;
 
-					return function(event) {
-						var target = event.relatedTarget;
+							var container = cc.createElement(parent, "div", {
+								id: this.pager.id,
+								$cm_type: "pager"
+							});
 
-						var type = cm.GetCMType(target);
-						if (!type) {
-							return;
-						}
+							this.containerElement = container[0];
 
-						var elt = angular.element(target);
+							var self = this;
+							$scope.$watch("style", function onStyleChanged(style) {
+								style = style || "";
+								container.attr("style", style);
+							});
 
-						// cc.log("Update relatedTarget=", target, " type=" + type + "
-						// over="
-						// + target._over + " mouseDown="+ target._mouseDown);
+							$scope.$watch("className", function onClassNameChanged() {
+								self.pagerStyleUpdate(container);
+							});
 
-						var rp = self[_styleUpdateMapper[type]];
-						if (rp) {
-							rp.call(self, elt);
-							event.stopPropagation();
-							return;
-						}
-					};
-				},
+							container.on("mouseover", this._onMouseOver());
 
-				pagerPositionsUpdate: function(positions) {
+							container.on("mouseout", this._onMouseOut());
 
-					var container = angular.element(this.containerElement);
+							container.on("mousedown", this._onMouseDown());
 
-					container.empty();
+							// container.on("dblclick", OnDoubleClick(renderContext));
 
-					var fragment = document.createDocumentFragment();
+							container.on("click", this._onSimpleClick());
 
-					this.renderExpression(fragment, this.format, positions);
+							container.on("mouseup", this._onMouseUp());
 
-					container.append(fragment);
-				},
+							container.on("keydown", this._onKeyPress());
+							// container.on("keypress", OnKeyPress(renderContext));
 
-				renderExpression: function(fragment, message, positions) {
-					var $scope = this.$scope;
-					$scope.first = positions.first;
-					$scope.rowCount = positions.rowCount;
-					$scope.maxRows = positions.maxRows;
-					$scope.rows = positions.rows;
+							cc.on(container, "focus", this._onFocus(), true, $scope);
+							cc.on(container, "blur", this._onBlur(), true, $scope);
 
-					var span = null;
-					for (var i = 0; i < message.length;) {
-						var c = message.charAt(i++);
-						if (c == "{") {
-							var end = message.indexOf("}", i);
-							var varName = message.substring(i, end).toLowerCase();
-							i = end + 1;
+							container.on("cm_update", this._onStyleUpdate());
 
-							if (span && span.length) {
-								this.renderSpan(fragment, span.join(""));
-								span = null;
-							}
+							return container;
+						},
 
-							var parameters = undefined;
-							var pvar = varName.indexOf(':');
-							if (pvar >= 0) {
-								var parameter = varName.substring(pvar + 1);
-								varName = varName.substring(0, pvar);
+						_onMouseOver: function() {
+							var self = this;
 
-								parameters = new Object();
+							return function(event) {
+								var target = event.target;
 
-								var ss = parameter.split(';');
-								for (var j = 0; j < ss.length; j++) {
-									var s = ss[j];
-									var p = "";
-									var ep = s.indexOf('=');
-									if (ep >= 0) {
-										p = s.substring(ep + 1);
-										s = s.substring(0, ep);
-									}
+								var elements = searchElements(target);
+								cm.SwitchOnState(self, elements, "over");
+							};
+						},
 
-									parameters[s] = p;
-								}
-							}
+						_onMouseOut: function() {
+							var self = this;
 
-							this.renderType(fragment, varName, parameters);
+							return function(event) {
+								var target = event.relatedTarget;
 
-							continue;
-						}
+								var elements = searchElements(target);
+								cm.SwitchOffState(self, elements, "over");
+							};
+						},
 
-						if (c == "\'") {
-							if (!span) {
-								span = new Array();
-							}
-							for (var j = i;;) {
-								var end = message.indexOf("'", j);
-								if (end < 0) {
-									span.push(message.substring(j));
-									i = message.length;
+						_onFocus: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+								cm.SwitchOnState(self, elements, "focus");
+							};
+						},
+
+						_onBlur: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.relatedTarget;
+
+								var elements = searchElements(target);
+								cm.SwitchOffState(self, elements, "focus");
+							};
+						},
+
+						_onMouseDown: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+								cm.SwitchOnState(self, elements, "mouseDown");
+							};
+						},
+
+						_onMouseUp: function() {
+							var self = this;
+
+							return function(event) {
+								var elements = searchElements();
+								cm.ClearState(self, elements, "mouseDown");
+							};
+						},
+
+						_onKeyPress: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+								var elements = searchElements(target);
+								var cancel = false;
+
+								var next;
+								switch (event.keyCode) {
+								case Key.VK_RIGHT:
+									cancel = true;
+									next = cui.GetNextFocusable(self.containerElement, target);
+									break;
+
+								case Key.VK_LEFT:
+									cancel = true;
+									next = cui.GetPreviousFocusable(self.containerElement, target);
 									break;
 								}
 
-								if (message.charAt(end + 1) == "\'") {
-									span.push(message.substring(j, end), "'");
-									j = end + 2;
-									continue;
+								if (cancel) {
+									event.stopPropagation();
+									event.preventDefault();
+								}
+								if (next) {
+									next.focus();
+								}
+							};
+						},
+
+						_onSimpleClick: function() {
+							var self = this;
+
+							return function(event) {
+								var target = event.target;
+
+								var elements = searchElements(target);
+
+								// cc.log("Simple click on ", target, " elements=", elements);
+
+								var button = elements.bpager;
+								if (button && button.value) {
+									self.targetScope.first = parseInt(button.value, 10);
+
+									self.targetScope.$digest();
+								}
+							};
+						},
+
+						_onStyleUpdate: function() {
+
+							var _styleUpdateMapper = {
+								pager: "pagerStyleUpdate",
+								vpager: "valueStyleUpdate",
+								bpager: "buttonStyleUpdate",
+								lpager: "labelStyleUpdate"
+							};
+
+							var self = this;
+
+							return function(event) {
+								var target = event.relatedTarget;
+
+								var type = cm.GetCMType(target);
+								if (!type) {
+									return;
 								}
 
-								span.push(message.substring(j, end));
-								i = end + 1;
-								break;
-							}
-							continue;
-						}
+								var elt = angular.element(target);
 
-						if (!span) {
-							span = new Array();
-						}
-						span.push(c);
-					}
+								// cc.log("Update relatedTarget=", target, " type=" + type + "
+								// over="
+								// + target._over + " mouseDown="+ target._mouseDown);
 
-					if (span && span.length) {
-						this.renderSpan(fragment, span.join(""));
-					}
-				},
+								var rp = self[_styleUpdateMapper[type]];
+								if (rp) {
+									rp.call(self, elt);
+									event.stopPropagation();
+									return;
+								}
+							};
+						},
 
-				renderSpan: function(parent, text) {
-					var element = cc.createElement(parent, "span", {
-						textNode: text,
-						id: "cm_lpager_" + (anonymousId++)
-					});
+						pagerPositionsUpdate: function(positions) {
 
-					this.labelStyleUpdate(element);
+							var container = angular.element(this.containerElement);
 
-					return element;
-				},
-
-				renderButton: function(parent, value, type, langParams) {
-					var text = cc.lang(i18n, type + "_label", langParams);
-					var tooltip = cc.lang(i18n, type + "_tooltip", langParams);
-
-					var element = cc.createElement(parent, "button", {
-						textNode: text,
-						id: "cm_bpager_" + (anonymousId++),
-						$value: value,
-						$pagerType: type
-					});
-					if (tooltip) {
-						element.attr("title", tooltip);
-					}
-					if (value < 0) {
-						element.attr("disabled", true);
-					}
-
-					this.buttonStyleUpdate(element);
-
-					return element;
-				},
-
-				renderValue: function(parent, value, type) {
-					var element = cc.createElement(parent, "span", {
-						textNode: value,
-						id: "cm_vpager_" + (anonymousId++),
-						$pagerType: type
-					});
-
-					this.valueStyleUpdate(element);
-
-					return element;
-				},
-
-				renderType: function(fragment, type, parameters) {
-					var $scope = this.$scope;
-
-					var first = $scope.first;
-					var rowCount = $scope.rowCount;
-					var maxRows = $scope.maxRows;
-					var rows = $scope.rows;
-
-					if (!rows) {
-						return;
-					}
-
-					switch (type) {
-					case "first":
-					case "position":
-						this.renderValue(fragment, first + 1, "first");
-						break;
-
-					case "last":
-						var last = first + rows;
-						if (rowCount >= 0 && last >= rowCount) {
-							last = rowCount;
-						} else if (maxRows > 0 && last >= maxRows) {
-							last = maxRows;
-						}
-
-						this.renderValue(fragment, last, "last");
-						break;
-
-					case "rowcount":
-						if (rowCount < 0) {
-							return;
-						}
-						this.renderValue(fragment, rowCount, "rowCount");
-						break;
-
-					case "pagecount":
-						if (rowCount < 0 || rows <= 0) {
-							return;
-						}
-
-						var pageCount = Math.floor(((rowCount - 1) / rows) + 1);
-						this.renderValue(fragment, pageCount, "pageCount");
-						break;
-
-					case "pageposition":
-						if (rows <= 0) {
-							return;
-						}
-
-						var pagePosition = Math.floor(first / rows) + 1;
-						this.renderValue(fragment, pagePosition, "pagePosition");
-						break;
-
-					case "bprev":
-						var idx = first - rows;
-						if (idx < 0) {
-							idx = 0;
-						}
-
-						this.renderButton(fragment, (first > 0) ? idx : -1, "bprev");
-						break;
-
-					case "bnext":
-						var idx = first + rows;
-						var nextIndex = -1;
-
-						if (rowCount >= 0) {
-							if (idx + rows > rowCount) {
-								idx = (rowCount - ((rowCount + rows - 1) % rows)) - 1;
-								if (idx < 0) {
-									idx = 0;
+							var butFocusId = this["bpager_focus"];
+							var prevButtonInfo = null;
+							if (butFocusId) {
+								var but = document.getElementById(butFocusId);
+								if (but) {
+									prevButtonInfo = {
+										type: but.pagerType,
+										value: but.getAttribute("value")
+									};
 								}
 							}
 
-							if (idx > first) {
-								nextIndex = idx;
+							container.empty();
+
+							var fragment = document.createDocumentFragment();
+
+							var components = {};
+							this.renderExpression(fragment, this.format, positions, components);
+
+							container.append(fragment);
+
+							if (prevButtonInfo) {
+								var s;
+
+								switch (prevButtonInfo.type) {
+								case "bprev":
+									s = [ "bprev", "bnext", "index:i0", "index:i1" ];
+									break;
+
+								case "bnext":
+									s = [ "bnext", "bprev", "index:i0", "index:i1" ];
+									break;
+
+								case "uindex":
+									s = [ "uindex", "bprev", "index:i0" ];
+									break;
+
+								case "index":
+									var v = parseInt(prevButtonInfo.value, 10);
+									s = [ "index:p" + (v + this.$scope.rows),
+										"uindex",
+										"index:p" + (v - this.$scope.rows),
+										"bnext",
+										"bprev" ];
+
+									break;
+								}
+
+								if (s) {
+									for (var i = 0; i < s.length; i++) {
+										var sib = components[s[i]];
+										if (sib && !sib.attr("disabled")) {
+											cc.setFocus(sib);
+											break;
+										}
+									}
+								}
 							}
-						} else {
-							nextIndex = idx;
+						},
+
+						renderExpression: function(fragment, message, positions, components) {
+							var $scope = this.$scope;
+							$scope.first = positions.first;
+							$scope.rowCount = positions.rowCount;
+							$scope.maxRows = positions.maxRows;
+							$scope.rows = positions.rows;
+
+							var templateScope = $scope.$new(false);
+							try {
+								var span = null;
+								for (var i = 0; i < message.length;) {
+									var c = message.charAt(i++);
+									if (c === "{") {
+										var end = message.indexOf("}", i);
+										var varName = message.substring(i, end).toLowerCase();
+										i = end + 1;
+
+										if (span && span.length) {
+											this.renderSpan(fragment, span.join(""));
+											span = null;
+										}
+
+										var parameters = undefined;
+										var pvar = varName.indexOf(':');
+										if (pvar >= 0) {
+											var parameter = varName.substring(pvar + 1);
+											varName = varName.substring(0, pvar);
+
+											parameters = {};
+
+											var ss = parameter.split(';');
+											for (var j = 0; j < ss.length; j++) {
+												var s = ss[j];
+												var p = "";
+												var ep = s.indexOf('=');
+												if (ep >= 0) {
+													p = s.substring(ep + 1);
+													s = s.substring(0, ep);
+												}
+
+												parameters[s] = p;
+											}
+										}
+
+										this.renderType(fragment, varName, parameters, components, templateScope);
+
+										continue;
+									}
+
+									if (c === "\'") {
+										if (!span) {
+											span = [];
+										}
+										for (var j = i;;) {
+											var end = message.indexOf("'", j);
+											if (end < 0) {
+												span.push(message.substring(j));
+												i = message.length;
+												break;
+											}
+
+											if (message.charAt(end + 1) === "\'") {
+												span.push(message.substring(j, end), "'");
+												j = end + 2;
+												continue;
+											}
+
+											span.push(message.substring(j, end));
+											i = end + 1;
+											break;
+										}
+										continue;
+									}
+
+									if (!span) {
+										span = [];
+									}
+									span.push(c);
+								}
+
+								if (span && span.length) {
+									this.renderSpan(fragment, span.join(""));
+								}
+
+							} finally {
+								templateScope.$destroy();
+							}
+						},
+
+						renderSpan: function(parent, text) {
+							var element = cc.createElement(parent, "span", {
+								textNode: text,
+								id: "cm_lpager_" + (anonymousId++)
+							});
+
+							this.labelStyleUpdate(element);
+
+							return element;
+						},
+
+						renderButton: function(parent, value, type, langParams, templateScope) {
+
+							var text = cc.lang(i18n, type + "_label", langParams);
+							var tooltip = cc.lang(i18n, type + "_tooltip", langParams);
+							var className = cc.lang(i18n, type + "_className", langParams);
+
+							templateScope.$value = value;
+							templateScope.$text = text;
+							templateScope.$tooltip = tooltip;
+							templateScope.$disabled = (value < 0);
+
+							try {
+								if (this._templates) {
+									var template = this._templates[type];
+									if (template) {
+										var comp = template.transclude(parent, templateScope);
+
+										return comp;
+									}
+								}
+
+								var element = cc.createElement(parent, "button", {
+									id: "cm_bpager_" + (anonymousId++),
+									$value: value,
+									$pagerType: type
+								});
+								var span = cc.createElement(element, "span", {
+									className: "cm_bpager_span " + ((className) ? className : ""),
+									textNode: (text) ? text : null
+								});
+
+								if (templateScope.$tooltip) {
+									element.attr("title", templateScope.$tooltip);
+									element.attr("aria-label", templateScope.$tooltip);
+									// If tooltip ignore the TEXT
+									span.attr("aria-hidden", true);
+								}
+								if (templateScope.$disabled) {
+									element.attr("disabled", true);
+								}
+
+								this.buttonStyleUpdate(element);
+
+								return element;
+
+							} finally {
+								delete templateScope.$value;
+								delete templateScope.$text;
+								delete templateScope.$tooltip;
+								delete templateScope.$disabled;
+							}
+						},
+
+						renderValue: function(parent, value, type, templateScope) {
+
+							if (this._templates) {
+								var template = this._templates[type];
+								if (template) {
+									var comp = template.transclude(parent, templateScope);
+
+									return comp;
+								}
+							}
+
+							var element = cc.createElement(parent, "span", {
+								textNode: value,
+								id: "cm_vpager_" + (anonymousId++),
+								$pagerType: type
+							});
+
+							this.valueStyleUpdate(element);
+
+							return element;
+						},
+
+						renderType: function(fragment, type, parameters, components, templateScope) {
+							var $scope = this.$scope;
+
+							var first = $scope.first;
+							var rowCount = $scope.rowCount;
+							var maxRows = $scope.maxRows;
+							var rows = $scope.rows;
+
+							if (!rows) {
+								return;
+							}
+
+							templateScope.$parameters = parameters;
+							templateScope.$type = type;
+
+							try {
+								switch (type) {
+								case "first":
+								case "position":
+									this.renderValue(fragment, first + 1, "first", templateScope);
+									break;
+
+								case "last":
+									var last = first + rows;
+									if (rowCount >= 0 && last >= rowCount) {
+										last = rowCount;
+									} else if (maxRows > 0 && last >= maxRows) {
+										last = maxRows;
+									}
+
+									this.renderValue(fragment, last, "last", templateScope);
+									break;
+
+								case "rowcount":
+									if (rowCount < 0) {
+										return;
+									}
+									this.renderValue(fragment, rowCount, "rowCount", templateScope);
+									break;
+
+								case "pagecount":
+									if (rowCount < 0 || rows <= 0) {
+										return;
+									}
+
+									var pageCount = Math.floor(((rowCount - 1) / rows) + 1);
+									this.renderValue(fragment, pageCount, "pageCount", templateScope);
+									break;
+
+								case "pageposition":
+									if (rows <= 0) {
+										return;
+									}
+
+									var pagePosition = Math.floor(first / rows) + 1;
+									this.renderValue(fragment, pagePosition, "pagePosition", templateScope);
+									break;
+
+								case "bprev":
+									var idx = first - rows;
+									if (idx < 0) {
+										idx = 0;
+									}
+
+									var prevBut = this.renderButton(fragment, (first > 0) ? idx : -1, "bprev", null, templateScope);
+									components.bprev = prevBut;
+									break;
+
+								case "bnext":
+									var idx = first + rows;
+									var nextIndex = -1;
+
+									if (rowCount >= 0) {
+										if (idx + rows > rowCount) {
+											idx = (rowCount - ((rowCount + rows - 1) % rows)) - 1;
+											if (idx < 0) {
+												idx = 0;
+											}
+										}
+
+										if (idx > first) {
+											nextIndex = idx;
+										}
+									} else {
+										nextIndex = idx;
+									}
+
+									var nextBut = this.renderButton(fragment, nextIndex, "bnext", null, templateScope);
+									components.bnext = nextBut;
+									break;
+
+								case "bpages":
+									this.appendBPages(fragment, parameters, components, templateScope);
+									break;
+								}
+
+							} finally {
+								delete templateScope.$value;
+								delete templateScope.$parameters;
+								delete templateScope.$type;
+							}
+
+						},
+
+						appendBPages: function(parent, parameters, components, templateScope) {
+							var $scope = this.$scope;
+
+							var first = $scope.first;
+							var rowCount = $scope.rowCount;
+							var maxRows = $scope.maxRows;
+							var rows = $scope.rows;
+
+							if (!maxRows) {
+								this.renderValue(parent, cc.lang(i18n, "noPages"), "noPages", templateScope);
+								return;
+							}
+
+							var maxPage = 3 * 2 + 1;
+							var sep = null;
+
+							if (parameters) {
+								if (parameters["separator"]) {
+									sep = parameters["separator"];
+								}
+								if (parameters["pages"]) {
+									maxPage = parseInt(parameters["pages"], 10);
+								}
+							}
+
+							var selectedPage = Math.floor(first / rows);
+							var nbPage;
+							if (rowCount < 0) {
+								nbPage = Math.floor((maxRows + rows - 1) / rows) + 1;
+							} else {
+								nbPage = Math.floor((rowCount + rows - 1) / rows);
+							}
+
+							var showPage = nbPage;
+							if (showPage > maxPage) {
+								showPage = maxPage;
+							}
+
+							var pageOffset = 0;
+							if (showPage < nbPage) {
+								pageOffset = selectedPage - Math.floor(showPage / 2);
+								if (pageOffset + showPage > nbPage) {
+									pageOffset = nbPage - showPage;
+								}
+
+								if (pageOffset < 0) {
+									pageOffset = 0;
+								}
+							}
+
+							if (sep === null) {
+								sep = cc.lang(i18n, "separator");
+							}
+
+							for (var i = 0; i < showPage; i++) {
+								if (i > 0) {
+									this.renderSpan(parent, sep, "sep");
+								}
+
+								var pi = pageOffset + i;
+
+								var type = "index";
+								var label = (pi + 1);
+								if (rowCount < 0 && pi + 1 === nbPage) {
+									label = "...";
+									type = "uindex";
+
+								} else if (pi === selectedPage) {
+									type = "cindex";
+								}
+
+								var langParams = {
+									pageIndex: pi + 1
+								};
+
+								templateScope.$index = i;
+								templateScope.$pageIndex = pi;
+								templateScope.$rowIndex = pi * rows;
+								templateScope.$currentPage = (pi === selectedPage);
+
+								try {
+									var but = this.renderButton(parent, (pi === selectedPage) ? -1 : (pi * rows), type, langParams,
+											templateScope);
+
+									if (type === "index") {
+										components["index:p" + (pi * rows)] = but;
+										components["index:i" + i] = but;
+
+									} else {
+										components[type] = but;
+									}
+
+								} finally {
+									delete templateScope.$index;
+									delete templateScope.$pageIndex;
+									delete templateScope.$rowIndex;
+									delete templateScope.$currentPage;
+								}
+							}
+						},
+
+						pagerStyleUpdate: function(element) {
+							var classes = cm_pager_className.split(" ");
+
+							var className = this.$scope.className;
+							if (className) {
+								classes.push(className);
+							}
+
+							return cm.MixElementClasses(element, classes);
+						},
+
+						labelStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+
+							return cm.MixElementClasses(element, [ "cm_pager_label" ]);
+						},
+
+						valueStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							return cm.MixElementClasses(element, [ "cm_pager_value", "cm_pager_value_" + element.pagerType ]);
+						},
+
+						buttonStyleUpdate: function(element) {
+							if (element[0]) {
+								element = element[0];
+							}
+							return cm.MixElementClasses(element, [ "cm_pager_button", "cm_pager_button_" + element.pagerType ]);
 						}
+					};
 
-						this.renderButton(fragment, nextIndex, "bnext");
-						break;
-
-					case "bpages":
-						this.appendBPages(fragment, parameters);
-						break;
-					}
-
-				},
-
-				appendBPages: function(parent, parameters) {
-					var $scope = this.$scope;
-
-					var first = $scope.first;
-					var rowCount = $scope.rowCount;
-					var maxRows = $scope.maxRows;
-					var rows = $scope.rows;
-
-					if (!maxRows) {
-						this.renderValue(parent, cc.lang(i18n, "noPages"), "noPages");
-						return;
-					}
-
-					var maxPage = 3 * 2 + 1;
-					var sep = null;
-
-					if (parameters) {
-						if (parameters["separator"]) {
-							sep = parameters["separator"];
-						}
-						if (parameters["pages"]) {
-							maxPage = parseInt(parameters["pages"], 10);
-						}
-					}
-
-					var selectedPage = Math.floor(first / rows);
-					var nbPage;
-					if (rowCount < 0) {
-						nbPage = Math.floor((maxRows + rows - 1) / rows) + 1;
-					} else {
-						nbPage = Math.floor((rowCount + rows - 1) / rows);
-					}
-
-					var showPage = nbPage;
-					if (showPage > maxPage) {
-						showPage = maxPage;
-					}
-
-					var pageOffset = 0;
-					if (showPage < nbPage) {
-						pageOffset = selectedPage - Math.floor(showPage / 2);
-						if (pageOffset + showPage > nbPage) {
-							pageOffset = nbPage - showPage;
-						}
-
-						if (pageOffset < 0) {
-							pageOffset = 0;
-						}
-					}
-
-					if (sep === null) {
-						sep = cc.lang(i18n, "separator");
-					}
-
-					for (var i = 0; i < showPage; i++) {
-						if (i > 0) {
-							this.renderSpan(parent, sep, "sep");
-						}
-
-						var pi = pageOffset + i;
-
-						var type = "index";
-						var label = (pi + 1);
-						if (rowCount < 0 && pi + 1 == nbPage) {
-							label = "...";
-							type = "uindex";
-
-						} else if (pi == selectedPage) {
-							type = "cindex";
-						}
-
-						var langParams = {
-							pageIndex: pi + 1
-						};
-
-						this.renderButton(parent, (pi == selectedPage) ? -1 : (pi * rows), type, langParams);
-					}
-
-				},
-
-				pagerStyleUpdate: function(element) {
-					var classes = cm_pager_className.split(" ");
-
-					var className = this.$scope.className;
-					if (className) {
-						classes.push(className);
-					}
-
-					return cm.MixElementClasses(element, classes);
-				},
-
-				labelStyleUpdate: function(element) {
-					if (element[0]) {
-						element = element[0];
-					}
-
-					return cm.MixElementClasses(element, [ "cm_pager_label" ]);
-				},
-
-				valueStyleUpdate: function(element) {
-					if (element[0]) {
-						element = element[0];
-					}
-					return cm.MixElementClasses(element, [ "cm_pager_value", "cm_pager_value_" + element.pagerType ]);
-				},
-
-				buttonStyleUpdate: function(element) {
-					if (element[0]) {
-						element = element[0];
-					}
-					return cm.MixElementClasses(element, [ "cm_pager_button", "cm_pager_button_" + element.pagerType ]);
-				}
-			};
-
-			return PagerRenderer;
-		} ]);
+					return PagerRenderer;
+				} ]);
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9173,9 +11107,12 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.renderers.popup", [ "camelia.components.popup", "camelia.key" ]);
+	var module = angular.module("camelia.renderers.popup", [ "camelia.components.popup" ]);
 
 	module.value("cm_popup_className", "cm_popup");
+
+	// Caution, it is not a singleton if $injector is used !
+	var anonymousId = 0;
 
 	module.factory("camelia.renderers.Popup", [ "$log",
 		"$q",
@@ -9186,9 +11123,7 @@
 		"camelia.cmTypes",
 		"cm_popup_className",
 		"camelia.Key",
-		function($log, $q, $exceptionHandler, $timeout, $rootScope, cc, cm, cm_popup_className, Key) {
-
-			var anonymousId = 0;
+		function($log, $q, $exceptionHandler, $timeout, $rootScope, cc, cm, cmPopupClassName, Key) {
 
 			function PopupRenderer($scope, configuration) {
 
@@ -9213,7 +11148,7 @@
 
 					var newState = (this._state & (~mask)) | (state || 0);
 
-					if (this._state == newState) {
+					if (this._state === newState) {
 						return;
 					}
 
@@ -9251,18 +11186,14 @@
 					this._addState(PopupRenderer.INITIALIZING);
 
 					var promise = this._initialize.apply(this, arguments);
-					if (!cc.isPromise(promise)) {
-						promise = $q.when(promise);
-					}
+					promise = cc.ensurePromise(promise);
 
 					var self = this;
 					return promise.then(function() {
 						self._addState(PopupRenderer.INITIALIZED);
 
 						var renderPromise = self.render();
-						if (!cc.isPromise(renderPromise)) {
-							renderPromise = $q.when(renderPromise);
-						}
+						renderPromise = cc.ensurePromise(renderPromise);
 
 						return renderPromise;
 					});
@@ -9286,7 +11217,7 @@
 
 					var parent = angular.element(document.createDocumentFragment());
 
-					var className = cm_popup_className;
+					var className = cmPopupClassName;
 					if (this.configuration.className) {
 						className += " " + this.configuration.className;
 					}
@@ -9297,14 +11228,14 @@
 					});
 					this.container = container[0];
 
-					container.data("$isolateScope", this.$scope);
+					var self = this;
+					container.on('$destroy', function() {
+						self.$scope.$destroy();
+					});
 
 					var promise = this._render(angular.element(this.container));
-					if (!cc.isPromise(promise)) {
-						promise = $q.when(promise);
-					}
+					promise = cc.ensurePromise(promise);
 
-					var self = this;
 					return promise.then(function() {
 						document.body.appendChild(self.container);
 
@@ -9331,9 +11262,7 @@
 					if (!this.containsState(PopupRenderer.RENDERED)) {
 						if (!this.containsState(PopupRenderer.INITIALIZING)) {
 							var promise = this.initialize();
-							if (!cc.isPromise(promise)) {
-								promise = $q.when(promise);
-							}
+							promise = cc.ensurePromise(promise);
 
 							return promise.then(function() {
 								return self.open(position);
@@ -9503,7 +11432,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9514,115 +11443,231 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.grid', [ 'camelia.core', 'camelia.directives.template' ]);
+	var module = angular.module('camelia.directives.combo', [ 'camelia.core',
+		'camelia.directives.template',
+		'camelia.directives.items',
+		'camelia.components.combo' ]);
 
-	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
+	module.value("cm_combo_componentProviderName", "camelia.components.combo:camelia.components.Combo");
 
-	module.directive("cmDatagrid", [ "$injector",
+	module.directive("cmCombo", [ "$injector",
 		"$interpolate",
 		"$log",
 		"$q",
+		"$exceptionHandler",
 		"camelia.core",
-		"cm_grid_componentProviderName",
-		"camelia.components.Template",
-		function($injector, $interpolate, $log, $q, cc, cm_grid_componentProviderName, Template) {
+		"cm_combo_componentProviderName",
+		"camelia.directives.TemplateContainer",
+		"camelia.directives.ItemsContainer",
+		function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_combo_componentProviderName,
+				TemplateContainer, ItemsContainer) {
 
 			return {
 				restrict: "E",
 				scope: {
-					dataModelProvider: '=?',
-					dataModelProviderName: '@datamodelprovider',
-					componentProvider: '=?',
-					componentProviderName: '@componentprovider',
-					rendererProvider: '=?',
-					rendererProviderName: '@rendererprovider',
-					selectionProvider: '=?',
-					selectionProviderName: '@selectionprovider',
-					value: '=',
-					varName: '@var',
+					id: '@',
+					forElementId: '@for',
+					selectedItem: '=?selecteditem',
 					style: '@',
 					className: '@class',
-					caption: '@',
-					// rowClass: '@', // Raw attribute
-					tabIndex: '@',
-					id: '@',
-					selection: '=?',
-					cursor: '=?',
-					columnCursor: '=?',
-					first: '=?',
-					rows: '=?',
-					rowCount: '=?rowcount',
-					selectable: '@',
-					selectionCardinality: '@selectioncardinality'
+					maxTextLength: '@maxtextlength',
+					textSize: '@textsize',
+					tabIndex: '@tabindex',
+					tags: '=?',
+					tagVar: '@tagvar',
+					value: '=?',
+					popupMaxHeight: '@popupmaxheight',
+					maxItems: '@maxitems',
+					placeholder: '@placeholder',
+					suggestIgnoreAccents: "@suggestignoreaccents",
+					suggestIgnoreCase: "@suggestignorecase",
+					// tagLabel: '@taglabel',
+					// tagTooltip: '@tagtooltip',
+					// tagClass: '@tagclass',
+					hasOpenPopupButton: '@hasopenpopupbutton'
 				},
-				replace: true,
 
 				controller: [ "$scope", function($scope) {
-					// var dataGridProvider='camelia.datagrid';
-
 					var componentProvider = $scope.componentProvider;
 					if (!componentProvider) {
-						var componentProviderName = $scope.componentProviderName || cm_grid_componentProviderName;
+						var componentProviderName = $scope.componentProviderName || cm_combo_componentProviderName;
 						componentProvider = cc.LoadProvider(componentProviderName);
 					}
 					this.componentProvider = componentProvider;
-
-					$scope.columns = [];
-					this.appendColumn = function(column) {
-						$scope.columns.push(column);
-					};
-
-					this.getColumnIndex = function() {
-						return $scope.columns.length;
-					};
-
-					$scope.groupProviders = [];
-					this.appendGroupProvider = function(groupProvider) {
-						$scope.groupProviders.push(groupProvider);
-					};
-
-					this.getProviderIndex = function() {
-						return $scope.groupProviders.length;
-					};
 				} ],
 				compile: function() {
 					return {
 						pre: function($scope, element, attrs, controller) {
+							TemplateContainer.MarkTemplateContainer($scope, element);
+							ItemsContainer.MarkItemsContainer($scope, element);
 
-							$scope.rowClassRawExpression = element.attr("rowClass");
-
-							var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
-							controller.dataGrid = dataGrid;
-
-							Template.markContainer(element, $scope);
+							var tagsRawExpression = element.attr("tags");
+							if (tagsRawExpression) {
+								$scope.tagVar = element.attr("tagVar");
+								$scope.tagLabelRawExpression = element.attr("tagLabel");
+								$scope.tagTooltipRawExpression = element.attr("tagTooltip");
+								$scope.tagClassRawExpression = element.attr("tagClass");
+							}
 						},
-						post: function($scope, element, attrs, controller) {
-							var dataGrid = controller.dataGrid;
+						post: function($scope, element, attrs, controller, transludeFunc) {
+							TemplateContainer.RegisterTemplates($scope);
 
-							var promise = $injector.invoke(dataGrid.construct, dataGrid);
+							var combo = new controller.componentProvider($scope, element, $interpolate);
+
+							var promise = $injector.invoke(combo.construct, combo);
 
 							if (!cc.isPromise(promise)) {
 								promise = $q.when(promise);
 							}
 
-							promise.then(function(table) {
-								$log.info("Table created ", table);
+							promise.then(function onSuccess(comboElement) {
+								$log.info("Combo created ", comboElement);
 
-								element.replaceWith(table);
+								element.replaceWith(comboElement);
 
-							}, function(reason) {
-								$log.error("Failed to create table ", reason);
+							}, function onError(reason) {
+								if (reason instanceof Error) {
+									$exceptionHandler(reason);
+
+								} else {
+									$log.error("Failed to create combo ", reason);
+								}
 							});
 						}
 					};
 				}
 			};
 		} ]);
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module('camelia.directives.grid', [ 'camelia.core',
+		'camelia.directives.template',
+		'camelia.components.grid' ]);
+
+	module.value("cm_grid_componentProviderName", "camelia.components.grid:camelia.components.GridProvider");
+
+	module.directive("cmDatagrid",
+			[ "$injector",
+				"$interpolate",
+				"$log",
+				"$q",
+				"$exceptionHandler",
+				"camelia.core",
+				"cm_grid_componentProviderName",
+				"camelia.directives.TemplateContainer",
+				function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_grid_componentProviderName,
+						TemplateContainer) {
+
+					return {
+						restrict: "E",
+						scope: {
+							dataModelProvider: '=?datamodelprovider',
+							componentProvider: '=?componentprovider',
+							rendererProvider: '=?rendererprovider',
+							selectionProvider: '=?selectionprovider',
+							value: '=',
+							varName: '@var',
+							style: '@',
+							className: '@class',
+							lookId: '@lookid',
+							caption: '@',
+							// rowClass: '@', // Raw attribute
+							tabIndex: '@tabindex',
+							id: '@',
+							selection: '=?',
+							cursor: '=?',
+							columnCursor: '=?columncursor',
+							first: '=?',
+							rows: '=?',
+							rowCount: '=?rowcount',
+							selectable: '@',
+							selectionCardinality: '@selectioncardinality'
+						},
+
+						controller: [ "$scope", function($scope) {
+							// var dataGridProvider='camelia.datagrid';
+
+							var componentProvider = $scope.componentProvider;
+							if (!componentProvider) {
+								var componentProviderName = $scope.componentProviderName || cm_grid_componentProviderName;
+								componentProvider = cc.LoadProvider(componentProviderName);
+							}
+							this.componentProvider = componentProvider;
+
+							$scope.columns = [];
+							this.appendColumn = function(column) {
+								$scope.columns.push(column);
+							};
+
+							this.getColumnIndex = function() {
+								return $scope.columns.length;
+							};
+
+							$scope.groupProviders = [];
+							this.appendGroupProvider = function(groupProvider) {
+								$scope.groupProviders.push(groupProvider);
+							};
+
+							this.getProviderIndex = function() {
+								return $scope.groupProviders.length;
+							};
+						} ],
+						compile: function() {
+							return {
+								pre: function($scope, element, attrs, controller) {
+
+									$scope.rowClassRawExpression = element.attr("rowClass");
+
+									var dataGrid = new controller.componentProvider.DataGrid($scope, element, $interpolate);
+									controller.dataGrid = dataGrid;
+
+									TemplateContainer.MarkTemplateContainer($scope, element);
+								},
+								post: function($scope, element, attrs, controller) {
+									TemplateContainer.RegisterTemplates($scope);
+
+									var dataGrid = controller.dataGrid;
+
+									var promise = $injector.invoke(dataGrid.construct, dataGrid);
+
+									if (!cc.isPromise(promise)) {
+										promise = $q.when(promise);
+									}
+
+									promise.then(function onSuccess(table) {
+										$log.info("Table created ", table);
+
+										element.replaceWith(table);
+
+									}, function onError(reason) {
+										if (reason instanceof Error) {
+											$exceptionHandler(reason);
+
+										} else {
+											$log.error("Failed to create table ", reason);
+										}
+									});
+								}
+							};
+						}
+					};
+				} ]);
 
 	module.directive("cmDatacolumn", [ "camelia.core",
-		"camelia.components.Template",
+		"camelia.directives.TemplateContainer",
 
-		function(cc, Template) {
+		function(cc, TemplateContainer) {
 			return {
 				require: "^cmDatagrid",
 				restrict: "E",
@@ -9657,9 +11702,10 @@
 						pre: function($scope, element, attrs) {
 							$scope.valueRawExpression = element.attr("text") || element.attr("value");
 
-							Template.markContainer(element, $scope);
+							TemplateContainer.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, datagridController) {
+							TemplateContainer.RegisterTemplates($scope);
 
 							if ($scope.fieldName) {
 								if (/[^\w]/.test($scope.fieldName)) {
@@ -9685,8 +11731,8 @@
 		} ]);
 
 	module.directive("cmDatagroup", [ "camelia.core",
-		"camelia.components.Template",
-		function(cc, Template) {
+		"camelia.directives.TemplateContainer",
+		function(cc, TemplateContainer) {
 			return {
 				require: "^cmDatagrid",
 				restrict: "E",
@@ -9706,9 +11752,11 @@
 							$scope.titleClassRawExpression = element.attr("titleclass");
 							$scope.valueRawExpression = element.attr("value");
 
-							Template.markContainer(element, $scope);
+							TemplateContainer.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, dataGridController) {
+							TemplateContainer.RegisterTemplates($scope);
+
 							var column = new dataGridController.componentProvider.DataGroup($scope, dataGridController
 									.getProviderIndex() + 1);
 
@@ -9719,56 +11767,63 @@
 			};
 		} ]);
 
-	module.directive("cmCriteria", [ "camelia.core", "$log", "$injector", function(cc, $log, $injector) {
-		return {
-			require: "^cmDatacolumn",
-			restrict: "E",
-			scope: {
-				type: '@'
-			},
-			compile: function() {
-				return {
-					pre: function($scope, element, attrs) {
+	module.directive("cmCriteria", [ "camelia.core",
+		"$log",
+		"$injector",
+		"camelia.directives.TemplateContainer",
+		function(cc, $log, $injector, TemplateContainer) {
+			return {
+				require: "^cmDatacolumn",
+				restrict: "E",
+				scope: {
+					type: '@'
+				},
+				compile: function() {
+					return {
+						pre: function($scope, element, attrs) {
 
-						// console.log("PRE Criteria " + attrs.name);
-					},
-					post: function($scope, element, attrs, dataColumnController) {
-						var type = $scope.type;
-						if (!angular.isString(type) || !type.length) {
-							throw new Error("Invalid criteria type (" + type + ")");
+							// console.log("PRE Criteria " + attrs.name);
+							TemplateContainer.MarkTemplateContainer($scope, element);
+						},
+						post: function($scope, element, attrs, dataColumnController) {
+							TemplateContainer.RegisterTemplates($scope);
+
+							var type = $scope.type;
+							if (!angular.isString(type) || !type.length) {
+								throw new Error("Invalid criteria type (" + type + ")");
+							}
+
+							var criteriaName;
+							var idx = type.indexOf('.');
+							if (idx >= 0) {
+								criteriaName = type;
+
+							} else {
+								criteriaName = "camelia.criteria." + type;
+							}
+
+							// console.log("POST Criteria " + attrs.name);
+
+							var criterias = dataColumnController.criterias;
+							try {
+								$injector.invoke([ criteriaName, function(CriteriaClass) {
+									var criteria = new CriteriaClass($scope, element, attrs);
+
+									criterias.push(criteria);
+								} ]);
+
+							} catch (x) {
+								$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
+							}
 						}
-
-						var criteriaName;
-						var idx = type.indexOf('.');
-						if (idx >= 0) {
-							criteriaName = type;
-
-						} else {
-							criteriaName = "camelia.criteria." + type;
-						}
-
-						// console.log("POST Criteria " + attrs.name);
-
-						var criterias = dataColumnController.criterias;
-						try {
-							$injector.invoke([ criteriaName, function(CriteriaClass) {
-								var criteria = new CriteriaClass($scope, element, attrs);
-
-								criterias.push(criteria);
-							} ]);
-
-						} catch (x) {
-							$log.error("Can not instantiate criteria '" + criteriaName + "'", x);
-						}
-					}
-				};
-			}
-		};
-	} ]);
+					};
+				}
+			};
+		} ]);
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9779,7 +11834,102 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.pager', [ 'camelia.core', 'camelia.directives.template' ]);
+	var module = angular.module('camelia.directives.items', [ 'camelia.components.items' ]);
+
+	module.factory("camelia.directives.ItemsContainer", [ function() {
+
+		return {
+			MarkItemsContainer: function($scope, element) {
+				element.data('$cmItemsContainerController', $scope);
+			}
+		};
+	} ]);
+
+	module.directive("cmItem", [ "$log", "camelia.components.Item", function($log, Item) {
+
+		return {
+			restrict: "E",
+			require: "^cmItemsContainer",
+			scope: {
+				label: '@',
+				id: '@',
+				className: '@class',
+				value: '=',
+				disabled: '@',
+				tooltip: '@',
+				searchWords: '@',
+				visible: '@'
+			},
+
+			compile: function() {
+				return {
+					pre: function($scope, element, attrs, controller) {
+
+					},
+					post: function($scope, element, attrs, controller, transcludeFunc) {
+
+						var item = new Item($scope, element, controller, transcludeFunc);
+
+						element.remove();
+					}
+				};
+			}
+		};
+	} ]);
+
+	module.directive("cmItems", [ "$log", "camelia.components.Items", function($log, Items) {
+
+		return {
+			restrict: "E",
+			require: "^cmItemsContainer",
+			scope: {
+				id: '@',
+				value: '=',
+				varName: '@var',
+				itemColumn: '@itemcolumn',
+				visible: '@'
+			// itemLabel: '@',
+			// itemClass: '@class',
+			// itemDisabled: '@',
+			// itemTooltip: '@',
+			// itemSearchWords: '@'
+			// itemVisible: '@'
+			},
+
+			compile: function() {
+				return {
+					pre: function($scope, element, attrs, controller) {
+
+						[ "itemLabel", "itemClass", "itemDisabed", "itemTooltip", "itemSearchWords" ].forEach(function(name) {
+							$scope[name + "RawExpression"] = element.attr(name);
+						});
+					},
+					post: function($scope, element, attrs, controller, transcludeFunc) {
+
+						var item = new Items($scope, element, controller, transcludeFunc);
+
+						element.remove();
+					}
+				};
+			}
+		};
+	} ]);
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	'use strict';
+
+	var module = angular.module('camelia.directives.pager', [ 'camelia.core',
+		'camelia.directives.template',
+		'camelia.components.pager' ]);
 
 	module.value("cm_pager_componentProviderName", "camelia.components.pager:camelia.components.Pager");
 
@@ -9787,10 +11937,12 @@
 		"$interpolate",
 		"$log",
 		"$q",
+		"$exceptionHandler",
 		"camelia.core",
 		"cm_pager_componentProviderName",
-		"camelia.components.Template",
-		function($injector, $interpolate, $log, $q, cc, cm_pager_componentProviderName, Template) {
+		"camelia.directives.TemplateContainer",
+		function($injector, $interpolate, $log, $q, $exceptionHandler, cc, cm_pager_componentProviderName,
+				TemplateContainer) {
 
 			return {
 				restrict: "E",
@@ -9799,12 +11951,12 @@
 					target: '=?',
 					style: '@',
 					className: '@class',
+					lookId: '@',
 					caption: '@',
 					tabIndex: '@',
 					id: '@',
 					format: '=?'
 				},
-				replace: true,
 
 				controller: [ "$scope", function($scope) {
 					var componentProvider = $scope.componentProvider;
@@ -9817,9 +11969,10 @@
 				compile: function() {
 					return {
 						pre: function($scope, element, attrs, controller) {
-							Template.markContainer(element, $scope);
+							TemplateContainer.MarkTemplateContainer($scope, element);
 						},
 						post: function($scope, element, attrs, controller, transludeFunc) {
+							TemplateContainer.RegisterTemplates($scope);
 
 							var pager = new controller.componentProvider($scope, element);
 
@@ -9829,13 +11982,18 @@
 								promise = $q.when(promise);
 							}
 
-							promise.then(function(pagerElement) {
+							promise.then(function onSuccess(pagerElement) {
 								$log.info("Pager created ", pagerElement);
 
 								element.replaceWith(pagerElement);
 
-							}, function(reason) {
-								$log.error("Failed to create pager ", reason);
+							}, function onError(reason) {
+								if (reason instanceof Error) {
+									$exceptionHandler(reason);
+
+								} else {
+									$log.error("Failed to create pager ", reason);
+								}
 							});
 						}
 					};
@@ -9844,7 +12002,7 @@
 		} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9855,7 +12013,20 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.directives.template', [ 'camelia.components.template' ]);
+	var module = angular.module('camelia.directives.template', [ 'camelia.components.template', 'camelia.templateRegistry' ]);
+
+	module.factory("camelia.directives.TemplateContainer", [ "camelia.TemplateRegistry", function(TemplateRegistry) {
+
+		return {
+			MarkTemplateContainer: function($scope, element) {
+				element.data('$cmTemplateContainerController', $scope);
+			},
+
+			RegisterTemplates: function($scope) {
+				TemplateRegistry.RegisterTemplates($scope);
+			}
+		};
+	} ]);
 
 	module.directive("cmTemplate", [ "$log", "camelia.components.Template", function($log, Template) {
 
@@ -9863,19 +12034,19 @@
 			require: "^cmTemplateContainer",
 			restrict: "E",
 			scope: {
-				name: '@'
-				//enabled: '@'
+				name: '@',
+				id: '@',
+				refId: '@'
+			// enabled: '@'
 			},
-			transclude: true,
 
 			compile: function() {
 				return {
 					pre: function($scope, element, attrs, controller) {
-
 						$scope.enabledExpresion = element.attr("enabled");
+
 					},
 					post: function($scope, element, attrs, controller, transcludeFunc) {
-
 						var template = new Template($scope, element, controller, transcludeFunc);
 
 						element.remove();
@@ -9886,7 +12057,7 @@
 	} ]);
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9897,11 +12068,11 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations.grid", [ "camelia.animations" ]);
+	var module = angular.module("camelia.animations.grid", [ "camelia.animations",	"camelia.i18n.grid"]);
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -9912,43 +12083,43 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.animations", [ "camelia.core" ]);
+	var module = angular.module("camelia.animations", [ 'camelia.core' ]);
 
 	module.factory("camelia.animations.Animation", [ "$log",
 		"$timeout",
 		"$rootScope",
+		"$q",
 		"camelia.core",
-		function($log, $timeout, $rootScope, cc) {
+		"camelia.ScopeWrapper",
+		function($log, $timeout, $rootScope, $q, cc, ScopeWrapper) {
 
-			var scopeProto = cc.getProto($rootScope);
+			function Animation($scope, params) {
 
-			var Animation = function($scope, params) {
-
-				cc.inheritScope(this, $scope);
+				ScopeWrapper.call(this, $scope.$new(true));
 
 				this._params = params;
 
 				var self = this;
 				this.$on("$destroy", function() {
-					self._params = undefined;
-
-					var showTimerPromise = self._showTimerPromise;
-					if (showTimerPromise) {
-						$timeout.cancel(showTimerPromise);
+					if (self._destroyed) {
+						return;
 					}
+
+					self._destroyed = true;
+					self._processDestroy();
 				});
-			};
+			}
 
 			Animation.newInstance = function(animationName, $scope, params) {
 				var AnimationProvider = cc.LoadProvider(animationName);
 				if (!AnimationProvider) {
-					throw new Error("Can not animation '" + animationName + "'");
+					throw new Error("Can not find animation '" + animationName + "'");
 				}
 
 				return new AnimationProvider($scope, params);
 			};
 
-			cc.extendProto(Animation, scopeProto, {
+			cc.extend(Animation, ScopeWrapper, {
 
 				start: function() {
 
@@ -9961,10 +12132,17 @@
 						}, this._timeout, false);
 					}
 
-					this._processStart();
+					var ret = this._processStart();
+					if (cc.isPromise(ret)) {
+						return ret;
+					}
+
+					return $q.when(ret);
 				},
 
 				_processStart: function() {
+
+					return $q.when(false);
 				},
 
 				cancel: function() {
@@ -10001,18 +12179,45 @@
 						$timeout.cancel(showTimerPromise);
 					}
 
-					this._processEnd(raison);
+					var ret = this._processEnd(raison);
+					if (cc.isPromise(ret)) {
+						return ret;
+					}
+
+					return $q.when(ret);
 				},
 
 				_processEnd: function(raison) {
 					this._destroy();
+
+					return $q.when(false);
 				},
 
 				_destroy: function() {
+					this._params = undefined;
+
+					var showTimerPromise = this._showTimerPromise;
+					if (showTimerPromise) {
+						$timeout.cancel(showTimerPromise);
+					}
+
 					var self = this;
 					$timeout(function() {
 						self.$destroy();
 					}, 0, false);
+				},
+
+				_processDestroy: function() {
+					this._params = undefined;
+
+					var showTimerPromise = this._showTimerPromise;
+					if (showTimerPromise) {
+						$timeout.cancel(showTimerPromise);
+					}
+				},
+
+				toString: function() {
+					return "[Animation $id=" + this.$scope.$id + "]";
 				}
 			});
 
@@ -10021,7 +12226,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10034,100 +12239,288 @@
 
 	var module = angular.module("camelia.animations.grid");
 
-	module.factory("camelia.animations.grid.PageChange", [ "$log", "$timeout", 'camelia.animations.Animation',
-		'camelia.core',
-		function($log, $timeout, Animation, cc) {
+	var DEFAULT_GRID_PAGECHANGE_TIMEOUT = 500;
 
-			var PageChange = function($scope, params) {
+	module.value("cm_grid_pageChange_timeout", DEFAULT_GRID_PAGECHANGE_TIMEOUT);
+
+	module.factory("camelia.animations.grid.PageChange", [ "$log",
+		"$timeout",
+		"$q",
+		'camelia.animations.Animation',
+		'camelia.core',
+		"camelia.i18n.Grid",
+		"cm_grid_pageChange_timeout",
+		function($log, $timeout, $q, Animation, cc, i18n, cm_grid_pageChange_timeout) {
+
+			var anonymousId = 0;
+
+			function PageChange($scope, params) {
 				Animation.call(this, $scope, params);
 
-				this.renderer = params.renderer;
-				var self = this;
-				var off = $scope.$on("cm:pageCreated", function(event, args) {
-					self._args = args;
+				cc.Assert(params, "PageChange must define params !");
 
+				var self = this;
+				var off = this.$on("cm:tableViewPortCreated", function(event, args) {
 					off();
+
+					self._newTableViewPort = args.newTableViewPort;
+
+					var oldTableViewPort = self._params.oldTableViewPort;
+					if (oldTableViewPort) {
+						oldTableViewPort.style.visibility = "hidden";
+					}
 				});
-			};
+
+				this.$on("cm:dataLoaded", function(event, data) {
+					self._dataLoaded = data;
+				});
+
+				var off2 = this.$on("cm:pageError", function(event, reason) {
+					off2();
+
+					// self._showErrorPage(reason);
+				});
+			}
 
 			cc.extend(PageChange, Animation, {
 
-				_processStart: function() {
-					this._hideBody();
+				showErrorPage: function(reason) {
 
-					var renderer = this.renderer;
+					this._clearPage();
+
+					var self = this;
+					return this._showErrorPage(reason).then(function onSuccess(errorPage) {
+
+						return Animation.prototype._processEnd.call(self).then(function onSuccess() {
+
+							return errorPage;
+						});
+					});
+				},
+
+				_processStart: function() {
+					var renderer = this._params.renderer;
 					var container = renderer.container;
 
 					var cHeight = container.style.height;
-					if (!cHeight || cHeight == "auto") {
+					if (!cHeight || cHeight === "auto") {
 						this._forceHeight = true;
 
 						var containerBCR = container.getBoundingClientRect();
 						container.style.height = containerBCR.height + "px";
 					}
 
-					var viewPort = renderer.tableViewPort;
-					if (viewPort) {
-						this._oldTableViewPort = viewPort;
-						
-						viewPort.style.visible="hidden";
+					var self = this;
+					this._showLoadingPagePromise = $timeout(function onTimer() {
+						if (!self._newTableViewPort) {
+							self._showLoadingPagePromise = $timeout(onTimer, 1000, false);
+
+							return self._showLoadingPagePromise;
+						}
+
+						self._showWaitingPage().then(function onSuccess(waitingPage) {
+							self._waitingPage = waitingPage;
+						});
+
+					}, cm_grid_pageChange_timeout || DEFAULT_GRID_PAGECHANGE_TIMEOUT, false);
+				},
+
+				/**
+				 * @returns {Promise}
+				 */
+				_showWaitingPage: function() {
+					$log.debug("Show waiting page !!!!");
+
+					var fragment = angular.element(document.createDocumentFragment());
+
+					var self = this;
+					return this._renderWaitingPage(fragment).then(function onSuccess(waitingPage) {
+						if (waitingPage[0]) {
+							waitingPage = waitingPage[0];
+						}
+
+						waitingPage.cm_type = "gridWaitingPage";
+
+						self._setPageSize(waitingPage);
+
+						var renderer = self._params.renderer;
+						angular.element(renderer.bodyContainer).append(fragment);
+
+						$timeout(function() {
+							waitingPage.setAttribute("cm_shown", true);
+						}, 100, false);
+
+						return waitingPage;
+					});
+				},
+
+				/**
+				 * @returns {Promise}
+				 */
+				_renderWaitingPage: function(container) {
+					var waitingDiv = cc.createElement(container, "div", {
+						id: "cm_grid_waitingPage_" + (anonymousId++),
+						className: "cm_grid_waitingPage"
+					});
+
+					var image = cc.createElement(waitingDiv, "span", {
+						className: "cm_grid_waitingCircle fa fa-circle-o-notch fa-spin fa-2x "
+					});
+
+					var label = cc.createElement(waitingDiv, "label", {
+						textnode: cc.lang(i18n, "loadingData")
+					});
+
+					if (this._dataLoaded) {
+						angular.element(label).text(cc.lang(i18n, "receivingData", {
+							count: this._dataLoaded.count
+						}));
 					}
+
+					this.$on("cm:dataLoaded", function(event, data) {
+						angular.element(label).text(cc.lang(i18n, "receivingData", {
+							count: data.count
+						}));
+					});
+
+					return $q.when(waitingDiv);
+				},
+
+				/**
+				 * @returns {Promise}
+				 */
+				_showErrorPage: function(errorReason) {
+					$log.debug("Show error page !!!!");
+
+					var fragment = angular.element(document.createDocumentFragment());
+
+					var self = this;
+					return this._renderErrorPage(fragment, errorReason).then(function onSuccess(errorPage) {
+						if (errorPage[0]) {
+							errorPage = errorPage[0];
+						}
+
+						errorPage.cm_type = "gridErrorPage";
+
+						self._setPageSize(errorPage);
+
+						var renderer = self._params.renderer;
+						angular.element(renderer.bodyContainer).append(fragment);
+
+						return errorPage;
+					});
+				},
+
+				_setPageSize: function(page) {
+					var renderer = this._params.renderer;
+
+					var titleViewPortBCR = renderer.titleViewPort.getBoundingClientRect();
+
+					var tableBCR = renderer.container.getBoundingClientRect();
+
+					var style = page.style;
+
+					style.height = (tableBCR.height - titleViewPortBCR.height - 2) + "px";
+				},
+
+				/**
+				 * @returns {Promise}
+				 */
+				_renderErrorPage: function(container, errorReason) {
+					$log.debug("Show error page !!!!");
+
+					var errorDiv = cc.createElement(container, "div", {
+						id: "cm_grid_errorPage_" + (anonymousId++),
+						className: "cm_grid_errorPage"
+					});
+
+					var image = cc.createElement(errorDiv, "span", {
+						className: "cm_grid_errorIcon fa fa-exclamation-triangle fa-2x "
+					});
+
+					var label = cc.createElement(errorDiv, "label", {
+						textnode: cc.lang(i18n, "loadingError")
+					});
+
+					return $q.when(errorDiv);
+				},
+
+				_clearPage: function() {
+
+					var oldTableViewPort = this._params.oldTableViewPort;
+					if (oldTableViewPort) {
+						angular.element(oldTableViewPort).remove();
+					}
+
+					var oldErrorPage = this._params.oldErrorPage;
+					if (oldErrorPage) {
+						angular.element(oldErrorPage).remove();
+					}
+
+					var showLoadingPagePromise = this._showLoadingPagePromise;
+					if (showLoadingPagePromise) {
+						this._showLoadingPagePromise = undefined;
+
+						$timeout.cancel(showLoadingPagePromise);
+					}
+
+					var waitingPage = this._waitingPage;
+					if (waitingPage) {
+						this._waitingPage = undefined;
+						angular.element(waitingPage).remove();
+					}
+
 				},
 
 				_processEnd: function() {
-					var tableViewPort = this._args.tableViewPort;
-					var oldTableViewPort = this._oldTableViewPort;
-					var fragment = this._args.fragment || tableViewPort;
+					var self = this;
 
-					var renderer = this.renderer;
+					this._clearPage();
+
+					var newTableViewPort = this._newTableViewPort;
+					var fragment = newTableViewPort;
+					if (fragment.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+						newTableViewPort = fragment.firstChild;
+					}
+
+					var renderer = this._params.renderer;
 
 					angular.element(renderer.bodyContainer).append(fragment);
 					renderer.tableElement.style.tableLayout = "fixed";
-					tableViewPort.style.visibility = "hidden";
+					newTableViewPort.style.visibility = "hidden";
 
-					var self = this;
-					$timeout(function waitSize() {
-						var tableViewPortBCR = tableViewPort.getBoundingClientRect();
-						if (!tableViewPortBCR.height) {
-							return $timeout(waitSize, 10, false);
+					var cnt = 20;
+					return $timeout(function waitSize() {
+						var tableViewPortBCR = newTableViewPort.getBoundingClientRect();
+						if (!tableViewPortBCR.width) {
+							if (--cnt > 0) {
+								return $timeout(waitSize, 50, false);
+							}
+							$log.error("Timeout when getting size of newTableViewPort");
 						}
 
-						var titleViewPortBCR = renderer.titleViewPort.getBoundingClientRect();
+						if (self._forceHeight) {
+							renderer.container.style.height = "auto";
+							renderer.bodyContainer.style.height = "auto";
 
-						var h = titleViewPortBCR.height + tableViewPortBCR.height;
-						renderer.container.style.height = h + "px";
-						renderer.bodyContainer.style.height = tableViewPortBCR.height + "px";
+						} else {
+							var titleViewPortBCR = renderer.titleViewPort.getBoundingClientRect();
+							var containerBCR = renderer.container.getBoundingClientRect();
 
-						tableViewPort.style.visibility = "visible";
-						if (oldTableViewPort) {
-							angular.element(oldTableViewPort).remove();
+							var h2 = Math.floor(containerBCR.height - titleViewPortBCR.height)-1; // Why -1 ????
+
+							newTableViewPort.style.height = h2 + "px";
+							renderer.bodyContainer.style.height = h2 + "px";
 						}
+
+						newTableViewPort.style.visibility = "visible";
+
+						return Animation.prototype._processEnd.call(self).then(function onSuccess() {
+							return newTableViewPort;
+						});
 
 					}, 10, false);
-
-					this._showBody();
-				},
-
-				_hideBody: function() {
-					var renderer = this.renderer;
-
-					var ts = renderer.tableViewPort.style;
-					// ts.width = "auto";
-					// ts.height = "auto";
-					// ts.visibility = "hidden";
-					// renderer.tableElement.style.tableLayout = "";
-
-					$log.debug("GridPageChange.Hide body");
-				},
-				_showBody: function() {
-					var renderer = this.renderer;
-
-					var ts = renderer.tableViewPort.style;
-					// renderer.tableElement.style.tableLayout = "fixed";
-					// ts.visibility = "";
-					$log.debug("GridPageChange.Show body");
-				},
-
+				}
 			});
 
 			return PageChange;
@@ -10135,7 +12528,59 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.combo", []);
+
+	module.factory("camelia.i18n.Combo", [ function() {
+
+		return {
+			'en': {
+				no_result: "No result"
+			}
+		};
+
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.combo", []);
+
+	module.config([ '$provide', function($provide) {
+
+		$provide.decorator("camelia.i18n.Combo", [ '$delegate', function($delegate) {
+
+			return angular.extend($delegate, {
+				'fr': {
+					no_result: "Aucun résultat"
+				}
+			});
+		} ]);
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10160,7 +12605,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10187,7 +12632,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10208,7 +12653,11 @@
 				ascending: "(Sorted order ascending)",
 				descending: "(Sorted order descending)",
 				filtreableColumn: "",
-				filtredColumn: "(Filtred)"
+				filtredColumn: "(Filtred)",
+				loadingData: "Loading data ...",
+				receivingData: "{count} rows received ...",
+				loadingError: "Loading error",
+				criteriaList: "Filters list of column {title} :"
 			}
 		};
 
@@ -10216,7 +12665,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10239,7 +12688,11 @@
 					ascending: "(Trié ordre croissant)",
 					descending: "(Trié ordre decroissant)",
 					filtreableColumn: "",
-					filtredColumn: "(Filtrée)"
+					filtredColumn: "(Filtrée)",
+					loadingData: "Chargement des données ...",
+					receivingData: "{count} lignes reçues ...",
+					loadingError: "Erreur de chargement",
+					criteriaList: "Liste des filtres de la colonne {title} :"
 				}
 			});
 		} ]);
@@ -10247,7 +12700,59 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.items", []);
+
+	module.factory("camelia.i18n.Items", [ function() {
+
+		return {
+			'en': {
+				searching: "Searching ..."
+			}
+		};
+
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.items", []);
+
+	module.config([ '$provide', function($provide) {
+
+		$provide.decorator("camelia.i18n.Items", [ '$delegate', function($delegate) {
+
+			return angular.extend($delegate, {
+				'fr': {
+					searching: "Recherche en cours ..."
+				}
+			});
+		} ]);
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10266,9 +12771,11 @@
 			'en': {
 				bfirst_label: "First",
 				blast_label: "Last",
-				bprev_label: "<",
+				bprev_label: "",
+				bprev_className: "fa fa-angle-left",
 				bprev_tooltip: "Show previous page",
-				bnext_label: ">",
+				bnext_label: "",
+				bnext_className: "fa fa-angle-right",
 				bnext_tooltip: "Show next page",
 				index_label: "{pageIndex}",
 				index_tooltip: "Show page #{pageIndex}",
@@ -10285,7 +12792,7 @@
 
 })(window, window.angular);
 /**
- * @product CameliaJS (c) 2014 Vedana http://www.vedana.com
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
  * @license Creative Commons - The licensor permits others to copy, distribute,
  *          display, and perform the work. In return, licenses may not use the
  *          work for commercial purposes -- unless they get the licensor's
@@ -10306,9 +12813,11 @@
 				'fr': {
 					bfirst_label: "Premier",
 					blast_label: "Dernier",
-					bprev_label: "Précédent",
+					bprev_label: "",
+					bprev_className: "fa fa-angle-left",
 					bprev_tooltip: "Voir la page précédente",
-					bnext_label: "Suivant",
+					bnext_label: "",
+					bnext_className: "fa fa-angle-right",
 					bnext_tooltip: "Voir la page suivante",
 					index_label: "{pageIndex}",
 					index_tooltip: "Voir page #{pageIndex}",
@@ -10318,6 +12827,60 @@
 					uindex_tooltip: "Voir la page suivante",
 					separator: " ",
 					noPages: "Aucune page"
+				}
+			});
+		} ]);
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.progressMonitor", []);
+
+	module.factory("camelia.i18n.ProgressMonitor", [ function() {
+
+		return {
+			'en': {
+				canceled: "Canceled task",
+				done: "Finished task"
+			}
+		};
+
+	} ]);
+
+})(window, window.angular);
+/**
+ * @product CameliaJS (c) 2015 Vedana http://www.vedana.com
+ * @license Creative Commons - The licensor permits others to copy, distribute,
+ *          display, and perform the work. In return, licenses may not use the
+ *          work for commercial purposes -- unless they get the licensor's
+ *          permission.
+ * @author olivier.oeuillot@vedana.com
+ */
+
+(function(window, angular, undefined) {
+	"use strict";
+
+	var module = angular.module("camelia.i18n.pager");
+
+	module.config([ '$provide', function($provide) {
+
+		$provide.decorator("camelia.i18n.Pager", [ '$delegate', function($delegate) {
+
+			return angular.extend($delegate, {
+				'fr': {
+					canceled: "Tâche annulée",
+					done: "Tâche finie"
 				}
 			});
 		} ]);
