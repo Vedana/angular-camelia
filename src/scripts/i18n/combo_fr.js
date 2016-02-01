@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.i18n.combo", []);
+	var module = angular.module("camelia.i18n.combo");
 
 	module.config([ '$provide', function($provide) {
 

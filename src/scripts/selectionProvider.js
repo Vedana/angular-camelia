@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selection', [ "camelia.core" ]);
+	var module = angular.module('camelia.selection');
 
 	module.factory('camelia.SelectionProvider', [ "$rootScope",
 		"$injector",

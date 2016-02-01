@@ -10,11 +10,11 @@
 (function(window, angular, undefined) {
 	"use strict";
 
-	var module = angular.module("camelia.i18n.pager");
+	var module = angular.module("camelia.i18n.progressMonitor");
 
 	module.config([ '$provide', function($provide) {
 
-		$provide.decorator("camelia.i18n.Pager", [ '$delegate', function($delegate) {
+		$provide.decorator("camelia.i18n.ProgressMonitor", [ '$delegate', function($delegate) {
 
 			return angular.extend($delegate, {
 				'fr': {

@@ -10,7 +10,7 @@
 (function(window, angular, undefined) {
 	'use strict';
 
-	var module = angular.module('camelia.selection');
+	var module = angular.module('camelia.selection', [ "camelia.core" ]);
 
 	module.factory('camelia.CursorProvider', [ '$rootScope',
 		'camelia.core',
