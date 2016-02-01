@@ -167,7 +167,7 @@
 
 								container.attr("cm_progressMonitor", true);
 
-								if (progressMonitors.length == 1) {
+								if (progressMonitors.length === 1) {
 									self._showProgressMonitor(progressMonitors[0]);
 								}
 
