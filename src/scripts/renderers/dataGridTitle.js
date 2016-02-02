@@ -26,6 +26,12 @@
 		"cm_grid_sizerPx",
 		"camelia.i18n.Grid",
 		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx, i18n) {
+	
+			function _destroyScope($scope) {
+				return function() {
+					$scope.$destroy();
+				};
+			}
 
 			return {
 
@@ -49,16 +55,13 @@
 					var visibleIndex = 0;
 					var scopeColLogicalIndex = -1;
 					var percentWidthCount = 0;
-
-					var visibleColumns = [];
-					this.visibleColumns = visibleColumns;
+					
 					this.hasResizableColumnVisible = false;
 
 					var self = this;
 					angular.forEach(columns, function(column) {
 
-						column.logicalIndex = index;
-						column.visibleIndex = -1;
+						column.logicalIndex = index;						
 						column.columnId = "cm_column_" + (anonymousId++);
 
 						if (column.scope) {
@@ -75,14 +78,11 @@
 								$cm_columnIndex: index
 							});
 							column.titleElement = cellElement[0];
-							column.visibleIndex = visibleColumns.length;
 							cellElement.data("cm_column", column);
 
 							self.titleCellRenderer(cellElement, column, index);
 
 							self.titleCellStyleUpdate(cellElement);
-
-							visibleColumns.push(column);
 
 							if (column.$scope.resizeable) {
 								self.hasResizableColumnVisible = true;
@@ -112,6 +112,48 @@
 					return cm.MixElementClasses(element, [ "cm_dataGrid_title" ]);
 				},
 
+				titleCellTemplate: function(element, column) {
+
+					var titleCellTemplates = column.titleCellTemplates;
+					if (!titleCellTemplates) {
+						return false;
+					}
+
+					var templates = titleCellTemplates.templates;
+					
+					var columnScope = this.$scope.$parent.$new();
+
+					columnScope.$index = column.logicalIndex;
+					columnScope.$visibleIndex = column.visibleIndex;
+					columnScope.$odd = !(column.visibleIndex & 1);
+					columnScope.$even = !columnScope.$odd;
+					columnScope.$column = column.$scope;
+//					columnScope.column = columnScope.$column;
+					columnScope.$grid = this.$scope;
+					
+					for (var i = 0; i < templates.length; i++) {
+						var template = templates[i];
+
+						var enabledExpression = titleCellTemplates.enabledExpressions[template.id];
+						if (enabledExpression) {
+							if (columnScope.$eval(enabledExpression) === false) {
+								continue;
+							}
+						}
+
+						var comp = template.transclude(element, columnScope);
+
+//						destroyScopeRef.value = false;
+
+						element.on('$destroy', _destroyScope(columnScope));
+						return comp;
+					}
+
+					columnScope.$destroy();
+					
+					return false;
+				},
+				
 				titleCellRenderer: function(element, column) {
 					if (element[0]) {
 						element = element[0];
@@ -120,6 +162,7 @@
 
 					var prevColumn = null;
 					var hasParams = false;
+					var self = this;
 
 					if (column) {
 						var idx = anonymousId++;
@@ -145,21 +188,28 @@
 
 						var title = column.$scope.title;
 
-						var label = cc.createElement(parent, "label", {
-							id: "cm_tlab_" + idx,
-							className: "cm_dataGrid_tlabel",
-						// textNode: (title ? title : "")
-						});
-
-						column.labelElement = label[0];
-
-						var self = this;
-						column.$scope.$watch("title", function(newValue) {
-							label.text(newValue ? newValue : "");
-
-							self.titleAriaMessages(element, column, true);
-						});
-
+						var label = this.titleCellTemplate(parent, column);
+						if (!label) {
+							var labelElement = cc.createElement(parent, "label", {
+								className: "cm_dataGrid_tlabel",
+							// textNode: (title ? title : "")
+							});
+	
+							column.$scope.$watch("title", function(newValue) {
+								labelElement.text(newValue ? newValue : "");
+	
+								self.titleAriaMessages(element, column, true);
+							});
+							
+							label=labelElement[0];
+						} 
+							
+						if (!label.id) {
+							label.id="cm_tlab_" + idx;
+						}
+						
+						column.labelElement = label;
+						
 						if (column._criterias && column._criterias.length) {
 							var parameters = cc.createElement(titleCell, "button", {
 								className: "cm_dataGrid_tparams",
@@ -274,13 +324,17 @@
 
 				titleLayout: function(container, width) {
 					var self = this;
+					$log.debug("Title layout begining width=",width, "hasResizableColumnVisible=", this.hasResizableColumnVisible, "sizePx=", cm_grid_sizerPx);
 
 					if (this._hasData() && !this._naturalWidths) {
 						var ret = this.computeColumnsNaturalWidths();
+						$log.debug("computeColumnsNaturalWidths returns",ret);
+						
 						if (ret === false) {
-							return $timeout(function() {
+							$timeout(function() {
 								return self.titleLayout(container, width);
 							}, 10, false);
+							return;
 						}
 					}
 
@@ -309,6 +363,8 @@
 							leftWidth -= specifiedWidthPx;
 							column.width = specifiedWidthPx;
 							column.widthType = "specified";
+							
+							$log.debug("compute column fixed #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"specifiedWidthPx=",specifiedWidthPx);
 							return;
 						}
 
@@ -323,6 +379,8 @@
 							if (column.naturalWidth > minWidth) {
 								totalNatural += column.naturalWidth - minWidth;
 							}
+
+							$log.debug("compute column % #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"naturalWidth=",naturalWidth);
 
 							percentColumns.push(column);
 							return;
@@ -341,6 +399,8 @@
 						column.width = nw;
 						leftWidth -= nw;
 						column.widthType = "natural";
+						
+						$log.debug("compute column natural #", column.visibleIndex, "cminWidth=",column.minWidth,"cmaxWidth=",column.maxWidth,"minWidth=",minWidth,"width=",nw,"naturalWidth=",column.naturalWidth,"computedMinWidth=",column.computedMinWidth);
 					});
 
 					if (countPercent) {

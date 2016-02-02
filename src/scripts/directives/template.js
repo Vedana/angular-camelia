@@ -36,6 +36,7 @@
 				refId: '@'
 			// enabled: '@'
 			},
+			transclude: true,
 
 			compile: function() {
 				return {

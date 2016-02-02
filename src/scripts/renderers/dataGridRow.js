@@ -260,6 +260,7 @@
 				},
 
 				computeColumnsNaturalWidths: function() {
+					$log.debug("Compute natural widths");
 					var row = this.getFirstRow();
 					if (!row) {
 						return;
@@ -271,6 +272,7 @@
 
 					var cells = row.cells;
 					var rowIndent = this.rowIndent;
+					var naturalTotalWidths=0;
 					angular.forEach(this.visibleColumns, function(column) {
 						var cell = cells[column.visibleIndex + rowIndent];
 						if (!cell) {
@@ -279,7 +281,12 @@
 
 						var cr = cell.getBoundingClientRect();
 						column.naturalWidth = cr.width;
+						naturalTotalWidths+=cr.width;
+						
+						$log.debug("Natural width of #",column.visibleIndex,"=",column.naturalWidth);
 					});
+					
+					this._naturalWidths=naturalTotalWidths;
 				},
 
 				moveColumnRow: function(row, column, beforeColumn) {

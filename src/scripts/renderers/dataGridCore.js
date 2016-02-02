@@ -179,6 +179,8 @@
 						});
 
 						container.on("cm_update", this._onGridStyleUpdate());
+						
+						this.tablePrepareColumns();
 
 						$scope.$broadcast("cm:gridTitleRendering");
 
@@ -1227,7 +1229,7 @@
 					 * @returns {Promise}
 					 */
 					_refreshRows: function(updateColumnWidths, focus) {
-						$log.debug("Refresh rows");
+						$log.debug("Refresh rows updateColumnWidths=",updateColumnWidths, "focus=",focus);
 
 						if (this.$scope.refreshing) {
 							return $q.reject({

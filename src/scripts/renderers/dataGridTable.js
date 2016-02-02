@@ -429,8 +429,19 @@
 				tablePrepareColumns: function() {
 
 					var self = this;
-					var visibleColumns = this.visibleColumns;
-					angular.forEach(visibleColumns, function(column) {
+					var columns = this.columns;
+					
+					var visibleColumns=[];
+					this.visibleColumns=visibleColumns
+
+					angular.forEach(columns, function(column) {
+						if (!column.visible) {
+							column.visibleIndex = -1;
+							return;
+						}
+						column.visibleIndex = visibleColumns.length;
+						visibleColumns.push(column);
+						
 						var valueExpression = column.valueExpression;
 						if (valueExpression === undefined) {
 							valueExpression = false;
@@ -470,6 +481,8 @@
 						if (templates === undefined) {
 							column.cellTemplates = TemplateRegistry.PrepareTemplates(column.$scope.templates, self.$interpolate,
 									"cell");
+							column.titleCellTemplates = TemplateRegistry.PrepareTemplates(column.$scope.templates, self.$interpolate,
+									"title");
 						}
 					});
 				},
@@ -530,8 +543,6 @@
 					});
 
 					this._alignColumns(true);
-
-					this.tablePrepareColumns();
 
 					var dataModel = this.dataModel;
 					dataModel = this.tablePrepareDataModel(dataModel);
@@ -698,6 +709,8 @@
 										rowScope.$pageCount = -1;
 										rowScope.$rowIndex = rowIndex;
 										rowScope.$row = rowData;
+										rowScope.$grid = self.$scope;
+						
 										if (varName) {
 											rowScope[varName] = rowData;
 										}
@@ -712,7 +725,7 @@
 
 										if (!destroyRowScopeRef.value) {
 											tr.on('$destroy', _destroyScope(rowScope));
-											rowScope.$digest();
+											// rowScope.$digest(); /// ????
 											rowScope = null;
 										}
 									}
