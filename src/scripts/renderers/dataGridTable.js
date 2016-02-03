@@ -432,7 +432,7 @@
 					var columns = this.columns;
 					
 					var visibleColumns=[];
-					this.visibleColumns=visibleColumns
+					this.visibleColumns=visibleColumns;
 
 					angular.forEach(columns, function(column) {
 						if (!column.visible) {

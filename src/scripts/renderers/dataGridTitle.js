@@ -380,7 +380,7 @@
 								totalNatural += column.naturalWidth - minWidth;
 							}
 
-							$log.debug("compute column % #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"naturalWidth=",naturalWidth);
+							$log.debug("compute column % #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"naturalWidth=",column.naturalWidth);
 
 							percentColumns.push(column);
 							return;
