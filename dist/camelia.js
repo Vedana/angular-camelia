@@ -7422,6 +7422,8 @@
 						});
 
 						container.on("cm_update", this._onGridStyleUpdate());
+						
+						this.tablePrepareColumns();
 
 						$scope.$broadcast("cm:gridTitleRendering");
 
@@ -7715,7 +7717,7 @@
 
 						return promise.then(function() {
 							self.layoutState = "titleDone";
-
+							
 							var promise2 = self.tableLayout($container, cr.width, cr.height);
 							promise2 = cc.ensurePromise(promise2);
 
@@ -7751,12 +7753,14 @@
 					},
 
 					_alignColumns: function(columnConstraints) {
+						$log.debug("_alignColumns: Align column constraints=", columnConstraints);
+						
 						var total = 0;
 						var invalidLayout = false;
 
 						var rowIndent = this.rowIndent;
-
-						var self = this;
+						
+						var self = this;						
 						angular.forEach(this.visibleColumns, function(column) {
 
 							var titleStyle = column.titleElement.style;
@@ -7780,15 +7784,14 @@
 							}
 							total += width;
 
-							// $log.debug("GridWidth[" + column.id + "] width=" + width + "
-							// total=" + total);
+							$log.debug("_alignColumns: GridWidth[" + column.id + "] set width=" + width + " total=" + total);
 						});
 
-						$log.debug("GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
+						$log.debug("_alignColumns: GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
 
 						if (invalidLayout) {
 							this.tableElement.style.width = "auto";
-							$log.debug("AlignColumns ... Invalid layout");
+							$log.debug("_alignColumns: ... Invalid layout");
 							return;
 						}
 
@@ -7813,7 +7816,7 @@
 						this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
 						// this.tableElement.style.tableLayout = "fixed";
 
-						$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer + " columnConstraints=" +
+						$log.debug("_alignColumns: total=" + total + " sizer=" + sizer + " columnConstraints=" +
 								columnConstraints);
 					},
 
@@ -8163,7 +8166,7 @@
 
 						if (newWidth !== column.width) {
 							column.width = newWidth;
-							column.specifiedWidthPx = newWidth + "px";
+							column.specifiedWidth = newWidth;
 							this._alignColumns(true);
 						}
 
@@ -8206,7 +8209,7 @@
 							this._allWidthSpecified = true;
 
 							angular.forEach(this.visibleColumns, function(column) {
-								column.specifiedWidthPx = column.width + "px";
+								column.specifiedWidth = column.width;
 							});
 						}
 
@@ -8470,7 +8473,7 @@
 					 * @returns {Promise}
 					 */
 					_refreshRows: function(updateColumnWidths, focus) {
-						$log.debug("Refresh rows");
+						$log.debug("Refresh rows updateColumnWidths=",updateColumnWidths, "focus=",focus);
 
 						if (this.$scope.refreshing) {
 							return $q.reject({
@@ -8484,6 +8487,11 @@
 							this._naturalWidths = undefined;
 							this._containerSizeSetted = undefined;
 							this.gridWidth = -1;
+							
+							this.visibleColumns.forEach(function(column) {
+								delete column.naturalWidth;
+								delete column.width;
+							});
 
 							// this._alignColumns(false); // TODO sans animation !
 						}
@@ -9626,10 +9634,19 @@
 				},
 
 				computeColumnsNaturalWidths: function() {
+					$log.debug("Compute natural widths");
 					var row = this.getFirstRow();
 					if (!row) {
 						return;
 					}
+					var tw=this.tableElement.style.width;
+					if (tw && tw!=="auto") {
+						console.error("**** RESET WIDTH");
+						this.tableElement.style.width="auto";
+						this.tableElement.style.tableLayout = "auto";
+						return false;
+					}
+					
 					var rowBCR = row.getBoundingClientRect();
 					if (rowBCR.width < 1) {
 						return false;
@@ -9637,6 +9654,7 @@
 
 					var cells = row.cells;
 					var rowIndent = this.rowIndent;
+					var naturalTotalWidths=0;
 					angular.forEach(this.visibleColumns, function(column) {
 						var cell = cells[column.visibleIndex + rowIndent];
 						if (!cell) {
@@ -9645,7 +9663,12 @@
 
 						var cr = cell.getBoundingClientRect();
 						column.naturalWidth = cr.width;
+						naturalTotalWidths+=cr.width;
+						
+						$log.debug("Natural width of #",column.visibleIndex,"=",column.naturalWidth);
 					});
+					
+					this._naturalWidths=naturalTotalWidths;
 				},
 
 				moveColumnRow: function(row, column, beforeColumn) {
@@ -10114,8 +10137,19 @@
 				tablePrepareColumns: function() {
 
 					var self = this;
-					var visibleColumns = this.visibleColumns;
-					angular.forEach(visibleColumns, function(column) {
+					var columns = this.columns;
+					
+					var visibleColumns=[];
+					this.visibleColumns=visibleColumns;
+
+					angular.forEach(columns, function(column) {
+						if (!column.visible) {
+							column.visibleIndex = -1;
+							return;
+						}
+						column.visibleIndex = visibleColumns.length;
+						visibleColumns.push(column);
+						
 						var valueExpression = column.valueExpression;
 						if (valueExpression === undefined) {
 							valueExpression = false;
@@ -10155,6 +10189,8 @@
 						if (templates === undefined) {
 							column.cellTemplates = TemplateRegistry.PrepareTemplates(column.$scope.templates, self.$interpolate,
 									"cell");
+							column.titleCellTemplates = TemplateRegistry.PrepareTemplates(column.$scope.templates, self.$interpolate,
+									"title");
 						}
 					});
 				},
@@ -10204,6 +10240,7 @@
 				 * @returns {{Promise}}
 				 */
 				_tableRowsRenderer1: function(fragment) {
+					$log.debug("_tableRowsRenderer1: start rendering");
 					var self = this;
 					var table = this.tableElement;
 
@@ -10215,8 +10252,6 @@
 					});
 
 					this._alignColumns(true);
-
-					this.tablePrepareColumns();
 
 					var dataModel = this.dataModel;
 					dataModel = this.tablePrepareDataModel(dataModel);
@@ -10383,6 +10418,8 @@
 										rowScope.$pageCount = -1;
 										rowScope.$rowIndex = rowIndex;
 										rowScope.$row = rowData;
+										rowScope.$grid = self.$scope;
+						
 										if (varName) {
 											rowScope[varName] = rowData;
 										}
@@ -10397,7 +10434,7 @@
 
 										if (!destroyRowScopeRef.value) {
 											tr.on('$destroy', _destroyScope(rowScope));
-											rowScope.$digest();
+											// rowScope.$digest(); /// ????
 											rowScope = null;
 										}
 									}
@@ -10671,6 +10708,12 @@
 		"cm_grid_sizerPx",
 		"camelia.i18n.Grid",
 		function($log, $timeout, cc, cm, cm_dataGrid_rowIndentPx, cm_grid_sizerPx, i18n) {
+	
+			function _destroyScope($scope) {
+				return function() {
+					$scope.$destroy();
+				};
+			}
 
 			return {
 
@@ -10694,16 +10737,13 @@
 					var visibleIndex = 0;
 					var scopeColLogicalIndex = -1;
 					var percentWidthCount = 0;
-
-					var visibleColumns = [];
-					this.visibleColumns = visibleColumns;
+					
 					this.hasResizableColumnVisible = false;
 
 					var self = this;
 					angular.forEach(columns, function(column) {
 
-						column.logicalIndex = index;
-						column.visibleIndex = -1;
+						column.logicalIndex = index;						
 						column.columnId = "cm_column_" + (anonymousId++);
 
 						if (column.scope) {
@@ -10720,14 +10760,11 @@
 								$cm_columnIndex: index
 							});
 							column.titleElement = cellElement[0];
-							column.visibleIndex = visibleColumns.length;
 							cellElement.data("cm_column", column);
 
 							self.titleCellRenderer(cellElement, column, index);
 
 							self.titleCellStyleUpdate(cellElement);
-
-							visibleColumns.push(column);
 
 							if (column.$scope.resizeable) {
 								self.hasResizableColumnVisible = true;
@@ -10757,6 +10794,48 @@
 					return cm.MixElementClasses(element, [ "cm_dataGrid_title" ]);
 				},
 
+				titleCellTemplate: function(element, column) {
+
+					var titleCellTemplates = column.titleCellTemplates;
+					if (!titleCellTemplates) {
+						return false;
+					}
+
+					var templates = titleCellTemplates.templates;
+					
+					var columnScope = this.$scope.$parent.$new();
+
+					columnScope.$index = column.logicalIndex;
+					columnScope.$visibleIndex = column.visibleIndex;
+					columnScope.$odd = !(column.visibleIndex & 1);
+					columnScope.$even = !columnScope.$odd;
+					columnScope.$column = column.$scope;
+//					columnScope.column = columnScope.$column;
+					columnScope.$grid = this.$scope;
+					
+					for (var i = 0; i < templates.length; i++) {
+						var template = templates[i];
+
+						var enabledExpression = titleCellTemplates.enabledExpressions[template.id];
+						if (enabledExpression) {
+							if (columnScope.$eval(enabledExpression) === false) {
+								continue;
+							}
+						}
+
+						var comp = template.transclude(element, columnScope);
+
+//						destroyScopeRef.value = false;
+
+						element.on('$destroy', _destroyScope(columnScope));
+						return comp;
+					}
+
+					columnScope.$destroy();
+					
+					return false;
+				},
+				
 				titleCellRenderer: function(element, column) {
 					if (element[0]) {
 						element = element[0];
@@ -10765,6 +10844,7 @@
 
 					var prevColumn = null;
 					var hasParams = false;
+					var self = this;
 
 					if (column) {
 						var idx = anonymousId++;
@@ -10790,21 +10870,28 @@
 
 						var title = column.$scope.title;
 
-						var label = cc.createElement(parent, "label", {
-							id: "cm_tlab_" + idx,
-							className: "cm_dataGrid_tlabel",
-						// textNode: (title ? title : "")
-						});
-
-						column.labelElement = label[0];
-
-						var self = this;
-						column.$scope.$watch("title", function(newValue) {
-							label.text(newValue ? newValue : "");
-
-							self.titleAriaMessages(element, column, true);
-						});
-
+						var label = this.titleCellTemplate(parent, column);
+						if (!label) {
+							var labelElement = cc.createElement(parent, "label", {
+								className: "cm_dataGrid_tlabel",
+							// textNode: (title ? title : "")
+							});
+	
+							column.$scope.$watch("title", function(newValue) {
+								labelElement.text(newValue ? newValue : "");
+	
+								self.titleAriaMessages(element, column, true);
+							});
+							
+							label=labelElement[0];
+						} 
+							
+						if (!label.id) {
+							label.id="cm_tlab_" + idx;
+						}
+						
+						column.labelElement = label;
+						
 						if (column._criterias && column._criterias.length) {
 							var parameters = cc.createElement(titleCell, "button", {
 								className: "cm_dataGrid_tparams",
@@ -10919,13 +11006,17 @@
 
 				titleLayout: function(container, width) {
 					var self = this;
+					$log.debug("Title layout begining width=",width, "hasResizableColumnVisible=", this.hasResizableColumnVisible, "sizePx=", cm_grid_sizerPx);
 
 					if (this._hasData() && !this._naturalWidths) {
 						var ret = this.computeColumnsNaturalWidths();
+						$log.debug("computeColumnsNaturalWidths returns",ret);
+						
 						if (ret === false) {
-							return $timeout(function() {
+							$timeout(function() {
 								return self.titleLayout(container, width);
 							}, 10, false);
+							return;
 						}
 					}
 
@@ -10949,11 +11040,13 @@
 						}
 						column.computedMinWidth = minWidth;
 
-						var specifiedWidthPx = column.specifiedWidthPx;
-						if (specifiedWidthPx !== undefined && specifiedWidthPx > 0) {
-							leftWidth -= specifiedWidthPx;
-							column.width = specifiedWidthPx;
+						var specifiedWidth = column.specifiedWidth;
+						if (specifiedWidth !== undefined && specifiedWidth > 0) {
+							leftWidth -= specifiedWidth;
+							column.width = specifiedWidth;
 							column.widthType = "specified";
+							
+							$log.debug("compute column fixed #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"specifiedWidth=",specifiedWidth);
 							return;
 						}
 
@@ -10968,6 +11061,8 @@
 							if (column.naturalWidth > minWidth) {
 								totalNatural += column.naturalWidth - minWidth;
 							}
+
+							$log.debug("compute column % #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"naturalWidth=",column.naturalWidth);
 
 							percentColumns.push(column);
 							return;
@@ -10986,6 +11081,8 @@
 						column.width = nw;
 						leftWidth -= nw;
 						column.widthType = "natural";
+						
+						$log.debug("compute column natural #", column.visibleIndex, "cminWidth=",column.minWidth,"cmaxWidth=",column.maxWidth,"minWidth=",minWidth,"width=",nw,"naturalWidth=",column.naturalWidth,"computedMinWidth=",column.computedMinWidth);
 					});
 
 					if (countPercent) {
@@ -11050,6 +11147,8 @@
 					} else if (this.fillWidth) {
 						// On repartit les naturals
 					}
+					
+					$log.debug("Total leftWidth=",leftWidth,"totalNatural=",totalNatural,"countPercent=",countPercent);
 				},
 
 				titleCellLayout: function(container) {
@@ -12124,7 +12223,7 @@
 								// cc.log("Simple click on ", target, " elements=", elements);
 
 								var button = elements.bpager;
-								if (button && button.value) {
+								if (button && button.value && !button.disabled) {
 									self.targetScope.first = parseInt(button.value, 10);
 
 									self.targetScope.$digest();
@@ -13592,6 +13691,7 @@
 				refId: '@'
 			// enabled: '@'
 			},
+			transclude: true,
 
 			compile: function() {
 				return {
