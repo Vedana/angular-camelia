@@ -532,6 +532,7 @@
 				 * @returns {{Promise}}
 				 */
 				_tableRowsRenderer1: function(fragment) {
+					$log.debug("_tableRowsRenderer1: start rendering");
 					var self = this;
 					var table = this.tableElement;
 

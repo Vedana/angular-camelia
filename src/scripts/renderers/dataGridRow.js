@@ -265,6 +265,14 @@
 					if (!row) {
 						return;
 					}
+					var tw=this.tableElement.style.width;
+					if (tw && tw!=="auto") {
+						console.error("**** RESET WIDTH");
+						this.tableElement.style.width="auto";
+						this.tableElement.style.tableLayout = "auto";
+						return false;
+					}
+					
 					var rowBCR = row.getBoundingClientRect();
 					if (rowBCR.width < 1) {
 						return false;

@@ -358,13 +358,13 @@
 						}
 						column.computedMinWidth = minWidth;
 
-						var specifiedWidthPx = column.specifiedWidthPx;
-						if (specifiedWidthPx !== undefined && specifiedWidthPx > 0) {
-							leftWidth -= specifiedWidthPx;
-							column.width = specifiedWidthPx;
+						var specifiedWidth = column.specifiedWidth;
+						if (specifiedWidth !== undefined && specifiedWidth > 0) {
+							leftWidth -= specifiedWidth;
+							column.width = specifiedWidth;
 							column.widthType = "specified";
 							
-							$log.debug("compute column fixed #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"specifiedWidthPx=",specifiedWidthPx);
+							$log.debug("compute column fixed #", column.visibleIndex, "cminWidth=",column.minWidth,"minWidth=",minWidth,"specifiedWidth=",specifiedWidth);
 							return;
 						}
 
@@ -465,6 +465,8 @@
 					} else if (this.fillWidth) {
 						// On repartit les naturals
 					}
+					
+					$log.debug("Total leftWidth=",leftWidth,"totalNatural=",totalNatural,"countPercent=",countPercent);
 				},
 
 				titleCellLayout: function(container) {

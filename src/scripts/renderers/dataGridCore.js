@@ -474,7 +474,7 @@
 
 						return promise.then(function() {
 							self.layoutState = "titleDone";
-
+							
 							var promise2 = self.tableLayout($container, cr.width, cr.height);
 							promise2 = cc.ensurePromise(promise2);
 
@@ -510,12 +510,14 @@
 					},
 
 					_alignColumns: function(columnConstraints) {
+						$log.debug("_alignColumns: Align column constraints=", columnConstraints);
+						
 						var total = 0;
 						var invalidLayout = false;
 
 						var rowIndent = this.rowIndent;
-
-						var self = this;
+						
+						var self = this;						
 						angular.forEach(this.visibleColumns, function(column) {
 
 							var titleStyle = column.titleElement.style;
@@ -539,15 +541,14 @@
 							}
 							total += width;
 
-							// $log.debug("GridWidth[" + column.id + "] width=" + width + "
-							// total=" + total);
+							$log.debug("_alignColumns: GridWidth[" + column.id + "] set width=" + width + " total=" + total);
 						});
 
-						$log.debug("GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
+						$log.debug("_alignColumns: GridWidth old=" + this.gridWidth + " total=" + total + " invalidLayout=" + invalidLayout);
 
 						if (invalidLayout) {
 							this.tableElement.style.width = "auto";
-							$log.debug("AlignColumns ... Invalid layout");
+							$log.debug("_alignColumns: ... Invalid layout");
 							return;
 						}
 
@@ -572,7 +573,7 @@
 						this.tableElement.style.width = (columnConstraints) ? (total + "px") : "auto";
 						// this.tableElement.style.tableLayout = "fixed";
 
-						$log.debug("AlignColumns ... total=" + total + " sizer=" + sizer + " columnConstraints=" +
+						$log.debug("_alignColumns: total=" + total + " sizer=" + sizer + " columnConstraints=" +
 								columnConstraints);
 					},
 
@@ -922,7 +923,7 @@
 
 						if (newWidth !== column.width) {
 							column.width = newWidth;
-							column.specifiedWidthPx = newWidth + "px";
+							column.specifiedWidth = newWidth;
 							this._alignColumns(true);
 						}
 
@@ -965,7 +966,7 @@
 							this._allWidthSpecified = true;
 
 							angular.forEach(this.visibleColumns, function(column) {
-								column.specifiedWidthPx = column.width + "px";
+								column.specifiedWidth = column.width;
 							});
 						}
 
@@ -1243,6 +1244,11 @@
 							this._naturalWidths = undefined;
 							this._containerSizeSetted = undefined;
 							this.gridWidth = -1;
+							
+							this.visibleColumns.forEach(function(column) {
+								delete column.naturalWidth;
+								delete column.width;
+							});
 
 							// this._alignColumns(false); // TODO sans animation !
 						}
