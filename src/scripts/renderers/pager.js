@@ -196,7 +196,7 @@
 								// cc.log("Simple click on ", target, " elements=", elements);
 
 								var button = elements.bpager;
-								if (button && button.value) {
+								if (button && button.value && !button.disabled) {
 									self.targetScope.first = parseInt(button.value, 10);
 
 									self.targetScope.$digest();
