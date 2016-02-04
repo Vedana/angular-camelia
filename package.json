@@ -1,6 +1,6 @@
 {
-  "name": "Camelia",
-  "version": "0.0.12",
+  "name": "angular-camelia",
+  "version": "0.0.13",
   "dependencies": {},
   "repository": {
     "url": "git://github.com/Vedana/camelia.git"
