@@ -266,7 +266,7 @@
 							return;
 						}
 
-						console.log("progress ...");
+						$log.debug("progress ...");
 
 						deferred.notify({
 							type: DataModel.DATA_LOADING

@@ -267,7 +267,7 @@
 					}
 					var tw=this.tableElement.style.width;
 					if (tw && tw!=="auto") {
-						console.error("**** RESET WIDTH");
+						// $log.error("**** RESET WIDTH");
 						this.tableElement.style.width="auto";
 						this.tableElement.style.tableLayout = "auto";
 						return false;

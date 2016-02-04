@@ -565,7 +565,7 @@
 
 									return ret;
 								} catch (x) {
-									console.log(x);
+									$log.error(x);
 								}
 							};
 
