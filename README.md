@@ -43,11 +43,19 @@ Change to your project's root directory.
 
 ```bash
 # To get the latest stable version, use Bower from the command line.
-bower install camelia
+bower install angular-camelia
 
 # To get the most recent, latest committed-to-master version use:
-bower install camelia#master
+bower install angular-camelia#master
 ```
+
+#### NPM
+
+There is a NPM packaging :
+
+````bash
+npm install angular-camelia
+````
 
 ## Author
 
