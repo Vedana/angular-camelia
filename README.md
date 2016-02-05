@@ -7,7 +7,9 @@ Powerfull Angular components library
 
 Camelia provides angular complex components: grid, pager, suggest, tree.
 
-Some live examples of Camelia can be found at https://rawgit.com/Vedana/angular-camelia-samples/master/sample%2001/dist/ .
+Some live examples of Camelia can be found [HERE](https://rawgit.com/Vedana/angular-camelia-samples/master/sample%2001/dist/).
+
+Sources of theses examples can be acceded in the git repository [angular-camelia-samples](https://rawgit.com/Vedana/angular-camelia-samples).
 
 #### Components
 
